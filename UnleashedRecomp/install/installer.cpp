@@ -67,7 +67,26 @@ static std::unique_ptr<VirtualFileSystem> createFileSystemFromPath(const std::fi
     }
 }
 
-static bool checkFile(const FilePair &pair, const uint64_t *fileHashes, const std::filesystem::path &targetDirectory, std::vector<uint8_t> &fileData, Journal &journal, const std::function<bool()> &progressCallback, bool checkSizeOnly) {
+namespace {
+struct FileBuffer {
+    std::unique_ptr<uint8_t[]> m_data;
+    size_t m_capacity = 0;
+    size_t m_size = 0;
+
+    void ensure(size_t size) {
+        if (size > m_capacity) {
+            m_data = std::make_unique_for_overwrite<uint8_t[]>(size);
+            m_capacity = size;
+        }
+        m_size = size;
+    }
+
+    uint8_t* data() { return m_data.get(); }
+    size_t size() const { return m_size; }
+};
+}
+
+static bool checkFile(const FilePair &pair, const uint64_t *fileHashes, const std::filesystem::path &targetDirectory, FileBuffer &fileData, Journal &journal, const std::function<bool()> &progressCallback, bool checkSizeOnly) {
     const std::string fileName(pair.first);
     const uint32_t hashCount = pair.second;
     const std::filesystem::path filePath = targetDirectory / fileName;
@@ -143,7 +162,7 @@ static bool checkFile(const FilePair &pair, const uint64_t *fileHashes, const st
     return true;
 }
 
-static bool copyFile(const FilePair &pair, const uint64_t *fileHashes, VirtualFileSystem &sourceVfs, const std::filesystem::path &targetDirectory, bool skipHashChecks, std::vector<uint8_t> &fileData, Journal &journal, const std::function<bool()> &progressCallback) {
+static bool copyFile(const FilePair &pair, const uint64_t *fileHashes, VirtualFileSystem &sourceVfs, const std::filesystem::path &targetDirectory, bool skipHashChecks, FileBuffer &fileData, Journal &journal, const std::function<bool()> &progressCallback) {
     const std::string filename(pair.first);
     const uint32_t hashCount = pair.second;
     if (!sourceVfs.exists(filename))
@@ -153,7 +172,16 @@ static bool copyFile(const FilePair &pair, const uint64_t *fileHashes, VirtualFi
         return false;
     }
 
-    if (!sourceVfs.load(filename, fileData))
+    size_t fileSize = sourceVfs.getSize(filename);
+    if (fileSize == 0)
+    {
+        journal.lastResult = Journal::Result::FileReadFailed;
+        journal.lastErrorMessage = fmt::format("Failed to read file {} from {}.", filename, sourceVfs.getName());
+        return false;
+    }
+
+    fileData.ensure(fileSize);
+    if (!sourceVfs.load(filename, fileData.data(), fileSize))
     {
         journal.lastResult = Journal::Result::FileReadFailed;
         journal.lastErrorMessage = fmt::format("Failed to read file {} from {}.", filename, sourceVfs.getName());
@@ -427,7 +455,7 @@ bool Installer::checkFiles(std::span<const FilePair> filePairs, const uint64_t *
     uint32_t validationHashIndex = 0;
     uint32_t hashIndex = 0;
     uint32_t hashCount = 0;
-    std::vector<uint8_t> fileData;
+    FileBuffer fileData;
     for (FilePair pair : filePairs)
     {
         hashIndex = hashCount;
@@ -456,7 +484,7 @@ bool Installer::copyFiles(std::span<const FilePair> filePairs, const uint64_t *f
     uint32_t validationHashIndex = 0;
     uint32_t hashIndex = 0;
     uint32_t hashCount = 0;
-    std::vector<uint8_t> fileData;
+    FileBuffer fileData;
     for (FilePair pair : filePairs)
     {
         hashIndex = hashCount;
