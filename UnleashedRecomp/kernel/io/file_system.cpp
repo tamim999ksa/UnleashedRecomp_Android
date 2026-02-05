@@ -385,23 +385,38 @@ std::filesystem::path FileSystem::ResolvePath(const std::string_view& path, bool
         // rooted folder, handle direction
         std::string_view root = path.substr(0, index);
 
-        // Handle potential file redirection from game to update
-        // This is needed because the game might try to load files from the "game" root
-        // that are actually located in the "update" root (e.g. work folder).
-        // Since we don't support true overlaying/stacking of game files, we check manually.
+        // HACK: The game tries to load work folder from the "game" root path for
+        // Application and shader archives, which does not work in Recomp because
+        // we don't support stacking the update and game files on top of each other.
         if (root == "game")
         {
-            const auto updateRoot = XamGetRootPath("update");
-            if (!updateRoot.empty())
-            {
-                std::string checkPath = std::string(updateRoot);
-                checkPath += '/';
-                checkPath += path.substr(index + 2);
-                std::replace(checkPath.begin(), checkPath.end(), '\\', '/');
+            const std::string_view relativePath = path.substr(index + 2);
+            bool isWork = false;
 
-                std::error_code ec;
-                if (std::filesystem::exists(std::u8string_view((const char8_t*)checkPath.c_str()), ec))
-                    root = "update";
+            if (relativePath.size() >= 4 &&
+                (relativePath[0] | 0x20) == 'w' &&
+                (relativePath[1] | 0x20) == 'o' &&
+                (relativePath[2] | 0x20) == 'r' &&
+                (relativePath[3] | 0x20) == 'k')
+            {
+                if (relativePath.size() == 4 || relativePath[4] == '\\' || relativePath[4] == '/')
+                    isWork = true;
+            }
+
+            if (isWork)
+            {
+                const auto updateRoot = XamGetRootPath("update");
+                if (!updateRoot.empty())
+                {
+                    std::string checkPath = std::string(updateRoot);
+                    checkPath += '/';
+                    checkPath += relativePath;
+                    std::replace(checkPath.begin(), checkPath.end(), '\\', '/');
+
+                    std::error_code ec;
+                    if (std::filesystem::exists(std::u8string_view((const char8_t*)checkPath.c_str()), ec))
+                        root = "update";
+                }
             }
         }
 
