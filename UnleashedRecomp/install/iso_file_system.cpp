@@ -11,7 +11,9 @@
 
 #include "iso_file_system.h"
 
+#include <cstring>
 #include <stack>
+#include <vector>
 
 ISOFileSystem::ISOFileSystem(const std::filesystem::path &isoPath)
 {
@@ -77,6 +79,8 @@ ISOFileSystem::ISOFileSystem(const std::filesystem::path &isoPath)
     std::stack<IterationStep> iterationStack;
     iterationStack.emplace("", rootOffset, 0);
 
+    std::unordered_set<size_t> visitedOffsets;
+
     IterationStep step;
     uint16_t nodeL, nodeR;
     uint32_t sector, length;
@@ -94,6 +98,12 @@ ISOFileSystem::ISOFileSystem(const std::filesystem::path &isoPath)
             mappedFile.close();
             return;
         }
+
+        if (visitedOffsets.count(infoOffset))
+        {
+            continue;
+        }
+        visitedOffsets.insert(infoOffset);
 
         nodeL = *(uint16_t *)(&mappedFileData[infoOffset + 0]);
         nodeR = *(uint16_t *)(&mappedFileData[infoOffset + 2]);
@@ -147,8 +157,15 @@ bool ISOFileSystem::load(const std::string &path, uint8_t *fileData, size_t file
             return false;
         }
 
+        size_t offset = std::get<0>(it->second);
+        size_t length = std::get<1>(it->second);
+        if ((offset + length < offset) || ((offset + length) > mappedFile.size()))
+        {
+            return false;
+        }
+
         const uint8_t *mappedFileData = mappedFile.data();
-        memcpy(fileData, &mappedFileData[std::get<0>(it->second)], std::get<1>(it->second));
+        memcpy(fileData, &mappedFileData[offset], length);
         return true;
     }
     else
