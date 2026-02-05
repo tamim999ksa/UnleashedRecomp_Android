@@ -8,8 +8,6 @@
 
 bool g_isClosed;
 
-float g_achievementMenuIntroTime = 0.0f;
-constexpr float g_achievementMenuIntroThreshold = 3.0f;
 float g_achievementMenuOutroTime = 0.0f;
 constexpr float g_achievementMenuOutroThreshold = 0.32f;
 bool g_isAchievementMenuOutro = false;
@@ -128,8 +126,6 @@ PPC_FUNC(sub_824B0930)
     auto pHudPause = (SWA::CHudPause*)g_memory.Translate(ctx.r3.u32);
     auto pInputState = SWA::CInputState::GetInstance();
 
-    g_achievementMenuIntroTime += App::s_deltaTime;
-
     if (g_isAchievementMenuOutro)
     {
         g_achievementMenuOutroTime += App::s_deltaTime;
@@ -146,8 +142,8 @@ PPC_FUNC(sub_824B0930)
 
     if (AchievementMenu::s_isVisible)
     {
-        // HACK: wait for transition to finish before restoring control.
-        if (g_achievementMenuIntroThreshold >= g_achievementMenuIntroTime)
+        // Wait for transition to finish before restoring control.
+        if (AchievementMenu::IsIntroAnimationPlaying())
             __imp__sub_824B0930(ctx, base);
 
         if (pInputState->GetPadState().IsTapped(SWA::eKeyState_B) && !g_isAchievementMenuOutro)
@@ -168,8 +164,6 @@ PPC_FUNC(sub_824B0930)
     }
     else
     {
-        g_achievementMenuIntroTime = 0;
-
         if (*SWA::SGlobals::ms_IsRenderHud && pHudPause->m_IsShown && !pHudPause->m_Submenu && pHudPause->m_Transition == SWA::eTransitionType_Undefined)
         {
             ButtonGuide::Open(Button("Achievements_Name", FLT_MAX, EButtonIcon::Back, EButtonAlignment::Left, EFontQuality::Low));
