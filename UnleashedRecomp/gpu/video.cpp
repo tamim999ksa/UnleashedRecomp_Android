@@ -5324,31 +5324,52 @@ static void D3DXFillTexture(GuestTexture* texture, uint32_t function, void* data
 
 static void D3DXFillVolumeTexture(GuestTexture* texture, uint32_t function, void* data)
 {
-    uint32_t rowPitch0 = (texture->width * 4 + PITCH_ALIGNMENT - 1) & ~(PITCH_ALIGNMENT - 1);
-    uint32_t slicePitch0 = (rowPitch0 * texture->height * texture->depth + PLACEMENT_ALIGNMENT - 1) & ~(PLACEMENT_ALIGNMENT - 1);
+    uint32_t width = texture->width;
+    uint32_t height = texture->height;
+    uint32_t depth = texture->depth;
 
-    uint32_t rowPitch1 = ((texture->width / 2) * 4 + PITCH_ALIGNMENT - 1) & ~(PITCH_ALIGNMENT - 1);
-    uint32_t slicePitch1 = (rowPitch1 * (texture->height / 2) * (texture->depth / 2) + PLACEMENT_ALIGNMENT - 1) & ~(PLACEMENT_ALIGNMENT - 1);
+    uint32_t rowPitch0 = (width * 4 + PITCH_ALIGNMENT - 1) & ~(PITCH_ALIGNMENT - 1);
+    uint32_t slicePitch0 = (rowPitch0 * height * depth + PLACEMENT_ALIGNMENT - 1) & ~(PLACEMENT_ALIGNMENT - 1);
+
+    uint32_t halfWidth = width / 2;
+    uint32_t halfHeight = height / 2;
+    uint32_t halfDepth = depth / 2;
+
+    uint32_t rowPitch1 = (halfWidth * 4 + PITCH_ALIGNMENT - 1) & ~(PITCH_ALIGNMENT - 1);
+    uint32_t slicePitch1 = (rowPitch1 * halfHeight * halfDepth + PLACEMENT_ALIGNMENT - 1) & ~(PLACEMENT_ALIGNMENT - 1);
 
     auto uploadBuffer = g_device->createBuffer(RenderBufferDesc::UploadBuffer(slicePitch0 + slicePitch1));
     uint8_t* mappedData = reinterpret_cast<uint8_t*>(uploadBuffer->map());
 
     thread_local std::vector<float> mipData;
-    mipData.resize((texture->width / 2) * (texture->height / 2) * (texture->depth / 2) * 4);
+    mipData.resize(halfWidth * halfHeight * halfDepth * 4);
     memset(mipData.data(), 0, mipData.size() * sizeof(float));
 
-    for (size_t z = 0; z < texture->depth; z++)
+    if (function == 0x82BC7820)
     {
-        for (size_t y = 0; y < texture->height; y++)
+        for (size_t z = 0; z < depth; z++)
         {
-            for (size_t x = 0; x < texture->width; x++)
-            {
-                auto dest = mappedData + z * rowPitch0 * texture->height + y * rowPitch0 + x * sizeof(uint32_t);
-                size_t index = z * texture->width * texture->height + y * texture->width + x;
-                size_t mipIndex = ((z / 2) * (texture->width / 2) * (texture->height / 2) + (y / 2) * (texture->width / 2) + x / 2) * 4;
+            uint8_t* destSlice = mappedData + z * rowPitch0 * height;
+            size_t zIndexBase = z * width * height;
 
-                if (function == 0x82BC7820)
+            size_t zDiv2 = z / 2;
+            size_t mipIndexBaseZ = zDiv2 * halfWidth * halfHeight;
+
+            for (size_t y = 0; y < height; y++)
+            {
+                uint8_t* destRow = destSlice + y * rowPitch0;
+                size_t yIndexBase = zIndexBase + y * width;
+
+                size_t yDiv2 = y / 2;
+                size_t mipIndexBaseY = (mipIndexBaseZ + yDiv2 * halfWidth) * 4;
+
+                for (size_t x = 0; x < width; x++)
                 {
+                    auto dest = destRow + x * 4;
+                    size_t index = yIndexBase + x;
+
+                    size_t mipIndex = mipIndexBaseY + (x / 2) * 4;
+
                     auto src = reinterpret_cast<be<float>*>(data) + index * 4;
 
                     float r = static_cast<uint8_t>(src[0] * 255.0f);
@@ -5366,8 +5387,34 @@ static void D3DXFillVolumeTexture(GuestTexture* texture, uint32_t function, void
                     mipData[mipIndex + 2] += b;
                     mipData[mipIndex + 3] += a;
                 }
-                else if (function == 0x82BC78A8)
+            }
+        }
+    }
+    else if (function == 0x82BC78A8)
+    {
+        for (size_t z = 0; z < depth; z++)
+        {
+            uint8_t* destSlice = mappedData + z * rowPitch0 * height;
+            size_t zIndexBase = z * width * height;
+
+            size_t zDiv2 = z / 2;
+            size_t mipIndexBaseZ = zDiv2 * halfWidth * halfHeight;
+
+            for (size_t y = 0; y < height; y++)
+            {
+                uint8_t* destRow = destSlice + y * rowPitch0;
+                size_t yIndexBase = zIndexBase + y * width;
+
+                size_t yDiv2 = y / 2;
+                size_t mipIndexBaseY = (mipIndexBaseZ + yDiv2 * halfWidth) * 4;
+
+                for (size_t x = 0; x < width; x++)
                 {
+                    auto dest = destRow + x * 4;
+                    size_t index = yIndexBase + x;
+
+                    size_t mipIndex = mipIndexBaseY + (x / 2) * 4;
+
                     auto src = reinterpret_cast<uint8_t*>(data) + index * 4;
 
                     dest[0] = src[3];
@@ -5384,14 +5431,20 @@ static void D3DXFillVolumeTexture(GuestTexture* texture, uint32_t function, void
         }
     }
 
-    for (size_t z = 0; z < texture->depth / 2; z++)
+    for (size_t z = 0; z < halfDepth; z++)
     {
-        for (size_t y = 0; y < texture->height / 2; y++)
+        uint8_t* destSlice = mappedData + slicePitch0 + z * rowPitch1 * halfHeight;
+        size_t zIndexBase = z * halfWidth * halfHeight;
+
+        for (size_t y = 0; y < halfHeight; y++)
         {
-            for (size_t x = 0; x < texture->width / 2; x++)
+            uint8_t* destRow = destSlice + y * rowPitch1;
+            size_t yIndexBase = zIndexBase + y * halfWidth;
+
+            for (size_t x = 0; x < halfWidth; x++)
             {
-                auto dest = mappedData + slicePitch0 + z * rowPitch1 * (texture->height / 2) + y * rowPitch1 + x * sizeof(uint32_t);
-                size_t index = (z * (texture->width / 2) * (texture->height / 2) + y * (texture->width / 2) + x) * 4;
+                auto dest = destRow + x * 4;
+                size_t index = (yIndexBase + x) * 4;
 
                 dest[0] = static_cast<uint8_t>(mipData[index + 0] / 8.0f);
                 dest[1] = static_cast<uint8_t>(mipData[index + 1] / 8.0f);
