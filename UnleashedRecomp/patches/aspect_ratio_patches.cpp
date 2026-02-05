@@ -90,14 +90,14 @@ static void EmplacePath(const void* key, const std::string_view& value)
     g_paths.emplace(key, HashStr(value));
 }
 
-static void TraverseCast(Chao::CSD::Scene* scene, uint32_t castNodeIndex, Chao::CSD::CastNode* castNode, uint32_t castIndex, const std::string& parentPath)
+static void TraverseCast(Chao::CSD::Scene* scene, uint32_t castNodeIndex, Chao::CSD::CastNode* castNode, uint32_t castIndex, std::string& path)
 {
     if (castIndex == ~0)
         return;
 
-    TraverseCast(scene, castNodeIndex, castNode, castNode->pCastLinks[castIndex].SiblingCastIndex, parentPath);
+    TraverseCast(scene, castNodeIndex, castNode, castNode->pCastLinks[castIndex].SiblingCastIndex, path);
 
-    std::string path = parentPath;
+    size_t originalLen = path.length();
 
     for (size_t i = 0; i < scene->CastCount; i++)
     {
@@ -117,9 +117,11 @@ static void TraverseCast(Chao::CSD::Scene* scene, uint32_t castNodeIndex, Chao::
     path += "/";
 
     TraverseCast(scene, castNodeIndex, castNode, castNode->pCastLinks[castIndex].ChildCastIndex, path);
+
+    path.resize(originalLen);
 }
 
-static void TraverseScene(Chao::CSD::Scene* scene, std::string path)
+static void TraverseScene(Chao::CSD::Scene* scene, std::string& path)
 {
     EmplacePath(scene, path);
     path += "/";
@@ -129,9 +131,10 @@ static void TraverseScene(Chao::CSD::Scene* scene, std::string path)
         auto& castNode = scene->pCastNodes[i];
         TraverseCast(scene, i, &castNode, castNode.RootCastIndex, path);
     }
+    path.pop_back();
 }
 
-static void TraverseSceneNode(Chao::CSD::SceneNode* sceneNode, std::string path)
+static void TraverseSceneNode(Chao::CSD::SceneNode* sceneNode, std::string& path)
 {
     EmplacePath(sceneNode, path);
     path += "/";
@@ -139,14 +142,21 @@ static void TraverseSceneNode(Chao::CSD::SceneNode* sceneNode, std::string path)
     for (size_t i = 0; i < sceneNode->SceneCount; i++)
     {
         auto& sceneIndex = sceneNode->pSceneIndices[i];
-        TraverseScene(sceneNode->pScenes[sceneIndex.SceneIndex], path + sceneIndex.pSceneName.get());
+        size_t len = path.length();
+        path += sceneIndex.pSceneName.get();
+        TraverseScene(sceneNode->pScenes[sceneIndex.SceneIndex], path);
+        path.resize(len);
     }
 
     for (size_t i = 0; i < sceneNode->SceneNodeCount; i++)
     {
         auto& sceneNodeIndex = sceneNode->pSceneNodeIndices[i];
-        TraverseSceneNode(&sceneNode->pSceneNodes[sceneNodeIndex.SceneNodeIndex], path + sceneNodeIndex.pSceneNodeName.get());
+        size_t len = path.length();
+        path += sceneNodeIndex.pSceneNodeName.get();
+        TraverseSceneNode(&sceneNode->pSceneNodes[sceneNodeIndex.SceneNodeIndex], path);
+        path.resize(len);
     }
+    path.pop_back();
 }
 
 void MakeCsdProjectMidAsmHook(PPCRegister& r3, PPCRegister& r29)
@@ -154,7 +164,8 @@ void MakeCsdProjectMidAsmHook(PPCRegister& r3, PPCRegister& r29)
     uint8_t* base = g_memory.base;
     auto csdProject = reinterpret_cast<Chao::CSD::CProject*>(base + PPC_LOAD_U32(PPC_LOAD_U32(r3.u32 + 16) + 4));
     auto name = reinterpret_cast<const char*>(base + PPC_LOAD_U32(r29.u32));
-    TraverseSceneNode(csdProject->m_pResource->pRootNode, name);
+    std::string path = name;
+    TraverseSceneNode(csdProject->m_pResource->pRootNode, path);
 }
 
 // Chao::CSD::CMemoryAlloc::Free
