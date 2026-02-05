@@ -79,6 +79,8 @@ ISOFileSystem::ISOFileSystem(const std::filesystem::path &isoPath)
     std::stack<IterationStep> iterationStack;
     iterationStack.emplace("", rootOffset, 0);
 
+    std::unordered_set<size_t> visitedOffsets;
+
     IterationStep step;
     uint16_t nodeL, nodeR;
     uint32_t sector, length;
@@ -96,6 +98,12 @@ ISOFileSystem::ISOFileSystem(const std::filesystem::path &isoPath)
             mappedFile.close();
             return;
         }
+
+        if (visitedOffsets.count(infoOffset))
+        {
+            continue;
+        }
+        visitedOffsets.insert(infoOffset);
 
         nodeL = *(uint16_t *)(&mappedFileData[infoOffset + 0]);
         nodeR = *(uint16_t *)(&mappedFileData[infoOffset + 2]);
