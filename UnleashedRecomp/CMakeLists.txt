@@ -1,5 +1,23 @@
 project("UnleashedRecomp")
 
+if (ANDROID AND CMAKE_CROSSCOMPILING)
+    set(DXC_BIN_ROOT "${CMAKE_SOURCE_DIR}/tools/XenosRecomp/thirdparty/dxc-bin")
+
+    if (CMAKE_HOST_SYSTEM_PROCESSOR MATCHES "arm64|aarch64")
+        set(DXC_HOST_ARCH "arm64")
+    else()
+        set(DXC_HOST_ARCH "x64")
+    endif()
+
+    if (CMAKE_HOST_SYSTEM_NAME STREQUAL "Linux")
+        set(DIRECTX_DXC_TOOL "LD_LIBRARY_PATH=${DXC_BIN_ROOT}/lib/${DXC_HOST_ARCH}" "${DXC_BIN_ROOT}/bin/${DXC_HOST_ARCH}/dxc-linux" CACHE INTERNAL "Force override dxc tool" FORCE)
+    elseif (CMAKE_HOST_SYSTEM_NAME STREQUAL "Darwin")
+        set(DIRECTX_DXC_TOOL "DYLD_LIBRARY_PATH=${DXC_BIN_ROOT}/lib/${DXC_HOST_ARCH}" "${DXC_BIN_ROOT}/bin/${DXC_HOST_ARCH}/dxc-macos" CACHE INTERNAL "Force override dxc tool" FORCE)
+    elseif (CMAKE_HOST_SYSTEM_NAME STREQUAL "Windows")
+         set(DIRECTX_DXC_TOOL "${DXC_BIN_ROOT}/bin/${DXC_HOST_ARCH}/dxc.exe" CACHE INTERNAL "Force override dxc tool" FORCE)
+    endif()
+endif()
+
 if (WIN32)
     option(UNLEASHED_RECOMP_D3D12 "Add D3D12 support for rendering" ON)
 endif()
@@ -104,6 +122,14 @@ elseif (APPLE)
         "os/macos/process_macos.cpp"
         "os/macos/user_macos.cpp"
         "os/macos/version_macos.cpp"
+    )
+elseif (ANDROID)
+    set(UNLEASHED_RECOMP_OS_CXX_SOURCES
+        "os/android/logger_android.cpp"
+        "os/android/media_android.cpp"
+        "os/android/process_android.cpp"
+        "os/android/user_android.cpp"
+        "os/android/version_android.cpp"
     )
 endif()
 
@@ -229,7 +255,7 @@ set(UNLEASHED_RECOMP_CXX_SOURCES
     "sdl_listener.cpp"
     "stdafx.cpp"
     "version.cpp"
-    
+
     ${UNLEASHED_RECOMP_KERNEL_CXX_SOURCES}
     ${UNLEASHED_RECOMP_LOCALE_CXX_SOURCES}
     ${UNLEASHED_RECOMP_OS_CXX_SOURCES}
@@ -346,7 +372,7 @@ else()
 endif()
 
 if (UNLEASHED_RECOMP_FLATPAK)
-    target_compile_definitions(UnleashedRecomp PRIVATE 
+    target_compile_definitions(UnleashedRecomp PRIVATE
         "UNLEASHED_RECOMP_FLATPAK"
         "GAME_INSTALL_DIRECTORY=\"/var/data\""
     )
@@ -413,6 +439,10 @@ if (CMAKE_SYSTEM_NAME MATCHES "Linux")
     find_package(X11 REQUIRED)
     target_include_directories(UnleashedRecomp PRIVATE ${X11_INCLUDE_DIR})
     target_link_libraries(UnleashedRecomp PRIVATE ${X11_LIBRARIES})
+endif()
+
+if (ANDROID)
+    target_link_libraries(UnleashedRecomp PRIVATE log)
 endif()
 
 target_precompile_headers(UnleashedRecomp PUBLIC ${UNLEASHED_RECOMP_PRECOMPILED_HEADERS})
