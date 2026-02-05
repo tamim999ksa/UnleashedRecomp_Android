@@ -1,6 +1,8 @@
 #include "mod_loader.h"
 #include "ini_file.h"
 
+#include <algorithm>
+#include <cctype>
 #include <api/Hedgehog/Base/System/hhAllocator.h>
 #include <cpu/guest_stack_var.h>
 #include <kernel/function.h>
@@ -26,6 +28,7 @@ struct Mod
 };
 
 static std::vector<Mod> g_mods;
+static ankerl::unordered_dense::map<std::string, std::vector<std::pair<size_t, std::filesystem::path>>> g_modFileIndex;
 
 std::filesystem::path ModLoader::ResolvePath(std::string_view path)
 {
@@ -63,23 +66,27 @@ std::filesystem::path ModLoader::ResolvePath(std::string_view path)
 
     std::string pathStr(path);
     std::replace(pathStr.begin(), pathStr.end(), '\\', '/');
-    std::filesystem::path fsPath(std::move(pathStr));
 
-    bool canBeMerged = 
-        path.find(".arl") == (path.size() - 4) ||
-        path.find(".ar.") == (path.size() - 6) ||
-        path.find(".ar") == (path.size() - 3);
+    std::string key = pathStr;
+    std::transform(key.begin(), key.end(), key.begin(), [](unsigned char c) { return std::tolower(c); });
 
-    for (auto& mod : g_mods)
+    auto it = g_modFileIndex.find(key);
+    if (it != g_modFileIndex.end())
     {
-        if (mod.type == ModType::UMM && mod.merge && canBeMerged && !mod.readOnly.contains(fsPath))
-            continue;
+        std::filesystem::path fsPath(pathStr);
 
-        for (auto& includeDir : mod.includeDirs)
+        bool canBeMerged =
+            path.find(".arl") == (path.size() - 4) ||
+            path.find(".ar.") == (path.size() - 6) ||
+            path.find(".ar") == (path.size() - 3);
+
+        for (const auto& [modIndex, fullPath] : it->second)
         {
-            std::filesystem::path modPath = includeDir / fsPath;
-            if (std::filesystem::exists(modPath))
-                return s_cache.emplace(hash, modPath).first->second;
+            const auto& mod = g_mods[modIndex];
+            if (mod.type == ModType::UMM && mod.merge && canBeMerged && !mod.readOnly.contains(fsPath))
+                continue;
+
+            return s_cache.emplace(hash, fullPath).first->second;
         }
     }
 
@@ -215,6 +222,35 @@ void ModLoader::Init()
 
         if (!mod.includeDirs.empty())
             g_mods.emplace_back(std::move(mod));
+    }
+
+    g_modFileIndex.clear();
+    for (size_t i = 0; i < g_mods.size(); ++i)
+    {
+        const auto& mod = g_mods[i];
+        for (const auto& dir : mod.includeDirs)
+        {
+            if (!std::filesystem::exists(dir))
+                continue;
+
+            try
+            {
+                for (const auto& entry : std::filesystem::recursive_directory_iterator(dir))
+                {
+                    if (entry.is_regular_file())
+                    {
+                        std::filesystem::path relPath = std::filesystem::relative(entry.path(), dir);
+                        std::string relPathStr = relPath.generic_string();
+                        std::string key = relPathStr;
+                        std::transform(key.begin(), key.end(), key.begin(), [](unsigned char c) { return std::tolower(c); });
+                        g_modFileIndex[key].emplace_back(i, entry.path());
+                    }
+                }
+            }
+            catch (...)
+            {
+            }
+        }
     }
 
     auto codeCount = modsDbIni.get<size_t>("Codes", "CodeCount", 0);
