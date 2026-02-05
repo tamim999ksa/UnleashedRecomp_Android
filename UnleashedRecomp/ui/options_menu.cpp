@@ -59,7 +59,16 @@ static constexpr float PADDING_NARROW_GRID_COUNT = 1.0f;
 
 static constexpr float INFO_TEXT_MARQUEE_DELAY = 1.2f;
 
-static constexpr int32_t g_categoryCount = 4;
+enum OptionsCategory
+{
+    OptionsCategory_System = 0,
+    OptionsCategory_Input,
+    OptionsCategory_Audio,
+    OptionsCategory_Video,
+    OptionsCategory_Count
+};
+
+static constexpr int32_t g_categoryCount = OptionsCategory_Count;
 static int32_t g_categoryIndex;
 static ImVec2 g_categoryAnimMin;
 static ImVec2 g_categoryAnimMax;
@@ -416,13 +425,12 @@ static void DrawContainer(ImVec2 min, ImVec2 max, bool drawRightOutline)
 
 static std::string& GetCategory(int index)
 {
-    // TODO: Don't use raw numbers here!
     switch (index)
     {
-        case 0: return Localise("Options_Category_System");
-        case 1: return Localise("Options_Category_Input");
-        case 2: return Localise("Options_Category_Audio");
-        case 3: return Localise("Options_Category_Video");
+        case OptionsCategory_System: return Localise("Options_Category_System");
+        case OptionsCategory_Input: return Localise("Options_Category_Input");
+        case OptionsCategory_Audio: return Localise("Options_Category_Audio");
+        case OptionsCategory_Video: return Localise("Options_Category_Video");
     }
 
     return g_localeMissing;
@@ -1223,10 +1231,9 @@ static void DrawConfigOptions()
     bool isStage = OptionsMenu::s_pauseMenuType == SWA::eMenuType_Stage || OptionsMenu::s_pauseMenuType == SWA::eMenuType_Hub;
     auto cmnReason = &Localise("Options_Desc_NotAvailable");
 
-    // TODO: Don't use raw numbers here!
     switch (g_categoryIndex)
     {
-        case 0: // SYSTEM
+        case OptionsCategory_System: // SYSTEM
             DrawConfigOption(rowCount++, yOffset, &Config::Language, !OptionsMenu::s_isPause, cmnReason);
             DrawConfigOption(rowCount++, yOffset, &Config::VoiceLanguage, OptionsMenu::s_pauseMenuType == SWA::eMenuType_WorldMap, cmnReason);
             DrawConfigOption(rowCount++, yOffset, &Config::Subtitles, true);
@@ -1236,7 +1243,7 @@ static void DrawConfigOptions()
             DrawConfigOption(rowCount++, yOffset, &Config::TimeOfDayTransition, !Config::UseArrowsForTimeOfDayTransition);
             break;
 
-        case 1: // INPUT
+        case OptionsCategory_Input: // INPUT
             DrawConfigOption(rowCount++, yOffset, &Config::HorizontalCamera, true);
             DrawConfigOption(rowCount++, yOffset, &Config::VerticalCamera, true);
             DrawConfigOption(rowCount++, yOffset, &Config::Vibration, true);
@@ -1244,7 +1251,7 @@ static void DrawConfigOptions()
             DrawConfigOption(rowCount++, yOffset, &Config::ControllerIcons, true);
             break;
 
-        case 2: // AUDIO
+        case OptionsCategory_Audio: // AUDIO
             DrawConfigOption(rowCount++, yOffset, &Config::MasterVolume, true);
             DrawConfigOption(rowCount++, yOffset, &Config::MusicVolume, true);
             DrawConfigOption(rowCount++, yOffset, &Config::EffectsVolume, true);
@@ -1253,7 +1260,7 @@ static void DrawConfigOptions()
             DrawConfigOption(rowCount++, yOffset, &Config::BattleTheme, true);
             break;
 
-        case 3: // VIDEO
+        case OptionsCategory_Video: // VIDEO
         {
             DrawConfigOption(rowCount++, yOffset, &Config::WindowSize,
                 !Config::Fullscreen, &Localise("Options_Desc_NotAvailableFullscreen"),
