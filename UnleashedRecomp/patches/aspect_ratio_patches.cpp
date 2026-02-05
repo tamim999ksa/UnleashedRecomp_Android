@@ -85,9 +85,8 @@ static XXH64_hash_t HashStr(const std::string_view& value)
     return XXH3_64bits(value.data(), value.size());
 }
 
-static void EmplacePath(const void* key, const std::string_view& value)
+static void EmplacePathUnsafe(const void* key, const std::string_view& value)
 {
-    std::lock_guard lock(g_pathMutex);
     g_paths.emplace(key, HashStr(value));
 }
 
@@ -110,10 +109,10 @@ static void TraverseCast(Chao::CSD::Scene* scene, uint32_t castNodeIndex, Chao::
         }
     }
 
-    EmplacePath(castNode->pCasts[castIndex].get(), path);
+    EmplacePathUnsafe(castNode->pCasts[castIndex].get(), path);
 
     if (castNode->RootCastIndex == castIndex)
-        EmplacePath(castNode, path);
+        EmplacePathUnsafe(castNode, path);
 
     path += "/";
 
@@ -122,7 +121,7 @@ static void TraverseCast(Chao::CSD::Scene* scene, uint32_t castNodeIndex, Chao::
 
 static void TraverseScene(Chao::CSD::Scene* scene, std::string path)
 {
-    EmplacePath(scene, path);
+    EmplacePathUnsafe(scene, path);
     path += "/";
 
     for (size_t i = 0; i < scene->CastNodeCount; i++)
@@ -132,9 +131,9 @@ static void TraverseScene(Chao::CSD::Scene* scene, std::string path)
     }
 }
 
-static void TraverseSceneNode(Chao::CSD::SceneNode* sceneNode, std::string path)
+static void TraverseSceneNodeImpl(Chao::CSD::SceneNode* sceneNode, std::string path)
 {
-    EmplacePath(sceneNode, path);
+    EmplacePathUnsafe(sceneNode, path);
     path += "/";
 
     for (size_t i = 0; i < sceneNode->SceneCount; i++)
@@ -146,8 +145,14 @@ static void TraverseSceneNode(Chao::CSD::SceneNode* sceneNode, std::string path)
     for (size_t i = 0; i < sceneNode->SceneNodeCount; i++)
     {
         auto& sceneNodeIndex = sceneNode->pSceneNodeIndices[i];
-        TraverseSceneNode(&sceneNode->pSceneNodes[sceneNodeIndex.SceneNodeIndex], path + sceneNodeIndex.pSceneNodeName.get());
+        TraverseSceneNodeImpl(&sceneNode->pSceneNodes[sceneNodeIndex.SceneNodeIndex], path + sceneNodeIndex.pSceneNodeName.get());
     }
+}
+
+static void TraverseSceneNode(Chao::CSD::SceneNode* sceneNode, std::string path)
+{
+    std::lock_guard lock(g_pathMutex);
+    TraverseSceneNodeImpl(sceneNode, path);
 }
 
 void MakeCsdProjectMidAsmHook(PPCRegister& r3, PPCRegister& r29)
