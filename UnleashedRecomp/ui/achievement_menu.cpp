@@ -786,3 +786,9 @@ void AchievementMenu::Close()
     Game_PlaySound("sys_actstg_pausewinclose");
     Game_PlaySound("sys_actstg_pausecansel");
 }
+
+bool AchievementMenu::IsIntroAnimationPlaying()
+{
+    return s_isVisible && !g_isClosing &&
+        ComputeMotion(g_appearTime, CONTENT_CONTAINER_COMMON_MOTION_START, CONTENT_CONTAINER_COMMON_MOTION_END) < 1.0;
+}

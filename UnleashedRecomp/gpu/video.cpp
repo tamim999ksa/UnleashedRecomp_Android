@@ -839,6 +839,7 @@ enum class RenderCommandType
     SetStreamSource,
     SetIndices,
     SetPixelShader,
+    ExecuteLambda,
 };
 
 struct RenderCommand
@@ -846,6 +847,13 @@ struct RenderCommand
     RenderCommandType type;
     union
     {
+        struct
+        {
+            void* lambdaPtr;
+            void (*executor)(void*);
+            void (*deleter)(void*);
+        } executeLambda;
+
         struct
         {
             GuestRenderState type;
@@ -1004,6 +1012,30 @@ struct RenderCommand
 };
 
 static moodycamel::BlockingConcurrentQueue<RenderCommand> g_renderQueue;
+
+static void ProcExecuteLambda(const RenderCommand& cmd)
+{
+    cmd.executeLambda.executor(cmd.executeLambda.lambdaPtr);
+    cmd.executeLambda.deleter(cmd.executeLambda.lambdaPtr);
+}
+
+template<typename F>
+static void EnqueueLambda(F&& f)
+{
+    using LambdaType = std::decay_t<F>;
+    auto* lambda = new LambdaType(std::forward<F>(f));
+
+    RenderCommand cmd;
+    cmd.type = RenderCommandType::ExecuteLambda;
+    cmd.executeLambda.lambdaPtr = lambda;
+    cmd.executeLambda.executor = [](void* ptr) {
+        (*static_cast<LambdaType*>(ptr))();
+    };
+    cmd.executeLambda.deleter = [](void* ptr) {
+        delete static_cast<LambdaType*>(ptr);
+    };
+    g_renderQueue.enqueue(cmd);
+}
 
 template<GuestRenderState TType>
 static void SetRenderState(GuestDevice* device, uint32_t value)
@@ -5293,6 +5325,7 @@ static std::thread g_renderThread([]
                 case RenderCommandType::SetStreamSource:                   ProcSetStreamSource(cmd); break;
                 case RenderCommandType::SetIndices:                        ProcSetIndices(cmd); break;
                 case RenderCommandType::SetPixelShader:                    ProcSetPixelShader(cmd); break;
+                case RenderCommandType::ExecuteLambda:                     ProcExecuteLambda(cmd); break;
                 default:                                                   assert(false && "Unrecognized render command type."); break;
                 }
             }
@@ -5324,31 +5357,52 @@ static void D3DXFillTexture(GuestTexture* texture, uint32_t function, void* data
 
 static void D3DXFillVolumeTexture(GuestTexture* texture, uint32_t function, void* data)
 {
-    uint32_t rowPitch0 = (texture->width * 4 + PITCH_ALIGNMENT - 1) & ~(PITCH_ALIGNMENT - 1);
-    uint32_t slicePitch0 = (rowPitch0 * texture->height * texture->depth + PLACEMENT_ALIGNMENT - 1) & ~(PLACEMENT_ALIGNMENT - 1);
+    uint32_t width = texture->width;
+    uint32_t height = texture->height;
+    uint32_t depth = texture->depth;
 
-    uint32_t rowPitch1 = ((texture->width / 2) * 4 + PITCH_ALIGNMENT - 1) & ~(PITCH_ALIGNMENT - 1);
-    uint32_t slicePitch1 = (rowPitch1 * (texture->height / 2) * (texture->depth / 2) + PLACEMENT_ALIGNMENT - 1) & ~(PLACEMENT_ALIGNMENT - 1);
+    uint32_t rowPitch0 = (width * 4 + PITCH_ALIGNMENT - 1) & ~(PITCH_ALIGNMENT - 1);
+    uint32_t slicePitch0 = (rowPitch0 * height * depth + PLACEMENT_ALIGNMENT - 1) & ~(PLACEMENT_ALIGNMENT - 1);
+
+    uint32_t halfWidth = width / 2;
+    uint32_t halfHeight = height / 2;
+    uint32_t halfDepth = depth / 2;
+
+    uint32_t rowPitch1 = (halfWidth * 4 + PITCH_ALIGNMENT - 1) & ~(PITCH_ALIGNMENT - 1);
+    uint32_t slicePitch1 = (rowPitch1 * halfHeight * halfDepth + PLACEMENT_ALIGNMENT - 1) & ~(PLACEMENT_ALIGNMENT - 1);
 
     auto uploadBuffer = g_device->createBuffer(RenderBufferDesc::UploadBuffer(slicePitch0 + slicePitch1));
     uint8_t* mappedData = reinterpret_cast<uint8_t*>(uploadBuffer->map());
 
     thread_local std::vector<float> mipData;
-    mipData.resize((texture->width / 2) * (texture->height / 2) * (texture->depth / 2) * 4);
+    mipData.resize(halfWidth * halfHeight * halfDepth * 4);
     memset(mipData.data(), 0, mipData.size() * sizeof(float));
 
-    for (size_t z = 0; z < texture->depth; z++)
+    if (function == 0x82BC7820)
     {
-        for (size_t y = 0; y < texture->height; y++)
+        for (size_t z = 0; z < depth; z++)
         {
-            for (size_t x = 0; x < texture->width; x++)
-            {
-                auto dest = mappedData + z * rowPitch0 * texture->height + y * rowPitch0 + x * sizeof(uint32_t);
-                size_t index = z * texture->width * texture->height + y * texture->width + x;
-                size_t mipIndex = ((z / 2) * (texture->width / 2) * (texture->height / 2) + (y / 2) * (texture->width / 2) + x / 2) * 4;
+            uint8_t* destSlice = mappedData + z * rowPitch0 * height;
+            size_t zIndexBase = z * width * height;
 
-                if (function == 0x82BC7820)
+            size_t zDiv2 = z / 2;
+            size_t mipIndexBaseZ = zDiv2 * halfWidth * halfHeight;
+
+            for (size_t y = 0; y < height; y++)
+            {
+                uint8_t* destRow = destSlice + y * rowPitch0;
+                size_t yIndexBase = zIndexBase + y * width;
+
+                size_t yDiv2 = y / 2;
+                size_t mipIndexBaseY = (mipIndexBaseZ + yDiv2 * halfWidth) * 4;
+
+                for (size_t x = 0; x < width; x++)
                 {
+                    auto dest = destRow + x * 4;
+                    size_t index = yIndexBase + x;
+
+                    size_t mipIndex = mipIndexBaseY + (x / 2) * 4;
+
                     auto src = reinterpret_cast<be<float>*>(data) + index * 4;
 
                     float r = static_cast<uint8_t>(src[0] * 255.0f);
@@ -5366,8 +5420,34 @@ static void D3DXFillVolumeTexture(GuestTexture* texture, uint32_t function, void
                     mipData[mipIndex + 2] += b;
                     mipData[mipIndex + 3] += a;
                 }
-                else if (function == 0x82BC78A8)
+            }
+        }
+    }
+    else if (function == 0x82BC78A8)
+    {
+        for (size_t z = 0; z < depth; z++)
+        {
+            uint8_t* destSlice = mappedData + z * rowPitch0 * height;
+            size_t zIndexBase = z * width * height;
+
+            size_t zDiv2 = z / 2;
+            size_t mipIndexBaseZ = zDiv2 * halfWidth * halfHeight;
+
+            for (size_t y = 0; y < height; y++)
+            {
+                uint8_t* destRow = destSlice + y * rowPitch0;
+                size_t yIndexBase = zIndexBase + y * width;
+
+                size_t yDiv2 = y / 2;
+                size_t mipIndexBaseY = (mipIndexBaseZ + yDiv2 * halfWidth) * 4;
+
+                for (size_t x = 0; x < width; x++)
                 {
+                    auto dest = destRow + x * 4;
+                    size_t index = yIndexBase + x;
+
+                    size_t mipIndex = mipIndexBaseY + (x / 2) * 4;
+
                     auto src = reinterpret_cast<uint8_t*>(data) + index * 4;
 
                     dest[0] = src[3];
@@ -5384,14 +5464,20 @@ static void D3DXFillVolumeTexture(GuestTexture* texture, uint32_t function, void
         }
     }
 
-    for (size_t z = 0; z < texture->depth / 2; z++)
+    for (size_t z = 0; z < halfDepth; z++)
     {
-        for (size_t y = 0; y < texture->height / 2; y++)
+        uint8_t* destSlice = mappedData + slicePitch0 + z * rowPitch1 * halfHeight;
+        size_t zIndexBase = z * halfWidth * halfHeight;
+
+        for (size_t y = 0; y < halfHeight; y++)
         {
-            for (size_t x = 0; x < texture->width / 2; x++)
+            uint8_t* destRow = destSlice + y * rowPitch1;
+            size_t yIndexBase = zIndexBase + y * halfWidth;
+
+            for (size_t x = 0; x < halfWidth; x++)
             {
-                auto dest = mappedData + slicePitch0 + z * rowPitch1 * (texture->height / 2) + y * rowPitch1 + x * sizeof(uint32_t);
-                size_t index = (z * (texture->width / 2) * (texture->height / 2) + y * (texture->width / 2) + x) * 4;
+                auto dest = destRow + x * 4;
+                size_t index = (yIndexBase + x) * 4;
 
                 dest[0] = static_cast<uint8_t>(mipData[index + 0] / 8.0f);
                 dest[1] = static_cast<uint8_t>(mipData[index + 1] / 8.0f);
@@ -5621,6 +5707,95 @@ static RenderFormat ConvertDXGIFormat(ddspp::DXGIFormat format)
     }
 }
 
+GuestTexture::~GuestTexture()
+{
+    if (asyncToken)
+        *asyncToken = false;
+}
+
+struct TextureLoadTask
+{
+    std::vector<uint8_t> data;
+    std::shared_ptr<RenderTexture> textureHolder;
+    uint32_t descriptorIndex;
+    std::shared_ptr<std::atomic<bool>> asyncToken;
+    RenderTexture* texturePtr;
+    int width;
+    int height;
+};
+
+static moodycamel::BlockingConcurrentQueue<TextureLoadTask> g_textureLoadQueue;
+
+static void TextureLoaderThread()
+{
+#ifdef _WIN32
+    GuestThread::SetThreadName(GetCurrentThreadId(), "Texture Loader Thread");
+#endif
+
+    TextureLoadTask task;
+    while (true)
+    {
+        g_textureLoadQueue.wait_dequeue(task);
+
+        int w, h, c;
+        void* stbImage = stbi_load_from_memory(task.data.data(), (int)task.data.size(), &w, &h, &c, 4);
+
+        if (stbImage != nullptr)
+        {
+            if (task.asyncToken && *task.asyncToken)
+            {
+                uint32_t rowPitch = (task.width * 4 + PITCH_ALIGNMENT - 1) & ~(PITCH_ALIGNMENT - 1);
+                uint32_t slicePitch = rowPitch * task.height;
+
+                auto uploadBuffer = g_device->createBuffer(RenderBufferDesc::UploadBuffer(slicePitch));
+                uint8_t* mappedMemory = reinterpret_cast<uint8_t*>(uploadBuffer->map());
+
+                if (rowPitch == (task.width * 4))
+                {
+                    memcpy(mappedMemory, stbImage, slicePitch);
+                }
+                else
+                {
+                    auto data = reinterpret_cast<const uint8_t*>(stbImage);
+
+                    for (size_t i = 0; i < task.height; i++)
+                    {
+                        memcpy(mappedMemory, data, task.width * 4);
+                        data += task.width * 4;
+                        mappedMemory += rowPitch;
+                    }
+                }
+
+                uploadBuffer->unmap();
+
+                ExecuteCopyCommandList([&]
+                    {
+                        g_copyCommandList->barriers(RenderBarrierStage::COPY, RenderTextureBarrier(task.texturePtr, RenderTextureLayout::COPY_DEST));
+
+                        g_copyCommandList->copyTextureRegion(
+                            RenderTextureCopyLocation::Subresource(task.texturePtr, 0),
+                            RenderTextureCopyLocation::PlacedFootprint(uploadBuffer.get(), RenderFormat::R8G8B8A8_UNORM, task.width, task.height, 1, rowPitch / 4, 0));
+                    });
+
+                if (task.asyncToken && *task.asyncToken)
+                {
+                    g_textureDescriptorSet->setTexture(task.descriptorIndex, task.texturePtr, RenderTextureLayout::SHADER_READ);
+                }
+            }
+
+            stbi_image_free(stbImage);
+        }
+    }
+}
+
+static std::vector<std::unique_ptr<std::thread>> g_textureLoaderThreads = []()
+{
+    std::vector<std::unique_ptr<std::thread>> threads(2);
+    for (auto& thread : threads)
+        thread = std::make_unique<std::thread>(TextureLoaderThread);
+    return threads;
+}();
+
 static bool LoadTexture(GuestTexture& texture, const uint8_t* data, size_t dataSize, RenderComponentMapping componentMapping, bool forceCubeMap = false)
 {
     ddspp::Descriptor ddsDesc;
@@ -5728,21 +5903,31 @@ static bool LoadTexture(GuestTexture& texture, const uint8_t* data, size_t dataS
 
         uploadBuffer->unmap();
 
-        ExecuteCopyCommandList([&]
-            {
-                g_copyCommandList->barriers(RenderBarrierStage::COPY, RenderTextureBarrier(texture.texture, RenderTextureLayout::COPY_DEST));
+        if (async)
+        {
+            EnqueueLambda([
+                uploadBuffer = std::move(uploadBuffer),
+                slices = std::move(slices),
+                texturePtr = texture.texture,
+                format = desc.format,
+                numMips = ddsDesc.numMips,
+                blockWidth = ddsDesc.blockWidth,
+                bitsPerPixelOrBlock = ddsDesc.bitsPerPixelOrBlock,
+                forceCubeMap
+            ]() mutable {
+                auto& commandList = g_commandLists[g_frame];
+                commandList->barriers(RenderBarrierStage::COPY, RenderTextureBarrier(texturePtr, RenderTextureLayout::COPY_DEST));
 
-                auto copyTextureRegion = [&](Slice& slice, uint32_t subresourceIndex)
-                    {
-                        g_copyCommandList->copyTextureRegion(
-                            RenderTextureCopyLocation::Subresource(texture.texture, subresourceIndex % ddsDesc.numMips, subresourceIndex / ddsDesc.numMips),
-                            RenderTextureCopyLocation::PlacedFootprint(uploadBuffer.get(), desc.format, slice.width, slice.height, slice.depth, (slice.dstRowPitch * 8) / ddsDesc.bitsPerPixelOrBlock * ddsDesc.blockWidth, slice.dstOffset));
-                    };
+                auto copyTextureRegion = [&](const Slice& slice, uint32_t subresourceIndex)
+                {
+                    commandList->copyTextureRegion(
+                        RenderTextureCopyLocation::Subresource(texturePtr, subresourceIndex % numMips, subresourceIndex / numMips),
+                        RenderTextureCopyLocation::PlacedFootprint(uploadBuffer.get(), format, slice.width, slice.height, slice.depth, (slice.dstRowPitch * 8) / bitsPerPixelOrBlock * blockWidth, slice.dstOffset));
+                };
 
                 for (size_t i = 0; i < slices.size(); i++)
                     copyTextureRegion(slices[i], i);
 
-                // Duplicate the first face across the remaining 6 faces.
                 if (forceCubeMap)
                 {
                     for (size_t i = 1; i < 6; i++)
@@ -5751,16 +5936,48 @@ static bool LoadTexture(GuestTexture& texture, const uint8_t* data, size_t dataS
                             copyTextureRegion(slices[j], (slices.size() * i) + j);
                     }
                 }
+
+                commandList->barriers(RenderBarrierStage::COPY, RenderTextureBarrier(texturePtr, RenderTextureLayout::SHADER_READ));
+
+                g_tempBuffers[g_frame].emplace_back(std::move(uploadBuffer));
             });
+
+            texture.layout = RenderTextureLayout::SHADER_READ;
+        }
+        else
+        {
+            ExecuteCopyCommandList([&]
+                {
+                    g_copyCommandList->barriers(RenderBarrierStage::COPY, RenderTextureBarrier(texture.texture, RenderTextureLayout::COPY_DEST));
+
+                    auto copyTextureRegion = [&](Slice& slice, uint32_t subresourceIndex)
+                        {
+                            g_copyCommandList->copyTextureRegion(
+                                RenderTextureCopyLocation::Subresource(texture.texture, subresourceIndex % ddsDesc.numMips, subresourceIndex / ddsDesc.numMips),
+                                RenderTextureCopyLocation::PlacedFootprint(uploadBuffer.get(), desc.format, slice.width, slice.height, slice.depth, (slice.dstRowPitch * 8) / ddsDesc.bitsPerPixelOrBlock * ddsDesc.blockWidth, slice.dstOffset));
+                        };
+
+                    for (size_t i = 0; i < slices.size(); i++)
+                        copyTextureRegion(slices[i], i);
+
+                    // Duplicate the first face across the remaining 6 faces.
+                    if (forceCubeMap)
+                    {
+                        for (size_t i = 1; i < 6; i++)
+                        {
+                            for (size_t j = 0; j < slices.size(); j++)
+                                copyTextureRegion(slices[j], (slices.size() * i) + j);
+                        }
+                    }
+                });
+        }
 
         return true;
     }
     else
     {
-        int width, height;
-        void* stbImage = stbi_load_from_memory(data, dataSize, &width, &height, nullptr, 4);
-
-        if (stbImage != nullptr)
+        int width, height, channels;
+        if (stbi_info_from_memory(data, (int)dataSize, &width, &height, &channels))
         {
             texture.textureHolder = g_device->createTexture(RenderTextureDesc::Texture2D(width, height, 1, RenderFormat::R8G8B8A8_UNORM));
             texture.texture = texture.textureHolder.get();
@@ -5768,42 +5985,32 @@ static bool LoadTexture(GuestTexture& texture, const uint8_t* data, size_t dataS
             texture.layout = RenderTextureLayout::COPY_DEST;
 
             texture.descriptorIndex = g_textureDescriptorAllocator.allocate();
-            g_textureDescriptorSet->setTexture(texture.descriptorIndex, texture.texture, RenderTextureLayout::SHADER_READ);
+            g_textureDescriptorSet->setTexture(texture.descriptorIndex, g_blankTextures[TEXTURE_DESCRIPTOR_NULL_TEXTURE_2D].get(), RenderTextureLayout::SHADER_READ);
 
-            uint32_t rowPitch = (width * 4 + PITCH_ALIGNMENT - 1) & ~(PITCH_ALIGNMENT - 1);
-            uint32_t slicePitch = rowPitch * height;
+            TextureLoadTask task;
+            task.data = std::vector<uint8_t>(data, data + dataSize);
+            task.textureHolder = texture.textureHolder;
+            task.descriptorIndex = texture.descriptorIndex;
+            task.asyncToken = texture.asyncToken;
+            task.texturePtr = texture.texture;
+            task.width = width;
+            task.height = height;
 
-            auto uploadBuffer = g_device->createBuffer(RenderBufferDesc::UploadBuffer(slicePitch));
-            uint8_t* mappedMemory = reinterpret_cast<uint8_t*>(uploadBuffer->map());
+            g_textureLoadQueue.enqueue(std::move(task));
 
-            if (rowPitch == (width * 4))
-            {
-                memcpy(mappedMemory, stbImage, slicePitch);
+                texture.layout = RenderTextureLayout::SHADER_READ;
             }
             else
             {
-                auto data = reinterpret_cast<const uint8_t*>(stbImage);
+                ExecuteCopyCommandList([&]
+                    {
+                        g_copyCommandList->barriers(RenderBarrierStage::COPY, RenderTextureBarrier(texture.texture, RenderTextureLayout::COPY_DEST));
 
-                for (size_t i = 0; i < height; i++)
-                {
-                    memcpy(mappedMemory, data, width * 4);
-                    data += width * 4;
-                    mappedMemory += rowPitch;
-                }
+                        g_copyCommandList->copyTextureRegion(
+                            RenderTextureCopyLocation::Subresource(texture.texture, 0),
+                            RenderTextureCopyLocation::PlacedFootprint(uploadBuffer.get(), RenderFormat::R8G8B8A8_UNORM, width, height, 1, rowPitch / 4, 0));
+                    });
             }
-
-            uploadBuffer->unmap();
-
-            stbi_image_free(stbImage);
-
-            ExecuteCopyCommandList([&]
-                {
-                    g_copyCommandList->barriers(RenderBarrierStage::COPY, RenderTextureBarrier(texture.texture, RenderTextureLayout::COPY_DEST));
-
-                    g_copyCommandList->copyTextureRegion(
-                        RenderTextureCopyLocation::Subresource(texture.texture, 0),
-                        RenderTextureCopyLocation::PlacedFootprint(uploadBuffer.get(), RenderFormat::R8G8B8A8_UNORM, width, height, 1, rowPitch / 4, 0));
-                });
 
             return true;
         }
@@ -5868,7 +6075,7 @@ static void MakePictureData(GuestPictureData* pictureData, uint8_t* data, uint32
             if (forceCubeMap)
             {
                 GuestTexture recreatedCubeMapTexture(ResourceType::Texture);
-                if (LoadTexture(recreatedCubeMapTexture, data, dataSize, {}, true))
+                if (LoadTexture(recreatedCubeMapTexture, data, dataSize, {}, true, true))
                     texture.recreatedCubeMapTexture = std::make_unique<GuestTexture>(std::move(recreatedCubeMapTexture));
             }
 
@@ -6333,6 +6540,7 @@ struct PipelineTaskTokenPair
 // Having this separate, because I don't want to lock a mutex in the render thread before
 // every single draw. Might be worth profiling to see if it actually has an impact and merge them.
 static xxHashMap<PipelineState> g_asyncPipelineStates;
+static constexpr size_t MAX_ASYNC_PIPELINE_STATES = 65536;
 
 static void EnqueueGraphicsPipelineCompilation(
     const PipelineState& pipelineState, 
@@ -6342,6 +6550,9 @@ static void EnqueueGraphicsPipelineCompilation(
 {
     XXH64_hash_t hash = XXH3_64bits(&pipelineState, sizeof(pipelineState));
     bool shouldCompile = g_asyncPipelineStates.emplace(hash, pipelineState).second;
+
+    if (shouldCompile && g_asyncPipelineStates.size() > MAX_ASYNC_PIPELINE_STATES)
+        g_asyncPipelineStates.erase(g_asyncPipelineStates.begin());
 
     if (shouldCompile)
     {
