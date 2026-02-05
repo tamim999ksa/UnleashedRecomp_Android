@@ -839,6 +839,7 @@ enum class RenderCommandType
     SetStreamSource,
     SetIndices,
     SetPixelShader,
+    ExecuteLambda,
 };
 
 struct RenderCommand
@@ -846,6 +847,13 @@ struct RenderCommand
     RenderCommandType type;
     union
     {
+        struct
+        {
+            void* lambdaPtr;
+            void (*executor)(void*);
+            void (*deleter)(void*);
+        } executeLambda;
+
         struct
         {
             GuestRenderState type;
@@ -1004,6 +1012,30 @@ struct RenderCommand
 };
 
 static moodycamel::BlockingConcurrentQueue<RenderCommand> g_renderQueue;
+
+static void ProcExecuteLambda(const RenderCommand& cmd)
+{
+    cmd.executeLambda.executor(cmd.executeLambda.lambdaPtr);
+    cmd.executeLambda.deleter(cmd.executeLambda.lambdaPtr);
+}
+
+template<typename F>
+static void EnqueueLambda(F&& f)
+{
+    using LambdaType = std::decay_t<F>;
+    auto* lambda = new LambdaType(std::forward<F>(f));
+
+    RenderCommand cmd;
+    cmd.type = RenderCommandType::ExecuteLambda;
+    cmd.executeLambda.lambdaPtr = lambda;
+    cmd.executeLambda.executor = [](void* ptr) {
+        (*static_cast<LambdaType*>(ptr))();
+    };
+    cmd.executeLambda.deleter = [](void* ptr) {
+        delete static_cast<LambdaType*>(ptr);
+    };
+    g_renderQueue.enqueue(cmd);
+}
 
 template<GuestRenderState TType>
 static void SetRenderState(GuestDevice* device, uint32_t value)
@@ -5293,6 +5325,7 @@ static std::thread g_renderThread([]
                 case RenderCommandType::SetStreamSource:                   ProcSetStreamSource(cmd); break;
                 case RenderCommandType::SetIndices:                        ProcSetIndices(cmd); break;
                 case RenderCommandType::SetPixelShader:                    ProcSetPixelShader(cmd); break;
+                case RenderCommandType::ExecuteLambda:                     ProcExecuteLambda(cmd); break;
                 default:                                                   assert(false && "Unrecognized render command type."); break;
                 }
             }
@@ -5621,7 +5654,7 @@ static RenderFormat ConvertDXGIFormat(ddspp::DXGIFormat format)
     }
 }
 
-static bool LoadTexture(GuestTexture& texture, const uint8_t* data, size_t dataSize, RenderComponentMapping componentMapping, bool forceCubeMap = false)
+static bool LoadTexture(GuestTexture& texture, const uint8_t* data, size_t dataSize, RenderComponentMapping componentMapping, bool forceCubeMap = false, bool async = false)
 {
     ddspp::Descriptor ddsDesc;
     if (ddspp::decode_header((unsigned char *)(data), ddsDesc) != ddspp::Error)
@@ -5728,21 +5761,31 @@ static bool LoadTexture(GuestTexture& texture, const uint8_t* data, size_t dataS
 
         uploadBuffer->unmap();
 
-        ExecuteCopyCommandList([&]
-            {
-                g_copyCommandList->barriers(RenderBarrierStage::COPY, RenderTextureBarrier(texture.texture, RenderTextureLayout::COPY_DEST));
+        if (async)
+        {
+            EnqueueLambda([
+                uploadBuffer = std::move(uploadBuffer),
+                slices = std::move(slices),
+                texturePtr = texture.texture,
+                format = desc.format,
+                numMips = ddsDesc.numMips,
+                blockWidth = ddsDesc.blockWidth,
+                bitsPerPixelOrBlock = ddsDesc.bitsPerPixelOrBlock,
+                forceCubeMap
+            ]() mutable {
+                auto& commandList = g_commandLists[g_frame];
+                commandList->barriers(RenderBarrierStage::COPY, RenderTextureBarrier(texturePtr, RenderTextureLayout::COPY_DEST));
 
-                auto copyTextureRegion = [&](Slice& slice, uint32_t subresourceIndex)
-                    {
-                        g_copyCommandList->copyTextureRegion(
-                            RenderTextureCopyLocation::Subresource(texture.texture, subresourceIndex % ddsDesc.numMips, subresourceIndex / ddsDesc.numMips),
-                            RenderTextureCopyLocation::PlacedFootprint(uploadBuffer.get(), desc.format, slice.width, slice.height, slice.depth, (slice.dstRowPitch * 8) / ddsDesc.bitsPerPixelOrBlock * ddsDesc.blockWidth, slice.dstOffset));
-                    };
+                auto copyTextureRegion = [&](const Slice& slice, uint32_t subresourceIndex)
+                {
+                    commandList->copyTextureRegion(
+                        RenderTextureCopyLocation::Subresource(texturePtr, subresourceIndex % numMips, subresourceIndex / numMips),
+                        RenderTextureCopyLocation::PlacedFootprint(uploadBuffer.get(), format, slice.width, slice.height, slice.depth, (slice.dstRowPitch * 8) / bitsPerPixelOrBlock * blockWidth, slice.dstOffset));
+                };
 
                 for (size_t i = 0; i < slices.size(); i++)
                     copyTextureRegion(slices[i], i);
 
-                // Duplicate the first face across the remaining 6 faces.
                 if (forceCubeMap)
                 {
                     for (size_t i = 1; i < 6; i++)
@@ -5751,7 +5794,41 @@ static bool LoadTexture(GuestTexture& texture, const uint8_t* data, size_t dataS
                             copyTextureRegion(slices[j], (slices.size() * i) + j);
                     }
                 }
+
+                commandList->barriers(RenderBarrierStage::COPY, RenderTextureBarrier(texturePtr, RenderTextureLayout::SHADER_READ));
+
+                g_tempBuffers[g_frame].emplace_back(std::move(uploadBuffer));
             });
+
+            texture.layout = RenderTextureLayout::SHADER_READ;
+        }
+        else
+        {
+            ExecuteCopyCommandList([&]
+                {
+                    g_copyCommandList->barriers(RenderBarrierStage::COPY, RenderTextureBarrier(texture.texture, RenderTextureLayout::COPY_DEST));
+
+                    auto copyTextureRegion = [&](Slice& slice, uint32_t subresourceIndex)
+                        {
+                            g_copyCommandList->copyTextureRegion(
+                                RenderTextureCopyLocation::Subresource(texture.texture, subresourceIndex % ddsDesc.numMips, subresourceIndex / ddsDesc.numMips),
+                                RenderTextureCopyLocation::PlacedFootprint(uploadBuffer.get(), desc.format, slice.width, slice.height, slice.depth, (slice.dstRowPitch * 8) / ddsDesc.bitsPerPixelOrBlock * ddsDesc.blockWidth, slice.dstOffset));
+                        };
+
+                    for (size_t i = 0; i < slices.size(); i++)
+                        copyTextureRegion(slices[i], i);
+
+                    // Duplicate the first face across the remaining 6 faces.
+                    if (forceCubeMap)
+                    {
+                        for (size_t i = 1; i < 6; i++)
+                        {
+                            for (size_t j = 0; j < slices.size(); j++)
+                                copyTextureRegion(slices[j], (slices.size() * i) + j);
+                        }
+                    }
+                });
+        }
 
         return true;
     }
@@ -5796,14 +5873,39 @@ static bool LoadTexture(GuestTexture& texture, const uint8_t* data, size_t dataS
 
             stbi_image_free(stbImage);
 
-            ExecuteCopyCommandList([&]
-                {
-                    g_copyCommandList->barriers(RenderBarrierStage::COPY, RenderTextureBarrier(texture.texture, RenderTextureLayout::COPY_DEST));
+            if (async)
+            {
+                EnqueueLambda([
+                    uploadBuffer = std::move(uploadBuffer),
+                    texturePtr = texture.texture,
+                    format = RenderFormat::R8G8B8A8_UNORM,
+                    width, height, rowPitch
+                ]() mutable {
+                    auto& commandList = g_commandLists[g_frame];
+                    commandList->barriers(RenderBarrierStage::COPY, RenderTextureBarrier(texturePtr, RenderTextureLayout::COPY_DEST));
 
-                    g_copyCommandList->copyTextureRegion(
-                        RenderTextureCopyLocation::Subresource(texture.texture, 0),
-                        RenderTextureCopyLocation::PlacedFootprint(uploadBuffer.get(), RenderFormat::R8G8B8A8_UNORM, width, height, 1, rowPitch / 4, 0));
+                    commandList->copyTextureRegion(
+                        RenderTextureCopyLocation::Subresource(texturePtr, 0),
+                        RenderTextureCopyLocation::PlacedFootprint(uploadBuffer.get(), format, width, height, 1, rowPitch / 4, 0));
+
+                    commandList->barriers(RenderBarrierStage::COPY, RenderTextureBarrier(texturePtr, RenderTextureLayout::SHADER_READ));
+
+                    g_tempBuffers[g_frame].emplace_back(std::move(uploadBuffer));
                 });
+
+                texture.layout = RenderTextureLayout::SHADER_READ;
+            }
+            else
+            {
+                ExecuteCopyCommandList([&]
+                    {
+                        g_copyCommandList->barriers(RenderBarrierStage::COPY, RenderTextureBarrier(texture.texture, RenderTextureLayout::COPY_DEST));
+
+                        g_copyCommandList->copyTextureRegion(
+                            RenderTextureCopyLocation::Subresource(texture.texture, 0),
+                            RenderTextureCopyLocation::PlacedFootprint(uploadBuffer.get(), RenderFormat::R8G8B8A8_UNORM, width, height, 1, rowPitch / 4, 0));
+                    });
+            }
 
             return true;
         }
@@ -5868,7 +5970,7 @@ static void MakePictureData(GuestPictureData* pictureData, uint8_t* data, uint32
             if (forceCubeMap)
             {
                 GuestTexture recreatedCubeMapTexture(ResourceType::Texture);
-                if (LoadTexture(recreatedCubeMapTexture, data, dataSize, {}, true))
+                if (LoadTexture(recreatedCubeMapTexture, data, dataSize, {}, true, true))
                     texture.recreatedCubeMapTexture = std::make_unique<GuestTexture>(std::move(recreatedCubeMapTexture));
             }
 
