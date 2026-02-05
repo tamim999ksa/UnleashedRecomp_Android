@@ -6518,8 +6518,8 @@ static void CompileMeshPipeline(const Mesh& mesh, CompilationArgs& args)
     }
 
     // Motion blur pipeline. We could normally do the player here only, but apparently Werehog enemies also have object blur.
-    // TODO: Do punch through meshes get rendered?
-    if (!mesh.morphModel && compiledOutsideMainFramebuffer && args.hasMoreThanOneBone && mesh.layer == MeshLayer::Opaque)
+    // Punch through meshes should also be rendered here as they can move too (e.g. grates).
+    if (!mesh.morphModel && compiledOutsideMainFramebuffer && args.hasMoreThanOneBone && (mesh.layer == MeshLayer::Opaque || mesh.layer == MeshLayer::PunchThrough))
     {
         PipelineState pipelineState{};
         pipelineState.vertexShader = FindShaderCacheEntry(0x4620B236DC38100C)->guestShader;
@@ -6532,6 +6532,9 @@ static void CompileMeshPipeline(const Mesh& mesh, CompilationArgs& args)
         pipelineState.renderTargetFormat = RenderFormat::R8G8B8A8_UNORM;
         pipelineState.depthStencilFormat = RenderFormat::D32_FLOAT;
         pipelineState.specConstants = SPEC_CONSTANT_REVERSE_Z;
+
+        if (mesh.layer == MeshLayer::PunchThrough)
+            pipelineState.specConstants |= SPEC_CONSTANT_ALPHA_TEST;
 
         SanitizePipelineState(pipelineState);
         EnqueueGraphicsPipelineCompilation(pipelineState, args.tokenPair, "FxVelocityMap");
