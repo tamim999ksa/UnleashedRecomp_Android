@@ -247,8 +247,8 @@ uint32_t XamShowMessageBoxUI(uint32_t dwUserIndex, be<uint16_t>* wszTitle, be<ui
     if (pOverlapped)
     {
         pOverlapped->dwCompletionContext = GuestThread::GetCurrentThreadId();
-        pOverlapped->Helper.Error = 0;
-        pOverlapped->Helper.Length = -1;
+        pOverlapped->_ErrorLength.Error = 0;
+        pOverlapped->_ErrorLength.Length = -1;
     }
 
     XamNotifyEnqueueEvent(9, 0);

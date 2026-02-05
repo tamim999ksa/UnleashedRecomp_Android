@@ -9,4 +9,5 @@ public:
     static void Draw();
     static void Open();
     static void Close();
+    static bool IsIntroAnimationPlaying();
 };
