@@ -6614,7 +6614,8 @@ enum class MeshLayer
     Opaque,
     Transparent,
     PunchThrough,
-    Special
+    Special,
+    Water
 };
 
 struct Mesh
@@ -6827,7 +6828,7 @@ static void CompileMeshPipeline(const Mesh& mesh, CompilationArgs& args)
             pipelineState.destBlend = mesh.material->m_Additive ? RenderBlend::ONE : RenderBlend::INV_SRC_ALPHA;
             pipelineState.cullMode = mesh.material->m_DoubleSided ? RenderCullMode::NONE : RenderCullMode::BACK;
             pipelineState.zFunc = RenderComparisonFunction::GREATER_EQUAL; // Reverse Z
-            pipelineState.alphaBlendEnable = mesh.layer == MeshLayer::Transparent || mesh.layer == MeshLayer::Special;
+            pipelineState.alphaBlendEnable = mesh.layer == MeshLayer::Transparent || mesh.layer == MeshLayer::Special || mesh.layer == MeshLayer::Water;
             pipelineState.srcBlendAlpha = RenderBlend::SRC_ALPHA;
             pipelineState.destBlendAlpha = RenderBlend::INV_SRC_ALPHA;
             pipelineState.primitiveTopology = RenderPrimitiveTopology::TRIANGLE_STRIP;
@@ -6983,10 +6984,25 @@ static void CompileMeshPipelines(const T& modelData, CompilationArgs& args)
         for (auto& mesh : meshGroup->m_PunchThroughMeshes)
             CompileMeshPipeline(mesh.get(), MeshLayer::PunchThrough, args);
 
-        for (auto& specialMeshGroup : meshGroup->m_SpecialMeshGroups)
+        if (meshGroup->m_SpecialMeshGroupModes != nullptr)
         {
-            for (auto& mesh : specialMeshGroup)
-                CompileMeshPipeline(mesh.get(), MeshLayer::Special, args); // TODO: Are there layer types other than water in this game??
+            for (size_t i = 0; i < meshGroup->m_SpecialMeshGroups.size(); i++)
+            {
+                // 0 = Water, 1 = Distortion/Prism?
+                uint32_t mode = meshGroup->m_SpecialMeshGroupModes.get()[i];
+                MeshLayer layer = (mode == 0) ? MeshLayer::Water : MeshLayer::Special;
+
+                for (auto& mesh : meshGroup->m_SpecialMeshGroups[i])
+                    CompileMeshPipeline(mesh.get(), layer, args);
+            }
+        }
+        else
+        {
+            for (auto& specialMeshGroup : meshGroup->m_SpecialMeshGroups)
+            {
+                for (auto& mesh : specialMeshGroup)
+                    CompileMeshPipeline(mesh.get(), MeshLayer::Water, args);
+            }
         }
     }
 
