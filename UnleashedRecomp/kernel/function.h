@@ -60,7 +60,7 @@ struct ArgTranslator
         return *reinterpret_cast<be<uint32_t>*>(base + ctx.r1.u32 + 0x54 + ((arg - 8) * 8));
     }
 
-    static double GetPrecisionArgumentValue(const PPCContext& ctx, uint8_t* base, size_t arg) noexcept
+    static double GetPrecisionArgumentValue(const PPCContext& ctx, uint8_t* base, size_t arg, size_t absoluteIndex) noexcept
     {
         switch (arg)
         {
@@ -80,8 +80,7 @@ struct ArgTranslator
             [[unlikely]] default: break;
         }
 
-        // TODO: get value from stack.
-        return 0;
+        return *reinterpret_cast<be<double>*>(base + ctx.r1.u32 + 0x54 + ((absoluteIndex - 8) * 8));
     }
 
     constexpr static void SetIntegerArgumentValue(PPCContext& ctx, uint8_t* base, size_t arg, uint64_t value) noexcept
@@ -129,11 +128,11 @@ struct ArgTranslator
     }
 
     template<typename T>
-    constexpr static std::enable_if_t<!std::is_pointer_v<T>, T> GetValue(PPCContext& ctx, uint8_t* base, size_t idx) noexcept
+    constexpr static std::enable_if_t<!std::is_pointer_v<T>, T> GetValue(PPCContext& ctx, uint8_t* base, size_t idx, size_t absoluteIndex) noexcept
     {
         if constexpr (is_precise_v<T>)
         {
-            return static_cast<T>(GetPrecisionArgumentValue(ctx, base, idx));
+            return static_cast<T>(GetPrecisionArgumentValue(ctx, base, idx, absoluteIndex));
         }
         else
         {
@@ -142,7 +141,7 @@ struct ArgTranslator
     }
 
     template<typename T>
-    constexpr static std::enable_if_t<std::is_pointer_v<T>, T> GetValue(PPCContext& ctx, uint8_t* base, size_t idx) noexcept
+    constexpr static std::enable_if_t<std::is_pointer_v<T>, T> GetValue(PPCContext& ctx, uint8_t* base, size_t idx, size_t absoluteIndex) noexcept
     {
         const auto v = GetIntegerArgumentValue(ctx, base, idx);
         if (!v)
@@ -249,7 +248,7 @@ template <auto Func, int I = 0, typename ...TArgs>
 std::enable_if_t<(I < sizeof...(TArgs)), void> _translate_args_to_host(PPCContext& ctx, uint8_t* base, std::tuple<TArgs...>& tpl) noexcept
 {
     using T = std::tuple_element_t<I, std::remove_reference_t<decltype(tpl)>>;
-    std::get<I>(tpl) = ArgTranslator::GetValue<T>(ctx, base, arg_ordinal_t<Func, I>::value);
+    std::get<I>(tpl) = ArgTranslator::GetValue<T>(ctx, base, arg_ordinal_t<Func, I>::value, I);
 
     _translate_args_to_host<Func, I + 1>(ctx, base, tpl);
 }
