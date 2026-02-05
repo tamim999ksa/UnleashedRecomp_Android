@@ -93,7 +93,7 @@ struct Event final : KernelObject, HostObject<XKEVENT>
     }
 };
 
-static std::atomic<uint32_t> g_keSetEventGeneration;
+static std::atomic<uint32_t> g_dispatcherObjectStateGeneration;
 
 struct Semaphore final : KernelObject, HostObject<XKSEMAPHORE>
 {
@@ -158,6 +158,9 @@ struct Semaphore final : KernelObject, HostObject<XKSEMAPHORE>
 
         count += releaseCount;
         count.notify_all();
+
+        ++g_dispatcherObjectStateGeneration;
+        g_dispatcherObjectStateGeneration.notify_all();
     }
 };
 
@@ -999,8 +1002,8 @@ bool KeSetEvent(XKEVENT* pEvent, uint32_t Increment, bool Wait)
 {
     bool result = QueryKernelObject<Event>(*pEvent)->Set();
 
-    ++g_keSetEventGeneration;
-    g_keSetEventGeneration.notify_all();
+    ++g_dispatcherObjectStateGeneration;
+    g_dispatcherObjectStateGeneration.notify_all();
 
     return result;
 }
@@ -1499,39 +1502,58 @@ void NetDll_XNetGetTitleXnAddr()
     LOG_UTILITY("!!! STUB !!!");
 }
 
+static KernelObject* GetKernelObjectFromHeader(XDISPATCHER_HEADER* header)
+{
+    switch (header->Type)
+    {
+    case 0:
+    case 1:
+        return QueryKernelObject<Event>(*header);
+    case 5:
+        return QueryKernelObject<Semaphore>(*header);
+    default:
+        assert(false && "Unrecognized kernel object type.");
+        return nullptr;
+    }
+}
+
 uint32_t KeWaitForMultipleObjects(uint32_t Count, xpointer<XDISPATCHER_HEADER>* Objects, uint32_t WaitType, uint32_t WaitReason, uint32_t WaitMode, uint32_t Alertable, be<int64_t>* Timeout)
 {
-    // FIXME: This function is only accounting for events.
-
     const uint64_t timeout = GuestTimeoutToMilliseconds(Timeout);
     assert(timeout == INFINITE);
 
     if (WaitType == 0) // Wait all
     {
         for (size_t i = 0; i < Count; i++)
-            QueryKernelObject<Event>(*Objects[i])->Wait(timeout);
+        {
+            auto* object = GetKernelObjectFromHeader(Objects[i]);
+            if (object)
+                object->Wait(timeout);
+        }
     }
     else
     {
-        thread_local std::vector<Event*> s_events;
-        s_events.resize(Count);
+        thread_local std::vector<KernelObject*> s_objects;
+        s_objects.resize(Count);
 
         for (size_t i = 0; i < Count; i++)
-            s_events[i] = QueryKernelObject<Event>(*Objects[i]);
+        {
+            s_objects[i] = GetKernelObjectFromHeader(Objects[i]);
+        }
 
         while (true)
         {
-            uint32_t generation = g_keSetEventGeneration.load();
+            uint32_t generation = g_dispatcherObjectStateGeneration.load();
 
             for (size_t i = 0; i < Count; i++)
             {
-                if (s_events[i]->Wait(0) == STATUS_SUCCESS)
+                if (s_objects[i] && s_objects[i]->Wait(0) == STATUS_SUCCESS)
                 {
                     return STATUS_WAIT_0 + i;
                 }
             }
 
-            g_keSetEventGeneration.wait(generation);
+            g_dispatcherObjectStateGeneration.wait(generation);
         }
     }
 
