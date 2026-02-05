@@ -11,7 +11,9 @@
 
 #include "iso_file_system.h"
 
+#include <cstring>
 #include <stack>
+#include <vector>
 
 ISOFileSystem::ISOFileSystem(const std::filesystem::path &isoPath)
 {
@@ -147,8 +149,15 @@ bool ISOFileSystem::load(const std::string &path, uint8_t *fileData, size_t file
             return false;
         }
 
+        size_t offset = std::get<0>(it->second);
+        size_t length = std::get<1>(it->second);
+        if ((offset + length < offset) || ((offset + length) > mappedFile.size()))
+        {
+            return false;
+        }
+
         const uint8_t *mappedFileData = mappedFile.data();
-        memcpy(fileData, &mappedFileData[std::get<0>(it->second)], std::get<1>(it->second));
+        memcpy(fileData, &mappedFileData[offset], length);
         return true;
     }
     else
