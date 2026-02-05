@@ -6333,6 +6333,7 @@ struct PipelineTaskTokenPair
 // Having this separate, because I don't want to lock a mutex in the render thread before
 // every single draw. Might be worth profiling to see if it actually has an impact and merge them.
 static xxHashMap<PipelineState> g_asyncPipelineStates;
+static constexpr size_t MAX_ASYNC_PIPELINE_STATES = 65536;
 
 static void EnqueueGraphicsPipelineCompilation(
     const PipelineState& pipelineState, 
@@ -6342,6 +6343,9 @@ static void EnqueueGraphicsPipelineCompilation(
 {
     XXH64_hash_t hash = XXH3_64bits(&pipelineState, sizeof(pipelineState));
     bool shouldCompile = g_asyncPipelineStates.emplace(hash, pipelineState).second;
+
+    if (shouldCompile && g_asyncPipelineStates.size() > MAX_ASYNC_PIPELINE_STATES)
+        g_asyncPipelineStates.erase(g_asyncPipelineStates.begin());
 
     if (shouldCompile)
     {
