@@ -5,6 +5,8 @@
 //#define PSO_CACHING_CLEANUP
 
 #include <plume_render_interface.h>
+#include <atomic>
+#include <memory>
 
 #define D3DCLEAR_TARGET  0x1
 #define D3DCLEAR_ZBUFFER 0x10
@@ -136,7 +138,7 @@ enum GuestFormat
 
 struct GuestBaseTexture : GuestResource
 {
-    std::unique_ptr<RenderTexture> textureHolder;
+    std::shared_ptr<RenderTexture> textureHolder;
     RenderTexture* texture = nullptr;
     std::unique_ptr<RenderTextureView> textureView;
     uint32_t width = 0;
@@ -160,6 +162,12 @@ struct GuestTexture : GuestBaseTexture
     std::unique_ptr<GuestTexture> patchedTexture;
     std::unique_ptr<GuestTexture> recreatedCubeMapTexture;
     struct GuestSurface* sourceSurface = nullptr;
+    std::shared_ptr<std::atomic<bool>> asyncToken = std::make_shared<std::atomic<bool>>(true);
+
+    GuestTexture(ResourceType type) : GuestBaseTexture(type) {}
+    GuestTexture(GuestTexture&&) = default;
+    GuestTexture& operator=(GuestTexture&&) = default;
+    ~GuestTexture();
 };
 
 struct GuestLockedRect
