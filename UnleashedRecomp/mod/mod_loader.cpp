@@ -300,6 +300,9 @@ static std::span<uint8_t> decompressLzx(PPCContext& ctx, uint8_t* base, const ui
     if (scratchSpace == nullptr)
     {
         scratchSpace = reinterpret_cast<be<uint32_t>*>(g_userHeap.Alloc(sizeof(uint32_t) * 2));
+        if (scratchSpace == nullptr)
+            return {};
+
         shouldFreeScratchSpace = true;
     }
 
@@ -312,6 +315,13 @@ static std::span<uint8_t> decompressLzx(PPCContext& ctx, uint8_t* base, const ui
 
     uint64_t decompressedDataSize = *reinterpret_cast<const be<uint64_t>*>(compressedData + 0x18);
     uint8_t* decompressedData = reinterpret_cast<uint8_t*>(g_userHeap.Alloc(decompressedDataSize));
+    if (decompressedData == nullptr)
+    {
+        if (shouldFreeScratchSpace)
+            g_userHeap.Free(scratchSpace);
+
+        return {};
+    }
 
     uint32_t blockSize = *reinterpret_cast<const be<uint32_t>*>(compressedData + 0x28);
     size_t decompressedDataOffset = 0;
@@ -430,12 +440,21 @@ PPC_FUNC(sub_82E0D3E8)
             if (signature == LZX_SIGNATURE)
             {
                 void* compressedFileData = g_userHeap.Alloc(arlFileSize);
+                if (compressedFileData == nullptr)
+                {
+                    stream.close();
+                    return false;
+                }
+
                 stream.read(reinterpret_cast<char*>(compressedFileData), arlFileSize);
                 stream.close();
 
                 auto fileData = decompressLzx(ctx, base, reinterpret_cast<uint8_t*>(compressedFileData), arlFileSize, nullptr);
 
                 g_userHeap.Free(compressedFileData);
+
+                if (fileData.data() == nullptr)
+                    return false;
 
                 function(fileData.data(), fileData.size());
 
@@ -708,17 +727,34 @@ PPC_FUNC(sub_82E0B500)
                 size_t arFileSize = stream.tellg();
 
                 void* arFileData = g_userHeap.Alloc(arFileSize);
+                if (arFileData == nullptr)
+                {
+                    stream.close();
+                    return false;
+                }
+
                 stream.seekg(0, std::ios::beg);
                 stream.read(reinterpret_cast<char*>(arFileData), arFileSize);
                 stream.close();
 
                 auto arFileDataHolder = reinterpret_cast<be<uint32_t>*>(g_userHeap.Alloc(sizeof(uint32_t) * 2));
+                if (arFileDataHolder == nullptr)
+                {
+                    g_userHeap.Free(arFileData);
+                    return false;
+                }
 
                 if (*reinterpret_cast<be<uint32_t>*>(arFileData) == LZX_SIGNATURE)
                 {
                     auto fileData = decompressLzx(ctx, base, reinterpret_cast<uint8_t*>(arFileData), arFileSize, arFileDataHolder);
 
                     g_userHeap.Free(arFileData);
+
+                    if (fileData.data() == nullptr)
+                    {
+                        g_userHeap.Free(arFileDataHolder);
+                        return false;
+                    }
 
                     arFileData = fileData.data();
                     arFileSize = fileData.size();
@@ -800,12 +836,21 @@ PPC_FUNC(sub_82E0B500)
                                 stream.seekg(0, std::ios::beg);
 
                                 void* compressedFileData = g_userHeap.Alloc(arlFileSize);
+                                if (compressedFileData == nullptr)
+                                {
+                                    stream.close();
+                                    return;
+                                }
+
                                 stream.read(reinterpret_cast<char*>(compressedFileData), arlFileSize);
                                 stream.close();
 
                                 auto fileData = decompressLzx(ctx, base, reinterpret_cast<uint8_t*>(compressedFileData), arlFileSize, nullptr);
 
                                 g_userHeap.Free(compressedFileData);
+
+                                if (fileData.data() == nullptr)
+                                    return;
 
                                 splitCount = *reinterpret_cast<uint32_t*>(fileData.data() + 0x4);
 
