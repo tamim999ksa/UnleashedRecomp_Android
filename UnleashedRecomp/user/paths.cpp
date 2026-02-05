@@ -1,6 +1,10 @@
 #include "paths.h"
 #include <os/process.h>
 
+#ifdef ANDROID
+#include <SDL.h>
+#endif
+
 std::filesystem::path g_executableRoot = os::process::GetExecutableRoot();
 std::filesystem::path g_userPath = BuildUserPath();
 
@@ -22,6 +26,13 @@ std::filesystem::path BuildUserPath()
         userPath = std::filesystem::path{ knownPath } / USER_DIRECTORY;
 
     CoTaskMemFree(knownPath);
+#elif defined(ANDROID)
+    char* prefPath = SDL_GetPrefPath("hedge-dev", "UnleashedRecomp");
+    if (prefPath)
+    {
+        userPath = std::filesystem::path(prefPath);
+        SDL_free(prefPath);
+    }
 #elif defined(__linux__) || defined(__APPLE__)
     const char* homeDir = getenv("HOME");
 #if defined(__linux__)
