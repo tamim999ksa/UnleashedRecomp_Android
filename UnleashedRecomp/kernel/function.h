@@ -39,48 +39,71 @@ std::enable_if_t<(I < sizeof...(TArgs)), void> _tuple_for(std::tuple<TArgs...>& 
 
 struct ArgTranslator
 {
-    constexpr static uint64_t GetIntegerArgumentValue(const PPCContext& ctx, uint8_t* base, size_t arg) noexcept
+    template<size_t N>
+    constexpr static uint64_t GetRegister(const PPCContext& ctx) noexcept
     {
-        if (arg <= 7)
-        {
-            switch (arg)
-            {
-                case 0: return ctx.r3.u32;
-                case 1: return ctx.r4.u32;
-                case 2: return ctx.r5.u32;
-                case 3: return ctx.r6.u32;
-                case 4: return ctx.r7.u32;
-                case 5: return ctx.r8.u32;
-                case 6: return ctx.r9.u32;
-                case 7: return ctx.r10.u32;
-                default: break;
-            }
-        }
-
-        return *reinterpret_cast<be<uint32_t>*>(base + ctx.r1.u32 + 0x54 + ((arg - 8) * 8));
+        if constexpr (N == 0) return ctx.r3.u64;
+        if constexpr (N == 1) return ctx.r4.u64;
+        if constexpr (N == 2) return ctx.r5.u64;
+        if constexpr (N == 3) return ctx.r6.u64;
+        if constexpr (N == 4) return ctx.r7.u64;
+        if constexpr (N == 5) return ctx.r8.u64;
+        if constexpr (N == 6) return ctx.r9.u64;
+        if constexpr (N == 7) return ctx.r10.u64;
+        return 0;
     }
 
-    static double GetPrecisionArgumentValue(const PPCContext& ctx, uint8_t* base, size_t arg, size_t absoluteIndex) noexcept
+    template<size_t N>
+    constexpr static double GetFloatRegister(const PPCContext& ctx) noexcept
     {
-        switch (arg)
-        {
-            case 0: return ctx.f1.f64;
-            case 1: return ctx.f2.f64;
-            case 2: return ctx.f3.f64;
-            case 3: return ctx.f4.f64;
-            case 4: return ctx.f5.f64;
-            case 5: return ctx.f6.f64;
-            case 6: return ctx.f7.f64;
-            case 7: return ctx.f8.f64;
-            case 8: return ctx.f9.f64;
-            case 9: return ctx.f10.f64;
-            case 10: return ctx.f11.f64;
-            case 11: return ctx.f12.f64;
-            case 12: return ctx.f13.f64;
-            [[unlikely]] default: break;
-        }
+        if constexpr (N == 0) return ctx.f1.f64;
+        if constexpr (N == 1) return ctx.f2.f64;
+        if constexpr (N == 2) return ctx.f3.f64;
+        if constexpr (N == 3) return ctx.f4.f64;
+        if constexpr (N == 4) return ctx.f5.f64;
+        if constexpr (N == 5) return ctx.f6.f64;
+        if constexpr (N == 6) return ctx.f7.f64;
+        if constexpr (N == 7) return ctx.f8.f64;
+        if constexpr (N == 8) return ctx.f9.f64;
+        if constexpr (N == 9) return ctx.f10.f64;
+        if constexpr (N == 10) return ctx.f11.f64;
+        if constexpr (N == 11) return ctx.f12.f64;
+        if constexpr (N == 12) return ctx.f13.f64;
+        return 0.0;
+    }
 
-        return *reinterpret_cast<be<double>*>(base + ctx.r1.u32 + 0x54 + ((absoluteIndex - 8) * 8));
+    template<size_t ArgIndex, typename T>
+    constexpr static uint64_t GetIntegerArgumentValue(const PPCContext& ctx, uint8_t* base) noexcept
+    {
+        if constexpr (ArgIndex < 8)
+        {
+            return GetRegister<ArgIndex>(ctx);
+        }
+        else
+        {
+            uint32_t offset = 0x54 + ((ArgIndex - 8) * 8);
+            if constexpr (sizeof(T) == 8)
+            {
+                return *reinterpret_cast<be<uint64_t>*>(base + ctx.r1.u32 + offset);
+            }
+            else
+            {
+                return *reinterpret_cast<be<uint32_t>*>(base + ctx.r1.u32 + offset + 4);
+            }
+        }
+    }
+
+    template<size_t ArgIndex, size_t AbsoluteIndex>
+    static double GetPrecisionArgumentValue(const PPCContext& ctx, uint8_t* base) noexcept
+    {
+        if constexpr (ArgIndex <= 12)
+        {
+            return GetFloatRegister<ArgIndex>(ctx);
+        }
+        else
+        {
+            return *reinterpret_cast<be<double>*>(base + ctx.r1.u32 + 0x54 + ((AbsoluteIndex - 8) * 8));
+        }
     }
 
     constexpr static void SetIntegerArgumentValue(PPCContext& ctx, uint8_t* base, size_t arg, uint64_t value) noexcept
@@ -127,23 +150,23 @@ struct ArgTranslator
         assert(arg < 12 && "Pushing to stack memory is not yet supported.");
     }
 
-    template<typename T>
-    constexpr static std::enable_if_t<!std::is_pointer_v<T>, T> GetValue(PPCContext& ctx, uint8_t* base, size_t idx, size_t absoluteIndex) noexcept
+    template<typename T, size_t idx, size_t absoluteIndex>
+    constexpr static std::enable_if_t<!std::is_pointer_v<T>, T> GetValue(PPCContext& ctx, uint8_t* base) noexcept
     {
         if constexpr (is_precise_v<T>)
         {
-            return static_cast<T>(GetPrecisionArgumentValue(ctx, base, idx, absoluteIndex));
+            return static_cast<T>(GetPrecisionArgumentValue<idx, absoluteIndex>(ctx, base));
         }
         else
         {
-            return static_cast<T>(GetIntegerArgumentValue(ctx, base, idx));
+            return static_cast<T>(GetIntegerArgumentValue<idx, T>(ctx, base));
         }
     }
 
-    template<typename T>
-    constexpr static std::enable_if_t<std::is_pointer_v<T>, T> GetValue(PPCContext& ctx, uint8_t* base, size_t idx, size_t absoluteIndex) noexcept
+    template<typename T, size_t idx, size_t absoluteIndex>
+    constexpr static std::enable_if_t<std::is_pointer_v<T>, T> GetValue(PPCContext& ctx, uint8_t* base) noexcept
     {
-        const auto v = GetIntegerArgumentValue(ctx, base, idx);
+        const auto v = GetIntegerArgumentValue<idx, T>(ctx, base);
         if (!v)
         {
             return nullptr;
@@ -248,7 +271,7 @@ template <auto Func, int I = 0, typename ...TArgs>
 std::enable_if_t<(I < sizeof...(TArgs)), void> _translate_args_to_host(PPCContext& ctx, uint8_t* base, std::tuple<TArgs...>& tpl) noexcept
 {
     using T = std::tuple_element_t<I, std::remove_reference_t<decltype(tpl)>>;
-    std::get<I>(tpl) = ArgTranslator::GetValue<T>(ctx, base, arg_ordinal_t<Func, I>::value, I);
+    std::get<I>(tpl) = ArgTranslator::GetValue<T, arg_ordinal_t<Func, I>::value, I>(ctx, base);
 
     _translate_args_to_host<Func, I + 1>(ctx, base, tpl);
 }

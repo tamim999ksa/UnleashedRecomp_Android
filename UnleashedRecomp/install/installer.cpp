@@ -115,7 +115,16 @@ static bool checkFile(const FilePair &pair, const uint64_t *fileHashes, const st
         std::ifstream fileStream(filePath, std::ios::binary);
         if (fileStream.is_open())
         {
-            fileData.ensure(fileSize);
+            try
+            {
+                fileData.resize(fileSize);
+            }
+            catch (const std::bad_alloc&)
+            {
+                journal.lastResult = Journal::Result::FileReadFailed;
+                journal.lastErrorMessage = fmt::format("Failed to allocate memory for file {}.", fileName);
+                return false;
+            }
             fileStream.read((char *)(fileData.data()), fileSize);
         }
 

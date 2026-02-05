@@ -5,6 +5,7 @@
 #include <ui/black_bar.h>
 #include <gpu/video.h>
 #include <xxHashMap.h>
+#include <ankerl/unordered_dense.h>
 
 #include "aspect_ratio_patches.h"
 #include "camera_patches.h"
@@ -77,27 +78,26 @@ namespace Chao::CSD
 }
 
 static Mutex g_pathMutex;
-static std::map<const void*, XXH64_hash_t> g_paths;
+static ankerl::unordered_dense::map<const void*, XXH64_hash_t> g_paths;
 
 static XXH64_hash_t HashStr(const std::string_view& value)
 {
     return XXH3_64bits(value.data(), value.size());
 }
 
-static void EmplacePath(const void* key, const std::string_view& value)
+static void EmplacePathUnsafe(const void* key, const std::string_view& value)
 {
-    std::lock_guard lock(g_pathMutex);
     g_paths.emplace(key, HashStr(value));
 }
 
-static void TraverseCast(Chao::CSD::Scene* scene, uint32_t castNodeIndex, Chao::CSD::CastNode* castNode, uint32_t castIndex, const std::string& parentPath)
+static void TraverseCast(Chao::CSD::Scene* scene, uint32_t castNodeIndex, Chao::CSD::CastNode* castNode, uint32_t castIndex, std::string& path)
 {
     if (castIndex == ~0)
         return;
 
-    TraverseCast(scene, castNodeIndex, castNode, castNode->pCastLinks[castIndex].SiblingCastIndex, parentPath);
+    TraverseCast(scene, castNodeIndex, castNode, castNode->pCastLinks[castIndex].SiblingCastIndex, path);
 
-    std::string path = parentPath;
+    size_t originalLen = path.length();
 
     for (size_t i = 0; i < scene->CastCount; i++)
     {
@@ -109,19 +109,21 @@ static void TraverseCast(Chao::CSD::Scene* scene, uint32_t castNodeIndex, Chao::
         }
     }
 
-    EmplacePath(castNode->pCasts[castIndex].get(), path);
+    EmplacePathUnsafe(castNode->pCasts[castIndex].get(), path);
 
     if (castNode->RootCastIndex == castIndex)
-        EmplacePath(castNode, path);
+        EmplacePathUnsafe(castNode, path);
 
     path += "/";
 
     TraverseCast(scene, castNodeIndex, castNode, castNode->pCastLinks[castIndex].ChildCastIndex, path);
+
+    path.resize(originalLen);
 }
 
-static void TraverseScene(Chao::CSD::Scene* scene, std::string path)
+static void TraverseScene(Chao::CSD::Scene* scene, std::string& path)
 {
-    EmplacePath(scene, path);
+    EmplacePathUnsafe(scene, path);
     path += "/";
 
     for (size_t i = 0; i < scene->CastNodeCount; i++)
@@ -129,24 +131,35 @@ static void TraverseScene(Chao::CSD::Scene* scene, std::string path)
         auto& castNode = scene->pCastNodes[i];
         TraverseCast(scene, i, &castNode, castNode.RootCastIndex, path);
     }
+    path.pop_back();
 }
 
-static void TraverseSceneNode(Chao::CSD::SceneNode* sceneNode, std::string path)
+static void TraverseSceneNodeImpl(Chao::CSD::SceneNode* sceneNode, std::string path)
 {
-    EmplacePath(sceneNode, path);
+    EmplacePathUnsafe(sceneNode, path);
     path += "/";
 
     for (size_t i = 0; i < sceneNode->SceneCount; i++)
     {
         auto& sceneIndex = sceneNode->pSceneIndices[i];
-        TraverseScene(sceneNode->pScenes[sceneIndex.SceneIndex], path + sceneIndex.pSceneName.get());
+        size_t len = path.length();
+        path += sceneIndex.pSceneName.get();
+        TraverseScene(sceneNode->pScenes[sceneIndex.SceneIndex], path);
+        path.resize(len);
     }
 
     for (size_t i = 0; i < sceneNode->SceneNodeCount; i++)
     {
         auto& sceneNodeIndex = sceneNode->pSceneNodeIndices[i];
-        TraverseSceneNode(&sceneNode->pSceneNodes[sceneNodeIndex.SceneNodeIndex], path + sceneNodeIndex.pSceneNodeName.get());
+        TraverseSceneNodeImpl(&sceneNode->pSceneNodes[sceneNodeIndex.SceneNodeIndex], path + sceneNodeIndex.pSceneNodeName.get());
     }
+    path.pop_back();
+}
+
+static void TraverseSceneNode(Chao::CSD::SceneNode* sceneNode, std::string path)
+{
+    std::lock_guard lock(g_pathMutex);
+    TraverseSceneNodeImpl(sceneNode, path);
 }
 
 void MakeCsdProjectMidAsmHook(PPCRegister& r3, PPCRegister& r29)
@@ -154,7 +167,8 @@ void MakeCsdProjectMidAsmHook(PPCRegister& r3, PPCRegister& r29)
     uint8_t* base = g_memory.base;
     auto csdProject = reinterpret_cast<Chao::CSD::CProject*>(base + PPC_LOAD_U32(PPC_LOAD_U32(r3.u32 + 16) + 4));
     auto name = reinterpret_cast<const char*>(base + PPC_LOAD_U32(r29.u32));
-    TraverseSceneNode(csdProject->m_pResource->pRootNode, name);
+    std::string path = name;
+    TraverseSceneNode(csdProject->m_pResource->pRootNode, path);
 }
 
 // Chao::CSD::CMemoryAlloc::Free
@@ -168,10 +182,15 @@ PPC_FUNC(sub_825E2E60)
         std::lock_guard lock(g_pathMutex);
         const uint8_t* key = base + ctx.r4.u32;
 
-        auto lower = g_paths.lower_bound(key);
-        auto upper = g_paths.lower_bound(key + fileSize);
-
-        g_paths.erase(lower, upper);
+        uintptr_t keyAddr = reinterpret_cast<uintptr_t>(key);
+        for (auto it = g_paths.begin(); it != g_paths.end(); )
+        {
+            uintptr_t entryAddr = reinterpret_cast<uintptr_t>(it->first);
+            if (entryAddr >= keyAddr && entryAddr < keyAddr + fileSize)
+                it = g_paths.erase(it);
+            else
+                ++it;
+        }
     }
 
     __imp__sub_825E2E60(ctx, base);
