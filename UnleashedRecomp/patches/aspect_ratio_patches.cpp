@@ -5,6 +5,7 @@
 #include <ui/black_bar.h>
 #include <gpu/video.h>
 #include <xxHashMap.h>
+#include <ankerl/unordered_dense.h>
 
 #include "aspect_ratio_patches.h"
 #include "camera_patches.h"
@@ -77,7 +78,7 @@ namespace Chao::CSD
 }
 
 static Mutex g_pathMutex;
-static std::map<const void*, XXH64_hash_t> g_paths;
+static ankerl::unordered_dense::map<const void*, XXH64_hash_t> g_paths;
 
 static XXH64_hash_t HashStr(const std::string_view& value)
 {
@@ -168,10 +169,15 @@ PPC_FUNC(sub_825E2E60)
         std::lock_guard lock(g_pathMutex);
         const uint8_t* key = base + ctx.r4.u32;
 
-        auto lower = g_paths.lower_bound(key);
-        auto upper = g_paths.lower_bound(key + fileSize);
-
-        g_paths.erase(lower, upper);
+        uintptr_t keyAddr = reinterpret_cast<uintptr_t>(key);
+        for (auto it = g_paths.begin(); it != g_paths.end(); )
+        {
+            uintptr_t entryAddr = reinterpret_cast<uintptr_t>(it->first);
+            if (entryAddr >= keyAddr && entryAddr < keyAddr + fileSize)
+                it = g_paths.erase(it);
+            else
+                ++it;
+        }
     }
 
     __imp__sub_825E2E60(ctx, base);
