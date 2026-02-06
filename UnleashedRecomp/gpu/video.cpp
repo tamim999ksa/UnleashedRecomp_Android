@@ -40,32 +40,6 @@
 #define UNLEASHED_RECOMP
 #include "../../tools/XenosRecomp/XenosRecomp/shader_common.h"
 
-#ifdef UNLEASHED_RECOMP_D3D12
-#include "shader/blend_color_alpha_ps.hlsl.dxil.h"
-#include "shader/copy_vs.hlsl.dxil.h"
-#include "shader/copy_color_ps.hlsl.dxil.h"
-#include "shader/copy_depth_ps.hlsl.dxil.h"
-#include "shader/csd_filter_ps.hlsl.dxil.h"
-#include "shader/csd_no_tex_vs.hlsl.dxil.h"
-#include "shader/csd_vs.hlsl.dxil.h"
-#include "shader/enhanced_motion_blur_ps.hlsl.dxil.h"
-#include "shader/gamma_correction_ps.hlsl.dxil.h"
-#include "shader/gaussian_blur_3x3.hlsl.dxil.h"
-#include "shader/gaussian_blur_5x5.hlsl.dxil.h"
-#include "shader/gaussian_blur_7x7.hlsl.dxil.h"
-#include "shader/gaussian_blur_9x9.hlsl.dxil.h"
-#include "shader/imgui_ps.hlsl.dxil.h"
-#include "shader/imgui_vs.hlsl.dxil.h"
-#include "shader/movie_ps.hlsl.dxil.h"
-#include "shader/movie_vs.hlsl.dxil.h"
-#include "shader/resolve_msaa_color_2x.hlsl.dxil.h"
-#include "shader/resolve_msaa_color_4x.hlsl.dxil.h"
-#include "shader/resolve_msaa_color_8x.hlsl.dxil.h"
-#include "shader/resolve_msaa_depth_2x.hlsl.dxil.h"
-#include "shader/resolve_msaa_depth_4x.hlsl.dxil.h"
-#include "shader/resolve_msaa_depth_8x.hlsl.dxil.h"
-#endif
-
 #include "shader/blend_color_alpha_ps.hlsl.spirv.h"
 #include "shader/copy_vs.hlsl.spirv.h"
 #include "shader/copy_color_ps.hlsl.spirv.h"
@@ -90,19 +64,8 @@
 #include "shader/resolve_msaa_depth_4x.hlsl.spirv.h"
 #include "shader/resolve_msaa_depth_8x.hlsl.spirv.h"
 
-#ifdef _WIN32
-extern "C"
-{
-    __declspec(dllexport) unsigned long NvOptimusEnablement = 0x00000001;
-    __declspec(dllexport) int AmdPowerXpressRequestHighPerformance = 1;
-}
-#endif
-
 namespace plume
 {
-#ifdef UNLEASHED_RECOMP_D3D12
-    extern std::unique_ptr<RenderInterface> CreateD3D12Interface();
-#endif
 #ifdef SDL_VULKAN_ENABLED
     extern std::unique_ptr<RenderInterface> CreateVulkanInterface(RenderWindow sdlWindow);
 #else
@@ -283,11 +246,7 @@ static Profiler g_swapChainAcquireProfiler;
 static bool g_profilerVisible;
 static bool g_profilerWasToggled;
 
-#ifdef UNLEASHED_RECOMP_D3D12
-static bool g_vulkan = false;
-#else
 static constexpr bool g_vulkan = true;
-#endif
 
 static bool g_triangleStripWorkaround = false;
 
@@ -780,18 +739,8 @@ static std::unique_ptr<uint8_t[]> g_buttonBcDiff;
 
 static void LoadEmbeddedResources()
 {
-    if (g_vulkan)
-    {
-        g_shaderCache = std::make_unique<uint8_t[]>(g_spirvCacheDecompressedSize);
-        ZSTD_decompress(g_shaderCache.get(), g_spirvCacheDecompressedSize, g_compressedSpirvCache, g_spirvCacheCompressedSize);
-    }
-#ifdef UNLEASHED_RECOMP_D3D12
-    else
-    {
-        g_shaderCache = std::make_unique<uint8_t[]>(g_dxilCacheDecompressedSize);
-        ZSTD_decompress(g_shaderCache.get(), g_dxilCacheDecompressedSize, g_compressedDxilCache, g_dxilCacheCompressedSize);
-    }
-#endif
+    g_shaderCache = std::make_unique<uint8_t[]>(g_spirvCacheDecompressedSize);
+    ZSTD_decompress(g_shaderCache.get(), g_spirvCacheDecompressedSize, g_compressedSpirvCache, g_spirvCacheCompressedSize);
 
     g_buttonBcDiff = decompressZstd(g_button_bc_diff, g_button_bc_diff_uncompressed_size);
 }
@@ -1326,29 +1275,8 @@ static GuestShader* g_csdShader;
 
 static std::unique_ptr<GuestShader> g_enhancedMotionBlurShader;
 
-#ifdef UNLEASHED_RECOMP_D3D12
-
-#define CREATE_SHADER(NAME) \
-    g_device->createShader( \
-        g_vulkan ? g_##NAME##_spirv : g_##NAME##_dxil, \
-        g_vulkan ? sizeof(g_##NAME##_spirv) : sizeof(g_##NAME##_dxil), \
-        "main", \
-        g_vulkan ? RenderShaderFormat::SPIRV : RenderShaderFormat::DXIL)
-
-#else
-
 #define CREATE_SHADER(NAME) \
     g_device->createShader(g_##NAME##_spirv, sizeof(g_##NAME##_spirv), "main", RenderShaderFormat::SPIRV)
-
-#endif
-
-#ifdef _WIN32
-static bool DetectWine()
-{
-    HMODULE dllHandle = GetModuleHandle("ntdll.dll");
-    return dllHandle != nullptr && GetProcAddress(dllHandle, "wine_get_version") != nullptr;
-}
-#endif
 
 static constexpr size_t TEXTURE_DESCRIPTOR_SIZE = 65536;
 static constexpr size_t SAMPLER_DESCRIPTOR_SIZE = 1024;
@@ -1703,41 +1631,16 @@ bool Video::CreateHostDevice(const char *sdlVideoDriver, bool graphicsApiRetry)
 
     GameWindow::Init(sdlVideoDriver);
 
-#ifdef UNLEASHED_RECOMP_D3D12
-    g_vulkan = DetectWine() || Config::GraphicsAPI == EGraphicsAPI::Vulkan;
-#endif
-
     // Attempt to create the possible backends using a vector of function pointers. Whichever succeeds first will be the chosen API.
     using RenderInterfaceFunction = std::unique_ptr<RenderInterface>(void);
     std::vector<RenderInterfaceFunction *> interfaceFunctions;
 
-#ifdef UNLEASHED_RECOMP_D3D12
-    bool allowVulkanRedirection = true;
-
-    if (graphicsApiRetry)
-    {
-        // If we are attempting to create again after a reboot due to a crash, swap the order.
-        g_vulkan = !g_vulkan;
-
-        // Don't allow redirection to Vulkan if we are retrying after a crash, 
-        // so the user can at least boot the game with D3D12 if Vulkan fails to work.
-        allowVulkanRedirection = false;
-    }
-
-    interfaceFunctions.push_back(g_vulkan ? CreateVulkanInterfaceWrapper : CreateD3D12Interface);
-    interfaceFunctions.push_back(g_vulkan ? CreateD3D12Interface : CreateVulkanInterfaceWrapper);
-#else
     interfaceFunctions.push_back(CreateVulkanInterfaceWrapper);
-#endif
 
     for (size_t i = 0; i < interfaceFunctions.size(); i++)
     {
         RenderInterfaceFunction* interfaceFunction = interfaceFunctions[i];
 
-#ifdef UNLEASHED_RECOMP_D3D12
-        // Wrap the device creation in __try/__except to survive from driver crashes.
-        __try
-#endif
         {
             g_interface = interfaceFunction();
             if (g_interface == nullptr)
@@ -1750,54 +1653,6 @@ bool Video::CreateHostDevice(const char *sdlVideoDriver, bool graphicsApiRetry)
             {
                 const RenderDeviceDescription &deviceDescription = g_device->getDescription();
                 
-#ifdef UNLEASHED_RECOMP_D3D12
-                if (interfaceFunction == CreateD3D12Interface)
-                {
-                    if (allowVulkanRedirection)
-                    {
-                        bool redirectToVulkan = false;
-
-                        if (deviceDescription.vendor == RenderDeviceVendor::AMD)
-                        {
-                            // AMD Drivers before this version have a known issue where MSAA resolve targets will fail to work correctly.
-                            // If no specific graphics API was selected, we silently destroy this one and move to the next option as it'll
-                            // just work incorrectly otherwise and result in visual glitches and 3D rendering not working in general.
-                            constexpr uint64_t MinimumAMDDriverVersion = 0x1F00005DC2005CULL; // 31.0.24002.92
-                            if ((Config::GraphicsAPI == EGraphicsAPI::Auto) && (deviceDescription.driverVersion < MinimumAMDDriverVersion))
-                                redirectToVulkan = true;
-                        }
-                        else if (deviceDescription.vendor == RenderDeviceVendor::INTEL)
-                        {
-                            // Intel drivers on D3D12 are extremely buggy, introducing various graphical glitches.
-                            // We will redirect users to Vulkan until a workaround can be found.
-                            if (Config::GraphicsAPI == EGraphicsAPI::Auto)
-                                redirectToVulkan = true;
-                        }
-
-                        if (redirectToVulkan)
-                        {
-                            g_device.reset();
-                            g_interface.reset();
-
-                            // In case Vulkan fails to initialize, we will try D3D12 again afterwards, 
-                            // just to get the game to boot. This only really happens in very old Intel GPU drivers.
-                            if (!g_vulkan)
-                            {
-                                interfaceFunctions.push_back(CreateD3D12Interface);
-                                allowVulkanRedirection = false;
-                            }
-
-                            continue;
-                        }
-                    }
-
-                    // Hardware resolve seems to be completely bugged on Intel D3D12 drivers.
-                    g_hardwareResolve = (deviceDescription.vendor != RenderDeviceVendor::INTEL);
-                    g_hardwareDepthResolve = (deviceDescription.vendor != RenderDeviceVendor::INTEL);
-                }
-
-                g_vulkan = (interfaceFunction == CreateVulkanInterfaceWrapper);
-#endif
                 // Enable triangle strip workaround if we are on AMD, as there is a bug where
                 // restart indices cause triangles to be culled incorrectly. Converting them to degenerate triangles fixes it.
                 g_triangleStripWorkaround = (deviceDescription.vendor == RenderDeviceVendor::AMD);
@@ -1805,36 +1660,12 @@ bool Video::CreateHostDevice(const char *sdlVideoDriver, bool graphicsApiRetry)
                 break;
             }
         }
-#ifdef UNLEASHED_RECOMP_D3D12
-        __except (EXCEPTION_EXECUTE_HANDLER)
-        {
-            if (graphicsApiRetry)
-            {
-                // If we were retrying, and this also failed, then we'll show the user neither of the graphics APIs succeeded.
-                return false;
-            }
-            else
-            {
-                // If this is the first crash we ran into, reboot and try the other graphics API.
-                os::process::StartProcess(os::process::GetExecutablePath(), { "--graphics-api-retry" });
-                std::_Exit(0);
-            }
-        }
-#endif
     }
 
     if (g_device == nullptr)
     {
         return false;
     }
-
-#ifdef UNLEASHED_RECOMP_D3D12
-    if (graphicsApiRetry)
-    {
-        // If we managed to create a device after retrying it in a reboot, remember the one we picked.
-        Config::GraphicsAPI = g_vulkan ? EGraphicsAPI::Vulkan : EGraphicsAPI::D3D12;
-    }
-#endif
 
     g_capabilities = g_device->getCapabilities();
 
@@ -1887,16 +1718,8 @@ bool Video::CreateHostDevice(const char *sdlVideoDriver, bool graphicsApiRetry)
     switch (Config::TripleBuffering)
     {
     case ETripleBuffering::Auto:
-        if (g_vulkan)
-        {
-            // Defaulting to 3 is fine if presentWait as supported, as the maximum frame latency allowed is only 1.
-            bufferCount = g_device->getCapabilities().presentWait ? 3 : 2;
-        }
-        else
-        {
-            // Defaulting to 3 is fine on D3D12 thanks to flip discard model.
-            bufferCount = 3;
-        }
+        // Defaulting to 3 is fine if presentWait as supported, as the maximum frame latency allowed is only 1.
+        bufferCount = g_device->getCapabilities().presentWait ? 3 : 2;
 
         break;
     case ETripleBuffering::On:
@@ -1992,17 +1815,8 @@ bool Video::CreateHostDevice(const char *sdlVideoDriver, bool graphicsApiRetry)
 
     pipelineLayoutBuilder.addDescriptorSet(descriptorSetBuilder);
 
-    if (g_vulkan)
-    {
-        pipelineLayoutBuilder.addPushConstant(0, 4, 24, RenderShaderStageFlag::VERTEX | RenderShaderStageFlag::PIXEL);
-    }
-    else
-    {
-        pipelineLayoutBuilder.addRootDescriptor(0, 4, RenderRootDescriptorType::CONSTANT_BUFFER);
-        pipelineLayoutBuilder.addRootDescriptor(1, 4, RenderRootDescriptorType::CONSTANT_BUFFER);
-        pipelineLayoutBuilder.addRootDescriptor(2, 4, RenderRootDescriptorType::CONSTANT_BUFFER);
-        pipelineLayoutBuilder.addPushConstant(3, 4, 4, RenderShaderStageFlag::PIXEL); // For copy/resolve shaders.
-    }
+    pipelineLayoutBuilder.addPushConstant(0, 4, 24, RenderShaderStageFlag::VERTEX | RenderShaderStageFlag::PIXEL);
+
     pipelineLayoutBuilder.end();
     
     g_pipelineLayout = pipelineLayoutBuilder.create(g_device.get());
@@ -2496,7 +2310,7 @@ static void DrawProfiler()
         ImGui::Text("Hardware Depth Resolve: %s", g_hardwareDepthResolve ? "Enabled" : "Disabled");
         ImGui::NewLine();
 
-        ImGui::Text("API: %s", g_vulkan ? "Vulkan" : "D3D12");
+        ImGui::Text("API: %s", "Vulkan");
         ImGui::Text("Device: %s", g_device->getDescription().name.c_str());
         ImGui::Text("Device Type: %s", DeviceTypeName(g_device->getDescription().type));
         ImGui::Text("VRAM: %.2f MiB", (double)(g_device->getDescription().dedicatedVideoMemory) / (1024.0 * 1024.0));
@@ -2920,10 +2734,7 @@ static void SetRootDescriptor(const UploadAllocation& allocation, size_t index)
 {
     auto& commandList = g_commandLists[g_frame];
 
-    if (g_vulkan)
-        commandList->setGraphicsPushConstants(0, &allocation.deviceAddress, 8 * index, 8);
-    else
-        commandList->setGraphicsRootDescriptor(allocation.buffer->at(allocation.offset), index);
+    commandList->setGraphicsPushConstants(0, &allocation.deviceAddress, 8 * index, 8);
 }
 
 static void ProcExecuteCommandList(const RenderCommand& cmd)
@@ -3572,11 +3383,8 @@ static void ExecutePendingStretchRectCommands(GuestSurface* renderTarget, GuestS
                     g_dirtyStates.pipelineState = true;
                     g_dirtyStates.scissorRect = true;
 
-                    if (g_vulkan)
-                    {
-                        g_dirtyStates.vertexShaderConstants = true; // The push constant call invalidates vertex shader constants.
-                        g_dirtyStates.depthBias = true; // Static depth bias in copy pipeline invalidates dynamic depth bias.
-                    }
+                    g_dirtyStates.vertexShaderConstants = true; // The push constant call invalidates vertex shader constants.
+                    g_dirtyStates.depthBias = true; // Static depth bias in copy pipeline invalidates dynamic depth bias.
                 }
 
                 texture->sourceSurface = nullptr;
@@ -6691,11 +6499,6 @@ static void CompileMeshPipeline(const Mesh& mesh, CompilationArgs& args)
         if (g_capabilities.dynamicDepthBias)
         {
             // Put common depth bias values for reducing unnecessary calls.
-            if (!g_vulkan)
-            {
-                pipelineState.depthBias = COMMON_DEPTH_BIAS_VALUE;
-                pipelineState.slopeScaledDepthBias = COMMON_SLOPE_SCALED_DEPTH_BIAS_VALUE;
-            }
         }
         else 
         {
@@ -7471,7 +7274,7 @@ static void PipelineTaskConsumerThread()
                         pipelineState.primitiveTopology = RenderPrimitiveTopology::TRIANGLE_LIST;
 
                     // Zero out depth bias for Vulkan, we only store common values for D3D12.
-                    if (g_capabilities.dynamicDepthBias && g_vulkan)
+                    if (g_capabilities.dynamicDepthBias)
                     {
                         pipelineState.depthBias = 0;
                         pipelineState.slopeScaledDepthBias = 0.0f;
