@@ -173,6 +173,11 @@ void init()
 
 int main(int argc, char *argv[])
 {
+#ifdef __ANDROID__
+    SDL_setenv("SDL_AUDIO_DRIVER", "aaudio", 1);
+    SDL_setenv("SDL_VIDEODRIVER", "android", 1);
+#endif
+
     os::process::CheckConsole();
 
     if (!os::registry::Init())
