@@ -76,8 +76,11 @@ else()
     add_compile_options(-ffp-model=strict)
 endif()
 
+if (NOT ANDROID)
+    add_compile_definitions(SDL_MAIN_HANDLED)
+endif()
+
 add_compile_definitions(
-    SDL_MAIN_HANDLED
     _DISABLE_CONSTEXPR_MUTEX_CONSTRUCTOR # Microsoft wtf?
     _CRT_SECURE_NO_WARNINGS)
 
@@ -367,6 +370,9 @@ elseif (APPLE)
     add_custom_target(CopyMoltenVK DEPENDS ${MVK_ICD_DST} ${MVK_DYLIB_DST})
     add_dependencies(CopyMoltenVK MoltenVK)
     add_dependencies(UnleashedRecomp CopyMoltenVK)
+elseif (ANDROID)
+    add_library(UnleashedRecomp SHARED ${UNLEASHED_RECOMP_CXX_SOURCES})
+    set_target_properties(UnleashedRecomp PROPERTIES OUTPUT_NAME "main")
 else()
     add_executable(UnleashedRecomp ${UNLEASHED_RECOMP_CXX_SOURCES})
 endif()
