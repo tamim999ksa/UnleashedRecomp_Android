@@ -78,6 +78,57 @@ jobs:
         with:
           name: UnleashedRecomp-Linux-${{ env.CMAKE_PRESET }}
           path: ./out/build/${{ env.CMAKE_PRESET }}/UnleashedRecomp/UnleashedRecomp
+  build-android:
+    name: Build Android
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Checkout Private Repository
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ secrets.ASSET_REPO }}
+          token: ${{ secrets.ASSET_REPO_TOKEN }}
+          path: ./private
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Cache vcpkg
+        uses: actions/cache@v4
+        with:
+          path: |
+            ./thirdparty/vcpkg/downloads
+            ./thirdparty/vcpkg/packages
+          key: vcpkg-android-${{ hashFiles('vcpkg.json') }}
+          restore-keys: |
+              vcpkg-android-
+
+      - name: Bootstrap vcpkg
+        run: |
+          ./thirdparty/vcpkg/bootstrap-vcpkg.sh
+
+      - name: Prepare Project
+        run: cp ./private/* ./UnleashedRecompLib/private
+
+      - name: Build APK
+        working-directory: ./android
+        run: ./gradlew assembleDebug
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: UnleashedRecomp-Android-Debug
+          path: android/app/build/outputs/apk/debug/app-debug.apk
   build-windows:
     name: Build Windows
     runs-on: windows-latest
