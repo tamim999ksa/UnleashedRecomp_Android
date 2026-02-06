@@ -3,9 +3,9 @@ on:
   workflow_call:
     secrets:
       ASSET_REPO:
-        required: true
+        required: false
       ASSET_REPO_TOKEN:
-        required: true
+        required: false
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -21,6 +21,7 @@ jobs:
           submodules: recursive
 
       - name: Checkout Private Repository
+        if: ${{ secrets.ASSET_REPO != '' }}
         uses: actions/checkout@v4
         with:
           repository: ${{ secrets.ASSET_REPO }}
@@ -51,6 +52,7 @@ jobs:
           ./thirdparty/vcpkg/bootstrap-vcpkg.sh
 
       - name: Prepare Project
+        if: ${{ secrets.ASSET_REPO != '' }}
         run: cp ./private/* ./UnleashedRecompLib/private
 
       - name: Build APK
