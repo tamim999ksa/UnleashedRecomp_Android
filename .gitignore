@@ -407,3 +407,8 @@ FodyWeavers.xsd
 # CMake Files
 **/cmake-build-debug
 **/CMakeCache.txt
+
+# Gradle
+.gradle/
+**/.gradle/
+local.properties

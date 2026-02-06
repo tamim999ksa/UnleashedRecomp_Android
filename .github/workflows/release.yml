@@ -1,18 +1,12 @@
-name: validate
+name: Release
 on:
-  workflow_call:
-    secrets:
-      ASSET_REPO:
-        required: false
-      ASSET_REPO_TOKEN:
-        required: false
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  release:
+    types: [published]
+  workflow_dispatch:
 
 jobs:
-  build-android:
-    name: Build Android
+  build-release:
+    name: Build Release
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout Repository
@@ -55,21 +49,19 @@ jobs:
         if: ${{ secrets.ASSET_REPO != '' }}
         run: cp ./private/* ./UnleashedRecompLib/private
 
-      - name: Build Debug APK
-        working-directory: ./android
-        run: ./gradlew assembleDebug
-
-      - name: Upload Debug Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: UnleashedRecomp-Android-Debug
-          path: android/app/build/outputs/apk/debug/app-debug.apk
-
       - name: Build Release APK
         working-directory: ./android
         run: ./gradlew assembleRelease
 
-      - name: Upload Release Artifact
+      - name: Upload Release Asset
+        if: github.event_name == 'release'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload ${{ github.event.release.tag_name }} android/app/build/outputs/apk/release/app-release.apk
+
+      - name: Upload Artifact
+        if: github.event_name != 'release'
         uses: actions/upload-artifact@v4
         with:
           name: UnleashedRecomp-Android-Release
