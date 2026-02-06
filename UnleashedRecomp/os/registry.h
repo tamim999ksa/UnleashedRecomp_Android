@@ -11,12 +11,4 @@ namespace os::registry
     bool WriteValue(const std::string_view& name, const T& data);
 }
 
-#if _WIN32
-#include <os/win32/registry_win32.inl>
-#elif defined(ANDROID)
 #include <os/android/registry_android.inl>
-#elif defined(__linux__)
-#include <os/linux/registry_linux.inl>
-#elif defined(__APPLE__)
-#include <os/macos/registry_macos.inl>
-#endif

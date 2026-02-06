@@ -28,19 +28,6 @@
 #include <mod/mod_loader.h>
 #include <preload_executable.h>
 
-#ifdef _WIN32
-#include <timeapi.h>
-#endif
-
-#if defined(_WIN32) && defined(UNLEASHED_RECOMP_D3D12)
-static std::array<std::string_view, 3> g_D3D12RequiredModules =
-{
-    "D3D12/D3D12Core.dll",
-    "dxcompiler.dll",
-    "dxil.dll"
-};
-#endif
-
 const size_t XMAIOBegin = 0x7FEA0000;
 const size_t XMAIOEnd = XMAIOBegin + 0x0000FFFF;
 
@@ -51,10 +38,6 @@ std::unordered_map<uint16_t, GuestTexture*> g_xdbfTextureCache;
 
 void HostStartup()
 {
-#ifdef _WIN32
-    CoInitializeEx(nullptr, COINIT_MULTITHREADED);
-#endif
-
     hid::Init();
 }
 
@@ -183,10 +166,6 @@ void init()
     {
         printf("[*] CPU does not support the AVX instruction set.\n");
 
-#ifdef _WIN32
-        MessageBoxA(nullptr, "Your CPU does not meet the minimum system requirements.", "Unleashed Recompiled", MB_ICONERROR);
-#endif
-
         std::_Exit(1);
     }
 }
@@ -194,10 +173,6 @@ void init()
 
 int main(int argc, char *argv[])
 {
-#ifdef _WIN32
-    timeBeginPeriod(1);
-#endif
-
     os::process::CheckConsole();
 
     if (!os::registry::Init())
@@ -293,19 +268,6 @@ int main(int argc, char *argv[])
         SDL_ShowSimpleMessageBox(messageBoxStyle, GameWindow::GetTitle(), resultText, GameWindow::s_pWindow);
         std::_Exit(int(journal.lastResult));
     }
-
-#if defined(_WIN32) && defined(UNLEASHED_RECOMP_D3D12)
-    for (auto& dll : g_D3D12RequiredModules)
-    {
-        if (!std::filesystem::exists(g_executableRoot / dll))
-        {
-            char text[512];
-            snprintf(text, sizeof(text), Localise("System_Win32_MissingDLLs").c_str(), dll.data());
-            SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, GameWindow::GetTitle(), text, GameWindow::s_pWindow);
-            std::_Exit(1);
-        }
-    }
-#endif
 
     // Check the time since the last time an update was checked. Store the new time if the difference is more than six hours.
     constexpr double TimeBetweenUpdateChecksInSeconds = 6 * 60 * 60;

@@ -18,14 +18,6 @@ if (ANDROID AND CMAKE_CROSSCOMPILING)
     endif()
 endif()
 
-if (WIN32)
-    option(UNLEASHED_RECOMP_D3D12 "Add D3D12 support for rendering" ON)
-endif()
-
-if (CMAKE_SYSTEM_NAME MATCHES "Linux")
-    option(UNLEASHED_RECOMP_FLATPAK "Configure the build for Flatpak compatibility." OFF)
-endif()
-
 function(BIN2C)
     cmake_parse_arguments(BIN2C_ARGS "" "TARGET_OBJ;SOURCE_FILE;DEST_FILE;ARRAY_NAME;COMPRESSION_TYPE" "" ${ARGN})
 
@@ -70,18 +62,10 @@ add_compile_options(
     -Wno-tautological-undefined-compare
 )
 
-if (WIN32)
-    add_compile_options(/fp:strict)
-else()
-    add_compile_options(-ffp-model=strict)
-endif()
-
-if (NOT ANDROID)
-    add_compile_definitions(SDL_MAIN_HANDLED)
-endif()
+add_compile_options(-ffp-model=strict)
 
 add_compile_definitions(
-    _DISABLE_CONSTEXPR_MUTEX_CONSTRUCTOR # Microsoft wtf?
+    _DISABLE_CONSTEXPR_MUTEX_CONSTRUCTOR
     _CRT_SECURE_NO_WARNINGS)
 
 set(UNLEASHED_RECOMP_PRECOMPILED_HEADERS
@@ -102,39 +86,13 @@ set(UNLEASHED_RECOMP_LOCALE_CXX_SOURCES
     "locale/locale.cpp"
 )
 
-if (WIN32)
-    set(UNLEASHED_RECOMP_OS_CXX_SOURCES
-        "os/win32/logger_win32.cpp"
-        "os/win32/media_win32.cpp"
-        "os/win32/process_win32.cpp"
-        "os/win32/user_win32.cpp"
-        "os/win32/version_win32.cpp"
-    )
-elseif (CMAKE_SYSTEM_NAME MATCHES "Linux")
-    set(UNLEASHED_RECOMP_OS_CXX_SOURCES
-        "os/linux/logger_linux.cpp"
-        "os/linux/media_linux.cpp"
-        "os/linux/process_linux.cpp"
-        "os/linux/user_linux.cpp"
-        "os/linux/version_linux.cpp"
-    )
-elseif (APPLE)
-    set(UNLEASHED_RECOMP_OS_CXX_SOURCES
-        "os/macos/logger_macos.cpp"
-        "os/macos/media_macos.cpp"
-        "os/macos/process_macos.cpp"
-        "os/macos/user_macos.cpp"
-        "os/macos/version_macos.cpp"
-    )
-elseif (ANDROID)
-    set(UNLEASHED_RECOMP_OS_CXX_SOURCES
-        "os/android/logger_android.cpp"
-        "os/android/media_android.cpp"
-        "os/android/process_android.cpp"
-        "os/android/user_android.cpp"
-        "os/android/version_android.cpp"
-    )
-endif()
+set(UNLEASHED_RECOMP_OS_CXX_SOURCES
+    "os/android/logger_android.cpp"
+    "os/android/media_android.cpp"
+    "os/android/process_android.cpp"
+    "os/android/user_android.cpp"
+    "os/android/version_android.cpp"
+)
 
 set(UNLEASHED_RECOMP_CPU_CXX_SOURCES
     "cpu/guest_thread.cpp"
@@ -294,130 +252,10 @@ GenerateVersionSources(
     SHOW_BUILD_TYPE ${SHOW_GIT_INFO_AND_BUILD_TYPE}
 )
 
-if (WIN32)
-    # Create binary version number for Win32 integer attributes.
-    CreateVersionString(
-        VERSION_TXT ${VERSION_TXT}
-        OUTPUT_CSV 1
-        OUTPUT_VAR WIN32_VERSION_BINARY
-    )
-
-    # Create string version number for Win32 detailed attributes.
-    CreateVersionString(
-        VERSION_TXT ${VERSION_TXT}
-        BUILD_TYPE ${CMAKE_BUILD_TYPE}
-        SHOW_GIT_INFO ${SHOW_GIT_INFO_AND_BUILD_TYPE}
-        SHOW_BUILD_TYPE ${SHOW_GIT_INFO_AND_BUILD_TYPE}
-        OUTPUT_VAR WIN32_VERSION_STRING
-    )
-
-    # Set Win32 icon path.
-    set(WIN32_ICON_PATH "${PROJECT_SOURCE_DIR}/../UnleashedRecompResources/images/game_icon.ico")
-
-    configure_file("res/win32/res.rc.template" "${CMAKE_BINARY_DIR}/res.rc" @ONLY)
-    add_executable(UnleashedRecomp ${UNLEASHED_RECOMP_CXX_SOURCES} "${CMAKE_BINARY_DIR}/res.rc")
-
-    # Hide console for release configurations.
-    if (${CMAKE_BUILD_TYPE} MATCHES "Release")
-        target_link_options(UnleashedRecomp PRIVATE "/SUBSYSTEM:WINDOWS" "/ENTRY:mainCRTStartup")
-    endif()
-elseif (APPLE)
-    # Create version number for app bundle.
-    CreateVersionString(
-        VERSION_TXT ${VERSION_TXT}
-        OUTPUT_VAR MACOS_BUNDLE_VERSION
-    )
-
-    add_executable(UnleashedRecomp MACOSX_BUNDLE
-        ${UNLEASHED_RECOMP_CXX_SOURCES}
-        res/macos/game_icon.icns
-    )
-    set_source_files_properties(res/macos/game_icon.icns PROPERTIES
-        MACOSX_PACKAGE_LOCATION Resources)
-    set_target_properties(UnleashedRecomp PROPERTIES
-        OUTPUT_NAME "Unleashed Recompiled"
-        MACOSX_BUNDLE_INFO_PLIST ${CMAKE_CURRENT_SOURCE_DIR}/res/macos/MacOSXBundleInfo.plist.in
-        MACOSX_BUNDLE_GUI_IDENTIFIER hedge-dev.UnleashedRecomp
-        MACOSX_BUNDLE_BUNDLE_NAME "Unleashed Recompiled"
-        MACOSX_BUNDLE_BUNDLE_VERSION ${MACOS_BUNDLE_VERSION}
-        MACOSX_BUNDLE_SHORT_VERSION_STRING ${MACOS_BUNDLE_VERSION}
-        MACOSX_BUNDLE_ICON_FILE "game_icon.icns"
-    )
-
-    # Linking with MoltenVK directly would prevent using the system Vulkan loader to load with debug layers.
-    # Instead, copy the MoltenVK dylib to the app bundle along with an ICD file for the loader to find it.
-    # In the event the loader is not installed, the MoltenVK dylib can still be picked up directly in the app bundle.
-    set(MVK_BUNDLED_PATH "Resources/vulkan/icd.d")
-    set(MVK_DST "${CMAKE_CURRENT_BINARY_DIR}/Unleashed Recompiled.app/Contents/${MVK_BUNDLED_PATH}")
-    set_property(TARGET UnleashedRecomp APPEND PROPERTY BUILD_RPATH "@executable_path/../${MVK_BUNDLED_PATH}")
-
-    set(MVK_ICD_SRC "${UNLEASHED_RECOMP_THIRDPARTY_ROOT}/MoltenVK/MoltenVK/MoltenVK/icd/MoltenVK_icd.json")
-    set(MVK_ICD_DST "${MVK_DST}/MoltenVK_icd.json")
-    set(MVK_DYLIB_SRC "${CMAKE_BINARY_DIR}/thirdparty/MoltenVK/libMoltenVK.dylib")
-    set(MVK_DYLIB_DST "${MVK_DST}/libMoltenVK.dylib")
-
-    add_custom_command(
-        OUTPUT ${MVK_DST}
-        COMMAND ${CMAKE_COMMAND} -E make_directory ${MVK_DST})
-    add_custom_command(
-        OUTPUT ${MVK_ICD_DST}
-        DEPENDS ${MVK_ICD_SRC} ${MVK_DST}
-        COMMAND ${CMAKE_COMMAND} -E copy ${MVK_ICD_SRC} ${MVK_ICD_DST})
-    add_custom_command(
-        OUTPUT ${MVK_DYLIB_DST}
-        DEPENDS ${MVK_DYLIB_SRC} ${MVK_DST}
-        COMMAND ${CMAKE_COMMAND} -E copy ${MVK_DYLIB_SRC} ${MVK_DYLIB_DST})
-    add_custom_target(CopyMoltenVK DEPENDS ${MVK_ICD_DST} ${MVK_DYLIB_DST})
-    add_dependencies(CopyMoltenVK MoltenVK)
-    add_dependencies(UnleashedRecomp CopyMoltenVK)
-elseif (ANDROID)
-    add_library(UnleashedRecomp SHARED ${UNLEASHED_RECOMP_CXX_SOURCES})
-    set_target_properties(UnleashedRecomp PROPERTIES OUTPUT_NAME "main")
-else()
-    add_executable(UnleashedRecomp ${UNLEASHED_RECOMP_CXX_SOURCES})
-endif()
-
-if (UNLEASHED_RECOMP_FLATPAK)
-    target_compile_definitions(UnleashedRecomp PRIVATE
-        "UNLEASHED_RECOMP_FLATPAK"
-        "GAME_INSTALL_DIRECTORY=\"/var/data\""
-    )
-endif()
+add_library(UnleashedRecomp SHARED ${UNLEASHED_RECOMP_CXX_SOURCES})
+set_target_properties(UnleashedRecomp PROPERTIES OUTPUT_NAME "main")
 
 find_package(CURL REQUIRED)
-
-if (UNLEASHED_RECOMP_D3D12)
-    find_package(directx-headers CONFIG REQUIRED)
-    find_package(directx12-agility CONFIG REQUIRED)
-    target_compile_definitions(UnleashedRecomp PRIVATE UNLEASHED_RECOMP_D3D12)
-
-    file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/D3D12)
-    add_custom_command(TARGET UnleashedRecomp POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_PROPERTY:Microsoft::DirectX12-Core,IMPORTED_LOCATION_RELEASE> $<TARGET_FILE_DIR:UnleashedRecomp>/D3D12
-        COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_PROPERTY:Microsoft::DirectX12-Layers,IMPORTED_LOCATION_DEBUG> $<TARGET_FILE_DIR:UnleashedRecomp>/D3D12
-        COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_PROPERTY:Microsoft::DirectXShaderCompiler,IMPORTED_LOCATION> $<TARGET_FILE_DIR:UnleashedRecomp>
-        COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_PROPERTY:Microsoft::DXIL,IMPORTED_LOCATION> $<TARGET_FILE_DIR:UnleashedRecomp>
-        COMMAND_EXPAND_LISTS
-    )
-
-    target_link_libraries(UnleashedRecomp PRIVATE
-        Microsoft::DirectXShaderCompiler
-        Microsoft::DXIL
-        dxgi
-    )
-endif()
-
-if (WIN32)
-    target_link_libraries(UnleashedRecomp PRIVATE
-        comctl32
-        dwmapi
-        ntdll
-        Shcore
-        Synchronization
-        winmm
-        windowsapp
-    )
-endif()
 
 target_link_libraries(UnleashedRecomp PRIVATE
     fmt::fmt
@@ -433,6 +271,7 @@ target_link_libraries(UnleashedRecomp PRIVATE
     xxHash::xxhash
     CURL::libcurl
     plume
+    log
 )
 
 target_include_directories(UnleashedRecomp PRIVATE
@@ -441,29 +280,11 @@ target_include_directories(UnleashedRecomp PRIVATE
     ${UNLEASHED_RECOMP_THIRDPARTY_INCLUDES}
 )
 
-if (CMAKE_SYSTEM_NAME MATCHES "Linux")
-    find_package(X11 REQUIRED)
-    target_include_directories(UnleashedRecomp PRIVATE ${X11_INCLUDE_DIR})
-    target_link_libraries(UnleashedRecomp PRIVATE ${X11_LIBRARIES})
-endif()
-
-if (ANDROID)
-    target_link_libraries(UnleashedRecomp PRIVATE log)
-endif()
-
 target_precompile_headers(UnleashedRecomp PUBLIC ${UNLEASHED_RECOMP_PRECOMPILED_HEADERS})
 
 function(compile_shader FILE_PATH TARGET_NAME)
     set(FILE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/gpu/shader/${FILE_PATH}.hlsl)
     cmake_path(GET FILE_PATH STEM VARIABLE_NAME)
-    if (UNLEASHED_RECOMP_D3D12)
-        add_custom_command(
-            OUTPUT ${FILE_PATH}.dxil.h
-            COMMAND ${DIRECTX_DXC_TOOL} -T ${TARGET_NAME} -HV 2021 -all-resources-bound -Wno-ignored-attributes -Fh ${FILE_PATH}.dxil.h ${FILE_PATH} -Vn g_${VARIABLE_NAME}_dxil
-            DEPENDS ${FILE_PATH}
-        )
-        target_sources(UnleashedRecomp PRIVATE ${FILE_PATH}.dxil.h)
-    endif()
     add_custom_command(
         OUTPUT ${FILE_PATH}.spirv.h
         COMMAND ${DIRECTX_DXC_TOOL} -T ${TARGET_NAME} -HV 2021 -all-resources-bound -spirv -fvk-use-dx-layout ${ARGN} -Fh ${FILE_PATH}.spirv.h ${FILE_PATH} -Vn g_${VARIABLE_NAME}_spirv
