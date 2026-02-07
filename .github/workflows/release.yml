@@ -4,6 +4,9 @@ on:
     types: [published]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build-release:
     name: Build Release
@@ -15,7 +18,7 @@ jobs:
           submodules: recursive
 
       - name: Checkout Private Repository
-        if: secrets.ASSET_REPO != ''
+        if: ${{ secrets.ASSET_REPO != '' }}
         uses: actions/checkout@v4
         with:
           repository: ${{ secrets.ASSET_REPO }}
@@ -46,8 +49,14 @@ jobs:
           ./thirdparty/vcpkg/bootstrap-vcpkg.sh
 
       - name: Prepare Project
-        if: secrets.ASSET_REPO != ''
-        run: cp ./private/* ./UnleashedRecompLib/private
+        if: ${{ secrets.ASSET_REPO != '' }}
+        run: |
+          mkdir -p ./UnleashedRecompLib/private
+          if [ -d "./private" ] && [ "$(ls -A ./private)" ]; then
+            cp -r ./private/* ./UnleashedRecompLib/private/
+          else
+            echo "Private directory is empty or does not exist."
+          fi
 
       - name: Build Release APK
         working-directory: ./android
@@ -58,7 +67,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release upload ${{ github.event.release.tag_name }} android/app/build/outputs/apk/release/app-release.apk
+          gh release upload ${{ github.event.release.tag_name }} android/app/build/outputs/apk/release/app-release.apk --clobber
 
       - name: Upload Artifact
         if: github.event_name != 'release'
