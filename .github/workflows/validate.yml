@@ -14,6 +14,8 @@ jobs:
   build-android:
     name: Build Android
     runs-on: ubuntu-24.04
+    env:
+      ASSET_REPO: ${{ secrets.ASSET_REPO }}
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -21,10 +23,10 @@ jobs:
           submodules: recursive
 
       - name: Checkout Private Repository
-        if: ${{ secrets.ASSET_REPO != '' }}
+        if: env.ASSET_REPO != ''
         uses: actions/checkout@v4
         with:
-          repository: ${{ secrets.ASSET_REPO }}
+          repository: ${{ env.ASSET_REPO }}
           token: ${{ secrets.ASSET_REPO_TOKEN }}
           path: ./private
 
@@ -52,8 +54,14 @@ jobs:
           ./thirdparty/vcpkg/bootstrap-vcpkg.sh
 
       - name: Prepare Project
-        if: ${{ secrets.ASSET_REPO != '' }}
-        run: cp ./private/* ./UnleashedRecompLib/private
+        if: env.ASSET_REPO != ''
+        run: |
+          mkdir -p ./UnleashedRecompLib/private
+          if [ -d "./private" ] && [ "$(ls -A ./private)" ]; then
+            cp -r ./private/* ./UnleashedRecompLib/private/
+          else
+            echo "Private directory is empty or does not exist."
+          fi
 
       - name: Build Debug APK
         working-directory: ./android
