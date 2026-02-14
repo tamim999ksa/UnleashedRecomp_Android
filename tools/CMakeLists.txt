@@ -11,6 +11,12 @@ if (ANDROID AND DEFINED HOST_TOOLS_DIR)
     add_executable(bc_diff IMPORTED)
     set_property(TARGET bc_diff PROPERTY IMPORTED_LOCATION "${HOST_TOOLS_DIR}/bc_diff")
 
+    add_executable(XenonRecompHost IMPORTED)
+    set_property(TARGET XenonRecompHost PROPERTY IMPORTED_LOCATION "${HOST_TOOLS_DIR}/XenonRecomp")
+
+    add_executable(XenosRecompHost IMPORTED)
+    set_property(TARGET XenosRecompHost PROPERTY IMPORTED_LOCATION "${HOST_TOOLS_DIR}/XenosRecomp")
+
     add_subdirectory(${UNLEASHED_RECOMP_TOOLS_ROOT}/XenonRecomp)
 
     # Manually add XenosRecomp thirdparty to satisfy dependencies (e.g. zstd)
@@ -23,5 +29,10 @@ else()
     add_subdirectory(${UNLEASHED_RECOMP_TOOLS_ROOT}/fshasher)
     add_subdirectory(${UNLEASHED_RECOMP_TOOLS_ROOT}/x_decompress)
     add_subdirectory(${UNLEASHED_RECOMP_TOOLS_ROOT}/XenonRecomp)
+    add_executable(XenonRecompHost ALIAS XenonRecomp)
+
     add_subdirectory(${UNLEASHED_RECOMP_TOOLS_ROOT}/XenosRecomp)
+    add_executable(XenosRecompHost ALIAS XenosRecomp)
+
+    target_compile_definitions(XenosRecomp PRIVATE UNLEASHED_RECOMP)
 endif()
