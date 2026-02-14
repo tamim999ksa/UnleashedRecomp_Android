@@ -4,7 +4,9 @@ set -e
 # Make sure we are in the project root
 cd "$(dirname "$0")"
 
-mkdir -p build_tools/bin
+# Define absolute path for output binaries
+OUTPUT_BIN_DIR="$(pwd)/build_tools/bin"
+mkdir -p "$OUTPUT_BIN_DIR"
 
 echo "=== Building GCC compatible tools ==="
 rm -rf build_tools/build_gcc
@@ -20,13 +22,13 @@ cmake ../.. -DCMAKE_BUILD_TYPE=Release -DBUILD_TOOLS_ONLY=ON
 # Build
 cmake --build . --target file_to_c fshasher x_decompress bc_diff --parallel $(nproc)
 
-# Install
+# Install function using absolute path
 copy_tool() {
     local tool_name=$1
     local tool_path=$(find . -name "$tool_name" -type f -executable | head -n 1)
     if [ -n "$tool_path" ]; then
-        cp "$tool_path" ../../bin/
-        echo "Copied $tool_name"
+        cp "$tool_path" "$OUTPUT_BIN_DIR/"
+        echo "Copied $tool_name to $OUTPUT_BIN_DIR"
     else
         echo "Error: Could not find executable for $tool_name"
         exit 1
@@ -65,8 +67,8 @@ copy_tool "XenosRecomp"
 cd ../..
 
 # Copy libdxcompiler.so
-cp tools/XenosRecomp/thirdparty/dxc-bin/lib/x64/libdxcompiler.so build_tools/bin/
+cp tools/XenosRecomp/thirdparty/dxc-bin/lib/x64/libdxcompiler.so "$OUTPUT_BIN_DIR/"
 echo "Copied libdxcompiler.so"
 
-echo "Build tools ready in build_tools/bin"
-ls -l build_tools/bin
+echo "Build tools ready in $OUTPUT_BIN_DIR"
+ls -l "$OUTPUT_BIN_DIR"
