@@ -56,6 +56,11 @@ jobs:
         run: |
           ./thirdparty/vcpkg/bootstrap-vcpkg.sh
 
+      - name: Run Build Tools
+        run: |
+          chmod +x ./build_tools.sh
+          ./build_tools.sh
+
       - name: Prepare Project
         if: env.ASSET_REPO != ''
         run: |
