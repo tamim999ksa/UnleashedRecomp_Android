@@ -1,5 +1,17 @@
 project("UnleashedRecompLib")
 
+if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/private/default.xex")
+    message(FATAL_ERROR "\n\nError: UnleashedRecompLib/private/default.xex is missing!\nPlease provide the original game assets in UnleashedRecompLib/private/.\nFor CI builds, ensure ASSET_REPO is configured correctly.\n\n")
+endif()
+
+if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/private/default.xexp")
+    message(FATAL_ERROR "\n\nError: UnleashedRecompLib/private/default.xexp is missing!\nPlease provide the original game assets in UnleashedRecompLib/private/.\nFor CI builds, ensure ASSET_REPO is configured correctly.\n\n")
+endif()
+
+if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/private/shader.ar")
+    message(FATAL_ERROR "\n\nError: UnleashedRecompLib/private/shader.ar is missing!\nPlease provide the original game assets in UnleashedRecompLib/private/.\nFor CI builds, ensure ASSET_REPO is configured correctly.\n\n")
+endif()
+
 add_compile_options(
     -fno-strict-aliasing
 )
