@@ -10,10 +10,6 @@ else()
     add_compile_options(-ffp-model=strict)
 endif()
 
-target_compile_definitions(XenonRecomp PRIVATE 
-    XENON_RECOMP_CONFIG_FILE_PATH=\"${CMAKE_CURRENT_SOURCE_DIR}/config/SWA.toml\"
-    XENON_RECOMP_HEADER_FILE_PATH=\"${UNLEASHED_RECOMP_TOOLS_ROOT}/XenonRecomp/XenonUtils/ppc_context.h\")
-
 set(UNLEASHED_RECOMP_PPC_RECOMPILED_SOURCES 
     "${CMAKE_CURRENT_SOURCE_DIR}/ppc/ppc_config.h"
     "${CMAKE_CURRENT_SOURCE_DIR}/ppc/ppc_context.h"
@@ -30,7 +26,7 @@ add_custom_command(
         "${CMAKE_CURRENT_SOURCE_DIR}/private/default_patched.xex"
         ${UNLEASHED_RECOMP_PPC_RECOMPILED_SOURCES}
     COMMAND 
-        $<TARGET_FILE:XenonRecomp>
+        $<TARGET_FILE:XenonRecompHost> "${CMAKE_CURRENT_SOURCE_DIR}/config/SWA.toml" "${UNLEASHED_RECOMP_TOOLS_ROOT}/XenonRecomp/XenonUtils/ppc_context.h"
     DEPENDS 
         "${CMAKE_CURRENT_SOURCE_DIR}/private/default.xex"
         "${CMAKE_CURRENT_SOURCE_DIR}/private/default.xexp"
@@ -50,13 +46,6 @@ add_custom_command(
 set(XENOS_RECOMP_ROOT "${UNLEASHED_RECOMP_TOOLS_ROOT}/XenosRecomp/XenosRecomp")
 set(XENOS_RECOMP_INCLUDE "${XENOS_RECOMP_ROOT}/shader_common.h")
 
-target_compile_definitions(XenosRecomp PRIVATE 
-    XENOS_RECOMP_INPUT=\"${CMAKE_CURRENT_SOURCE_DIR}/private\" 
-    XENOS_RECOMP_OUTPUT=\"${CMAKE_CURRENT_SOURCE_DIR}/shader/shader_cache.cpp\"
-    XENOS_RECOMP_INCLUDE_INPUT=\"${XENOS_RECOMP_INCLUDE}\"
-    UNLEASHED_RECOMP
-)
-
 file(GLOB XENOS_RECOMP_SOURCES 
     "${XENOS_RECOMP_ROOT}/*.h"
     "${XENOS_RECOMP_ROOT}/*.cpp"
@@ -66,7 +55,7 @@ add_custom_command(
     OUTPUT 
         "${CMAKE_CURRENT_SOURCE_DIR}/shader/shader_cache.cpp"
     COMMAND
-        $<TARGET_FILE:XenosRecomp>
+        $<TARGET_FILE:XenosRecompHost> "${CMAKE_CURRENT_SOURCE_DIR}/private" "${CMAKE_CURRENT_SOURCE_DIR}/shader/shader_cache.cpp" "${XENOS_RECOMP_INCLUDE}"
     DEPENDS 
         "${CMAKE_CURRENT_SOURCE_DIR}/private/default_patched.xex"
         "${CMAKE_CURRENT_SOURCE_DIR}/private/shader_decompressed.ar" 
