@@ -413,3 +413,4 @@ FodyWeavers.xsd
 **/.gradle/
 local.properties
 **/build/
+build_tools/
