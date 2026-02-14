@@ -68,14 +68,47 @@ jobs:
           ./build_tools.sh
 
       - name: Prepare Project
-        if: env.ASSET_REPO != ''
         run: |
-          mkdir -p ./UnleashedRecompLib/private
-          if [ -d "./private" ] && [ "$(ls -A ./private)" ]; then
-            cp -r ./private/* ./UnleashedRecompLib/private/
-          else
-            echo "Private directory is empty or does not exist."
+          if [ -z "$ASSET_REPO" ]; then
+            echo "Error: ASSET_REPO secret is not set. This is required for Release builds."
+            exit 1
           fi
+
+          mkdir -p ./UnleashedRecompLib/private
+
+          if [ ! -d "./private" ] || [ -z "$(ls -A ./private)" ]; then
+            echo "Error: Private directory is empty or does not exist."
+            ls -la .
+            exit 1
+          fi
+
+          echo "Listing private directory contents for debugging:"
+          find ./private -maxdepth 3
+
+          echo "Searching for default.xex..."
+          find ./private -iname "default.xex" -exec cp {} ./UnleashedRecompLib/private/default.xex \;
+
+          echo "Searching for default.xexp..."
+          find ./private -iname "default.xexp" -exec cp {} ./UnleashedRecompLib/private/default.xexp \;
+
+          echo "Searching for shader.ar..."
+          find ./private -iname "shader.ar" -exec cp {} ./UnleashedRecompLib/private/shader.ar \;
+
+          if [ ! -f "./UnleashedRecompLib/private/default.xex" ]; then
+            echo "Error: default.xex not found in ASSET_REPO."
+            exit 1
+          fi
+          if [ ! -f "./UnleashedRecompLib/private/default.xexp" ]; then
+            echo "Error: default.xexp not found in ASSET_REPO."
+            exit 1
+          fi
+          if [ ! -f "./UnleashedRecompLib/private/shader.ar" ]; then
+            echo "Error: shader.ar not found in ASSET_REPO."
+            exit 1
+          fi
+
+          echo "Assets prepared successfully."
+          ls -l ./UnleashedRecompLib/private/
 
       - name: Build Release APK
         working-directory: ./android
