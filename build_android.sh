@@ -15,6 +15,16 @@ fi
 echo "Bootstrapping vcpkg..."
 ./thirdparty/vcpkg/bootstrap-vcpkg.sh
 
+# Apply NFD Android Patch
+echo "Applying nativefiledialog-extended Android patch..."
+cd thirdparty/nativefiledialog-extended
+if ! grep -q "PLATFORM_ANDROID" CMakeLists.txt; then
+    git apply ../../patches/nfd_android.patch
+else
+    echo "Patch already applied."
+fi
+cd ../..
+
 # Build APK
 echo "Building APK..."
 cd android

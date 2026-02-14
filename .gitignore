@@ -412,3 +412,4 @@ FodyWeavers.xsd
 .gradle/
 **/.gradle/
 local.properties
+**/build/
