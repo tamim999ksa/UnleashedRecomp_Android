@@ -1,20 +1,20 @@
 if (ANDROID AND DEFINED HOST_TOOLS_DIR)
-    add_executable(file_to_c IMPORTED)
+    add_executable(file_to_c IMPORTED GLOBAL)
     set_property(TARGET file_to_c PROPERTY IMPORTED_LOCATION "${HOST_TOOLS_DIR}/file_to_c")
 
-    add_executable(fshasher IMPORTED)
+    add_executable(fshasher IMPORTED GLOBAL)
     set_property(TARGET fshasher PROPERTY IMPORTED_LOCATION "${HOST_TOOLS_DIR}/fshasher")
 
-    add_executable(x_decompress IMPORTED)
+    add_executable(x_decompress IMPORTED GLOBAL)
     set_property(TARGET x_decompress PROPERTY IMPORTED_LOCATION "${HOST_TOOLS_DIR}/x_decompress")
 
-    add_executable(bc_diff IMPORTED)
+    add_executable(bc_diff IMPORTED GLOBAL)
     set_property(TARGET bc_diff PROPERTY IMPORTED_LOCATION "${HOST_TOOLS_DIR}/bc_diff")
 
-    add_executable(XenonRecompHost IMPORTED)
+    add_executable(XenonRecompHost IMPORTED GLOBAL)
     set_property(TARGET XenonRecompHost PROPERTY IMPORTED_LOCATION "${HOST_TOOLS_DIR}/XenonRecomp")
 
-    add_executable(XenosRecompHost IMPORTED)
+    add_executable(XenosRecompHost IMPORTED GLOBAL)
     set_property(TARGET XenosRecompHost PROPERTY IMPORTED_LOCATION "${HOST_TOOLS_DIR}/XenosRecomp")
 
     add_subdirectory(${UNLEASHED_RECOMP_TOOLS_ROOT}/XenonRecomp)
