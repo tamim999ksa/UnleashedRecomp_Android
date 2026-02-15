@@ -22,8 +22,15 @@ jobs:
         with:
           submodules: recursive
 
+      - name: Verify Secrets
+        run: |
+          if [ -z "${{ secrets.ASSET_REPO }}" ]; then
+            echo "Error: ASSET_REPO secret is not set."
+            echo "Please configure the ASSET_REPO secret in your repository settings."
+            exit 1
+          fi
+
       - name: Checkout Private Repository
-        if: env.ASSET_REPO != ''
         uses: actions/checkout@v4
         with:
           repository: ${{ env.ASSET_REPO }}
@@ -71,7 +78,6 @@ jobs:
           ./build_tools.sh
 
       - name: Prepare Project
-        if: env.ASSET_REPO != ''
         run: |
           mkdir -p ./UnleashedRecompLib/private
 
@@ -108,24 +114,20 @@ jobs:
           ls -l ./UnleashedRecompLib/private/
 
       - name: Build Debug APK
-        if: env.ASSET_REPO != ''
         working-directory: ./android
         run: ./gradlew assembleDebug
 
       - name: Upload Debug Artifact
-        if: env.ASSET_REPO != ''
         uses: actions/upload-artifact@v4
         with:
           name: UnleashedRecomp-Android-Debug
           path: android/app/build/outputs/apk/debug/app-debug.apk
 
       - name: Build Release APK
-        if: env.ASSET_REPO != ''
         working-directory: ./android
         run: ./gradlew assembleRelease
 
       - name: Upload Release Artifact
-        if: env.ASSET_REPO != ''
         uses: actions/upload-artifact@v4
         with:
           name: UnleashedRecomp-Android-Release
