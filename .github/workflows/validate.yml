@@ -108,20 +108,24 @@ jobs:
           ls -l ./UnleashedRecompLib/private/
 
       - name: Build Debug APK
+        if: env.ASSET_REPO != ''
         working-directory: ./android
         run: ./gradlew assembleDebug
 
       - name: Upload Debug Artifact
+        if: env.ASSET_REPO != ''
         uses: actions/upload-artifact@v4
         with:
           name: UnleashedRecomp-Android-Debug
           path: android/app/build/outputs/apk/debug/app-debug.apk
 
       - name: Build Release APK
+        if: env.ASSET_REPO != ''
         working-directory: ./android
         run: ./gradlew assembleRelease
 
       - name: Upload Release Artifact
+        if: env.ASSET_REPO != ''
         uses: actions/upload-artifact@v4
         with:
           name: UnleashedRecomp-Android-Release
