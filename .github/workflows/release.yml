@@ -11,26 +11,17 @@ jobs:
   build-release:
     name: Build Release
     runs-on: ubuntu-24.04
-    env:
-      ASSET_REPO: ${{ secrets.ASSET_REPO }}
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
         with:
           submodules: recursive
 
-      - name: Check Secrets
-        if: env.ASSET_REPO == ''
+      - name: Install dependencies
         run: |
-          echo "ASSET_REPO secret is missing. Release builds require game assets."
-          exit 1
-
-      - name: Checkout Private Repository
-        uses: actions/checkout@v4
-        with:
-          repository: ${{ env.ASSET_REPO }}
-          token: ${{ secrets.ASSET_REPO_TOKEN }}
-          path: ./private
+          sudo apt-get update
+          sudo apt-get install -y 7zip
+          pipx install gdown
 
       - name: Setup Java
         uses: actions/setup-java@v4
@@ -71,6 +62,36 @@ jobs:
         run: |
           chmod +x ./build_tools.sh
           ./build_tools.sh
+
+      - name: Download and Extract Assets
+        run: |
+          mkdir -p private
+
+          # Download Game Data
+          echo "Downloading Game Data..."
+          gdown 1QfU4ewEbJoFPYYcaPdmT9Ma1WhR-5jck -O game_data.zip
+
+          # Download DLC
+          echo "Downloading DLC..."
+          gdown 1qnthOSI-rO-M09yN8OigABqRDeTTVSbB -O dlc_data.rar
+
+          # Extract Game Data
+          echo "Extracting Game Data..."
+          7zz x game_data.zip -oprivate -y
+
+          # Extract DLC
+          echo "Extracting DLC..."
+          7zz x dlc_data.rar -oprivate -y
+
+          # Search for and extract ISOs
+          echo "Searching for ISOs..."
+          find private -name "*.iso" | while read iso_file; do
+            echo "Extracting ISO: $iso_file"
+            7zz x "$iso_file" -oprivate -y
+          done
+
+          echo "Listing private directory contents:"
+          ls -R private
 
       - name: Prepare Project
         run: |
