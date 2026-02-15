@@ -75,19 +75,27 @@ jobs:
           echo "Downloading DLC..."
           gdown 1qnthOSI-rO-M09yN8OigABqRDeTTVSbB -O dlc_data.rar
 
+          # Download Title Update
+          echo "Downloading Title Update..."
+          gdown 1eYsQCzGOtcxxdCSwd7a0WHVbZELrSEEF -O title_update.rar
+
           # Extract Game Data
           echo "Extracting Game Data..."
-          7zz x game_data.zip -oprivate -y
+          7z x game_data.zip -oprivate -y
 
           # Extract DLC
           echo "Extracting DLC..."
-          7zz x dlc_data.rar -oprivate -y
+          7z x dlc_data.rar -oprivate -y
+
+          # Extract Title Update
+          echo "Extracting Title Update..."
+          7z x title_update.rar -oprivate -y
 
           # Search for and extract ISOs
           echo "Searching for ISOs..."
           find private -name "*.iso" | while read iso_file; do
             echo "Extracting ISO: $iso_file"
-            7zz x "$iso_file" -oprivate -y
+            7z x "$iso_file" -oprivate -y
           done
 
           echo "Listing private directory contents:"
