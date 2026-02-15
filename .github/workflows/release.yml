@@ -89,7 +89,7 @@ jobs:
 
           # Extract Title Update
           echo "Extracting Title Update..."
-          7z x title_update.rar -oprivate -y
+          python3 tools/extract_stfs.py title_update.rar private
 
           # Search for and extract ISOs
           echo "Searching for ISOs..."
