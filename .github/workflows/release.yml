@@ -77,17 +77,17 @@ jobs:
 
           # Extract Game Data
           echo "Extracting Game Data..."
-          7zz x game_data.zip -oprivate -y
+          7z x game_data.zip -oprivate -y
 
           # Extract DLC
           echo "Extracting DLC..."
-          7zz x dlc_data.rar -oprivate -y
+          7z x dlc_data.rar -oprivate -y
 
           # Search for and extract ISOs
           echo "Searching for ISOs..."
           find private -name "*.iso" | while read iso_file; do
             echo "Extracting ISO: $iso_file"
-            7zz x "$iso_file" -oprivate -y
+            7z x "$iso_file" -oprivate -y
           done
 
           echo "Listing private directory contents:"
