@@ -19,15 +19,12 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Verify Secrets
-        run: |
-          if [ -z "${{ secrets.ASSET_REPO }}" ]; then
-            echo "Error: ASSET_REPO secret is not set."
-            echo "Please configure the ASSET_REPO secret in your repository settings."
-            exit 1
-          fi
+      - name: Check Secrets
+        if: env.ASSET_REPO == ''
+        run: echo "ASSET_REPO secret is missing. Skipping Release build steps."
 
       - name: Checkout Private Repository
+        if: env.ASSET_REPO != ''
         uses: actions/checkout@v4
         with:
           repository: ${{ env.ASSET_REPO }}
@@ -75,6 +72,7 @@ jobs:
           ./build_tools.sh
 
       - name: Prepare Project
+        if: env.ASSET_REPO != ''
         run: |
           mkdir -p ./UnleashedRecompLib/private
 
@@ -111,18 +109,19 @@ jobs:
           ls -l ./UnleashedRecompLib/private/
 
       - name: Build Release APK
+        if: env.ASSET_REPO != ''
         working-directory: ./android
         run: ./gradlew assembleRelease
 
       - name: Upload Release Asset
-        if: github.event_name == 'release'
+        if: github.event_name == 'release' && env.ASSET_REPO != ''
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh release upload ${{ github.event.release.tag_name }} android/app/build/outputs/apk/release/app-release.apk --clobber
 
       - name: Upload Artifact
-        if: github.event_name != 'release'
+        if: github.event_name != 'release' && env.ASSET_REPO != ''
         uses: actions/upload-artifact@v4
         with:
           name: UnleashedRecomp-Android-Release
