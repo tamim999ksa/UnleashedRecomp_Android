@@ -68,6 +68,7 @@ jobs:
           ./build_tools.sh
 
       - name: Prepare Project
+        if: env.ASSET_REPO != ''
         run: |
           mkdir -p ./UnleashedRecompLib/private
 
