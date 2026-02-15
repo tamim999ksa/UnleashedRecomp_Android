@@ -22,6 +22,10 @@ jobs:
         with:
           submodules: recursive
 
+      - name: Check Secrets
+        if: env.ASSET_REPO == ''
+        run: echo "ASSET_REPO secret is missing. Skipping Android build steps."
+
       - name: Checkout Private Repository
         if: env.ASSET_REPO != ''
         uses: actions/checkout@v4
