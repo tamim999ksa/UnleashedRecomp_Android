@@ -69,11 +69,6 @@ jobs:
 
       - name: Prepare Project
         run: |
-          if [ -z "$ASSET_REPO" ]; then
-            echo "Error: ASSET_REPO secret is not set. This secret is required to fetch game assets necessary for the build."
-            exit 1
-          fi
-
           mkdir -p ./UnleashedRecompLib/private
 
           if [ -d "./private" ] && [ "$(ls -A ./private)" ]; then
