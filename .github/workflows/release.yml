@@ -49,6 +49,16 @@ jobs:
         run: |
           ./thirdparty/vcpkg/bootstrap-vcpkg.sh
 
+      - name: Build extract-xiso
+        run: |
+          git clone https://github.com/XboxDev/extract-xiso.git
+          cd extract-xiso
+          mkdir build
+          cd build
+          cmake ..
+          make
+          sudo make install
+
       - name: Apply NFD Android Patch
         run: |
           cd thirdparty/nativefiledialog-extended
@@ -69,7 +79,7 @@ jobs:
 
           # Download Game Data
           echo "Downloading Game Data..."
-          gdown 1QfU4ewEbJoFPYYcaPdmT9Ma1WhR-5jck -O game_data.zip
+          gdown 1QfU4ewEbJoFPYYcaPdmT9Ma1WhR-5jck -O game_data.iso
 
           # Download DLC
           echo "Downloading DLC..."
@@ -79,9 +89,8 @@ jobs:
           echo "Downloading Title Update..."
           gdown 1eYsQCzGOtcxxdCSwd7a0WHVbZELrSEEF -O title_update.rar
 
-          # Extract Game Data
-          echo "Extracting Game Data..."
-          7z x game_data.zip -oprivate -y
+          # Move Game Data
+          mv game_data.iso private/
 
           # Extract DLC
           echo "Extracting DLC..."
@@ -95,7 +104,7 @@ jobs:
           echo "Searching for ISOs..."
           find private -name "*.iso" | while read iso_file; do
             echo "Extracting ISO: $iso_file"
-            7z x "$iso_file" -oprivate -y
+            extract-xiso -x "$iso_file" -d private
           done
 
           echo "Listing private directory contents:"
