@@ -56,6 +56,15 @@ jobs:
         run: |
           ./thirdparty/vcpkg/bootstrap-vcpkg.sh
 
+      - name: Apply NFD Android Patch
+        run: |
+          cd thirdparty/nativefiledialog-extended
+          if ! grep -q "PLATFORM_ANDROID" CMakeLists.txt; then
+            git apply ../../patches/nfd_android.patch
+          else
+            echo "Patch already applied."
+          fi
+
       - name: Run Build Tools
         run: |
           chmod +x ./build_tools.sh
