@@ -6,7 +6,16 @@ set -e
 # Check for private assets
 if [ -d "private" ]; then
     echo "Copying private assets..."
-    cp -r private/* UnleashedRecompLib/private/
+    mkdir -p UnleashedRecompLib/private
+
+    echo "Searching for default.xex..."
+    find private -iname "default.xex" -exec cp {} UnleashedRecompLib/private/default.xex \;
+
+    echo "Searching for default.xexp..."
+    find private -iname "default.xexp" -exec cp {} UnleashedRecompLib/private/default.xexp \;
+
+    echo "Searching for shader.ar..."
+    find private -iname "shader.ar" -exec cp {} UnleashedRecompLib/private/shader.ar \;
 else
     echo "Warning: 'private' directory not found. Build may fail or be incomplete."
 fi
