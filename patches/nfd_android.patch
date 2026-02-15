@@ -2,7 +2,17 @@ diff --git a/CMakeLists.txt b/CMakeLists.txt
 index 4a6dece..be04499 100644
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
-@@ -12,7 +12,9 @@ option(NFD_BUILD_SDL2_TESTS "Build SDL2 tests for nfd" OFF)
+@@ -1,5 +1,9 @@
+ cmake_minimum_required(VERSION 3.5)
+ project(nativefiledialog-extended VERSION 1.2.1)
+
++if(POLICY CMP0077)
++  cmake_policy(SET CMP0077 NEW)
++endif()
++
+ set(nfd_ROOT_PROJECT OFF)
+ if (CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
+@@ -12,7 +16,9 @@ option(NFD_BUILD_SDL2_TESTS "Build SDL2 tests for nfd" OFF)
  option(NFD_INSTALL "Generate install target for nfd" ${nfd_ROOT_PROJECT})
 
  set(nfd_PLATFORM Undefined)
