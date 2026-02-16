@@ -11,28 +11,17 @@ jobs:
   build-release:
     name: Build Release
     runs-on: ubuntu-24.04
-    env:
-      ASSET_REPO: ${{ secrets.ASSET_REPO }}
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
         with:
           submodules: recursive
 
-      - name: Checkout Private Repository
-        if: env.ASSET_REPO != ''
-        uses: actions/checkout@v4
-        with:
-          repository: ${{ env.ASSET_REPO }}
-          token: ${{ secrets.ASSET_REPO_TOKEN }}
-          path: ./private
-
       - name: Install dependencies
-        if: env.ASSET_REPO == ''
         run: |
           sudo apt-get update
           sudo apt-get install -y 7zip
-          pipx install gdown
+          pip install --upgrade gdown
 
       - name: Setup Java
         uses: actions/setup-java@v4
@@ -61,7 +50,6 @@ jobs:
           ./thirdparty/vcpkg/bootstrap-vcpkg.sh
 
       - name: Build extract-xiso
-        if: env.ASSET_REPO == ''
         run: |
           git clone https://github.com/XboxDev/extract-xiso.git
           cd extract-xiso
@@ -85,22 +73,29 @@ jobs:
           chmod +x ./build_tools.sh
           ./build_tools.sh
 
+      - name: Cache Assets
+        id: cache-assets
+        uses: actions/cache@v4
+        with:
+          path: ./private
+          key: game-assets-v1
+
       - name: Download and Extract Assets
-        if: env.ASSET_REPO == ''
+        if: steps.cache-assets.outputs.cache-hit != 'true'
         run: |
           mkdir -p private
 
           # Download Game Data
           echo "Downloading Game Data..."
-          gdown 1QfU4ewEbJoFPYYcaPdmT9Ma1WhR-5jck -O game_data.iso
+          for i in {1..3}; do gdown 1QfU4ewEbJoFPYYcaPdmT9Ma1WhR-5jck -O game_data.iso && break || sleep 15; done
 
           # Download DLC
           echo "Downloading DLC..."
-          gdown 1qnthOSI-rO-M09yN8OigABqRDeTTVSbB -O dlc_data.rar
+          for i in {1..3}; do gdown 1qnthOSI-rO-M09yN8OigABqRDeTTVSbB -O dlc_data.rar && break || sleep 15; done
 
           # Download Title Update
           echo "Downloading Title Update..."
-          gdown 1eYsQCzGOtcxxdCSwd7a0WHVbZELrSEEF -O title_update.rar
+          for i in {1..3}; do gdown 1eYsQCzGOtcxxdCSwd7a0WHVbZELrSEEF -O title_update.rar && break || sleep 15; done
 
           # Move Game Data
           mv game_data.iso private/
