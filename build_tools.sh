@@ -8,6 +8,14 @@ cd "$(dirname "$0")"
 OUTPUT_BIN_DIR="$(pwd)/build_tools/bin"
 mkdir -p "$OUTPUT_BIN_DIR"
 
+# Apply XenonRecomp patch
+if [ -f "patches/xenon_recomp_fixes.patch" ]; then
+    echo "Applying XenonRecomp fixes..."
+    cd tools/XenonRecomp
+    git apply ../../patches/xenon_recomp_fixes.patch || echo "Warning: Failed to apply patch or already applied."
+    cd ../..
+fi
+
 echo "=== Building GCC compatible tools ==="
 rm -rf build_tools/build_gcc
 mkdir -p build_tools/build_gcc

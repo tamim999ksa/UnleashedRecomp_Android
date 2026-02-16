@@ -1,0 +1,129 @@
+diff --git a/XenonRecomp/recompiler.cpp b/XenonRecomp/recompiler.cpp
+index fa91527..cb08239 100644
+--- a/XenonRecomp/recompiler.cpp
++++ b/XenonRecomp/recompiler.cpp
+@@ -73,6 +73,18 @@ bool Recompiler::LoadConfig(const std::string_view& configFilePath)
+                         fmt::println("patch unsupported");
+                         break;
+
++                    case XexPatcher::Result::PatchHashMismatch:
++                        fmt::println("patch hash mismatch (corrupted file?)");
++                        break;
++
++                    case XexPatcher::Result::PatchDecompressionFailed:
++                        fmt::println("patch decompression failed");
++                        break;
++
++                    case XexPatcher::Result::PatchDeltaFailed:
++                        fmt::println("patch delta failed");
++                        break;
++
+                     default:
+                         fmt::println("reason unknown");
+                         break;
+diff --git a/XenonUtils/xex_patcher.cpp b/XenonUtils/xex_patcher.cpp
+index 8492a5d..f9f9203 100644
+--- a/XenonUtils/xex_patcher.cpp
++++ b/XenonUtils/xex_patcher.cpp
+@@ -16,6 +16,7 @@
+ #include <cassert>
+ #include <climits>
+ #include <fstream>
++#include <iostream>
+
+ #include <aes.hpp>
+ #include <lzx.h>
+@@ -304,7 +305,8 @@ XexPatcher::Result XexPatcher::apply(const uint8_t* xexBytes, size_t xexBytesSiz
+     int resultCode = lzxDeltaApplyPatch(&patchDescriptor->info, patchDescriptor->size, ((const Xex2FileNormalCompressionInfo*)(patchFileFormatInfo + 1))->windowSize, outBytes.data());
+     if (resultCode != 0)
+     {
+-        return Result::PatchFailed;
++        std::cerr << "lzxDeltaApplyPatch failed: " << resultCode << std::endl;
++        return Result::PatchDeltaFailed;
+     }
+
+     // Make the header the specified size by the patch.
+@@ -428,7 +430,10 @@ XexPatcher::Result XexPatcher::apply(const uint8_t* xexBytes, size_t xexBytesSiz
+             s.finalize(blockCalcedDigest);
+
+             if (memcmp(blockCalcedDigest, blocks->blockHash, 0x14) != 0)
+-                return Result::PatchFailed;
++            {
++                std::cerr << "Hash mismatch in base xex block!" << std::endl;
++                return Result::PatchHashMismatch;
++            }
+
+             p += 4;
+             p += 20;
+@@ -457,7 +462,10 @@ XexPatcher::Result XexPatcher::apply(const uint8_t* xexBytes, size_t xexBytesSiz
+         resultCode = lzxDecompress(compressBuffer.get(), d - compressBuffer.get(), buffer, uncompressedSize, ((const Xex2FileNormalCompressionInfo*)(fileFormatInfo + 1))->windowSize, nullptr, 0);
+
+         if (resultCode)
+-            return Result::PatchFailed;
++        {
++            std::cerr << "lzxDecompress failed: " << resultCode << std::endl;
++            return Result::PatchDecompressionFailed;
++        }
+     }
+     else if (fileFormatInfo->compressionType == XEX_COMPRESSION_DELTA)
+     {
+@@ -471,6 +479,7 @@ XexPatcher::Result XexPatcher::apply(const uint8_t* xexBytes, size_t xexBytesSiz
+     Xex2OptFileFormatInfo *newFileFormatInfo = (Xex2OptFileFormatInfo *)(getOptHeaderPtr(outBytes.data(), XEX_HEADER_FILE_FORMAT_INFO));
+     if (newFileFormatInfo == nullptr)
+     {
++        std::cerr << "Could not find file format info in new xex!" << std::endl;
+         return Result::PatchFailed;
+     }
+
+@@ -514,7 +523,8 @@ XexPatcher::Result XexPatcher::apply(const uint8_t* xexBytes, size_t xexBytesSiz
+         sha1Context.finalize(sha1Digest);
+         if (memcmp(sha1Digest, currentBlock->blockHash, DigestSize) != 0)
+         {
+-            return Result::PatchFailed;
++            std::cerr << "Hash mismatch in patch block!" << std::endl;
++            return Result::PatchHashMismatch;
+         }
+
+         patchDataCursor += 24;
+@@ -523,7 +533,8 @@ XexPatcher::Result XexPatcher::apply(const uint8_t* xexBytes, size_t xexBytesSiz
+         uint32_t blockDataSize = currentBlock->blockSize - 24;
+         if (lzxDeltaApplyPatch((const Xex2DeltaPatch *)(patchDataCursor), blockDataSize, ((const Xex2FileNormalCompressionInfo*)(patchFileFormatInfo + 1))->windowSize, outExe) != 0)
+         {
+-            return Result::PatchFailed;
++            std::cerr << "lzxDeltaApplyPatch failed for patch block!" << std::endl;
++            return Result::PatchDeltaFailed;
+         }
+
+         patchDataCursor += blockDataSize;
+diff --git a/XenonUtils/xex_patcher.h b/XenonUtils/xex_patcher.h
+index 44b2bf0..487cd1b 100644
+--- a/XenonUtils/xex_patcher.h
++++ b/XenonUtils/xex_patcher.h
+@@ -29,7 +29,10 @@ struct XexPatcher
+         PatchFileInvalid,
+         PatchIncompatible,
+         PatchFailed,
+-        PatchUnsupported
++        PatchUnsupported,
++        PatchHashMismatch,
++        PatchDecompressionFailed,
++        PatchDeltaFailed
+     };
+
+     static Result apply(const uint8_t* xexBytes, size_t xexBytesSize, const uint8_t* patchBytes, size_t patchBytesSize, std::vector<uint8_t> &outBytes, bool skipData);
+diff --git a/thirdparty/disasm/ppc-dis.c b/thirdparty/disasm/ppc-dis.c
+index 3e224b4..4b78abf 100644
+--- a/thirdparty/disasm/ppc-dis.c
++++ b/thirdparty/disasm/ppc-dis.c
+@@ -5765,9 +5765,9 @@ again:
+             else if ((operand->flags & PPC_OPERAND_VR) != 0)
+                 stream = stream + sprintf(stream, "v%ld", value);
+             else if ((operand->flags & PPC_OPERAND_RELATIVE) != 0)
+-                stream = stream + sprintf(stream, "0x%llx", memaddr + value);
++                stream = stream + sprintf(stream, "0x%llx", (unsigned long long)(memaddr + value));
+             else if ((operand->flags & PPC_OPERAND_ABSOLUTE) != 0)
+-                stream = stream + sprintf(stream, "0x%llx", (bfd_vma)value & 0xffffffff);
++                stream = stream + sprintf(stream, "0x%llx", (unsigned long long)((bfd_vma)value & 0xffffffff));
+             else if ((operand->flags & PPC_OPERAND_CR) == 0
+                 || (dialect & PPC_OPCODE_PPC) == 0)
+                 stream = stream + sprintf(stream, "%ld", value);
