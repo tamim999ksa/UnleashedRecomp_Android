@@ -3,6 +3,19 @@ on:
   release:
     types: [published]
   workflow_dispatch:
+    inputs:
+      game_data_url:
+        description: 'URL or File ID for Game Data ISO (optional)'
+        required: false
+        type: string
+      dlc_data_url:
+        description: 'URL or File ID for DLC Data RAR (optional)'
+        required: false
+        type: string
+      title_update_url:
+        description: 'URL or File ID for Title Update RAR (optional)'
+        required: false
+        type: string
 
 permissions:
   contents: write
@@ -87,15 +100,45 @@ jobs:
 
           # Download Game Data
           echo "Downloading Game Data..."
-          for i in {1..3}; do gdown 1QfU4ewEbJoFPYYcaPdmT9Ma1WhR-5jck -O game_data.iso && break || sleep 15; done
+          GAME_DATA_URL="${{ inputs.game_data_url }}"
+          if [ -n "$GAME_DATA_URL" ]; then
+             echo "Using custom URL for Game Data..."
+             if [[ "$GAME_DATA_URL" == *"drive.google.com"* ]] || ! [[ "$GAME_DATA_URL" =~ ^https?:// ]]; then
+                 gdown "$GAME_DATA_URL" -O game_data.iso
+             else
+                 curl -L -o game_data.iso "$GAME_DATA_URL"
+             fi
+          else
+             for i in {1..3}; do gdown 1QfU4ewEbJoFPYYcaPdmT9Ma1WhR-5jck -O game_data.iso && break || sleep 15; done
+          fi
 
           # Download DLC
           echo "Downloading DLC..."
-          for i in {1..3}; do gdown 1qnthOSI-rO-M09yN8OigABqRDeTTVSbB -O dlc_data.rar && break || sleep 15; done
+          DLC_DATA_URL="${{ inputs.dlc_data_url }}"
+          if [ -n "$DLC_DATA_URL" ]; then
+             echo "Using custom URL for DLC Data..."
+             if [[ "$DLC_DATA_URL" == *"drive.google.com"* ]] || ! [[ "$DLC_DATA_URL" =~ ^https?:// ]]; then
+                 gdown "$DLC_DATA_URL" -O dlc_data.rar
+             else
+                 curl -L -o dlc_data.rar "$DLC_DATA_URL"
+             fi
+          else
+             for i in {1..3}; do gdown 1qnthOSI-rO-M09yN8OigABqRDeTTVSbB -O dlc_data.rar && break || sleep 15; done
+          fi
 
           # Download Title Update
           echo "Downloading Title Update..."
-          for i in {1..3}; do gdown 1eYsQCzGOtcxxdCSwd7a0WHVbZELrSEEF -O title_update.rar && break || sleep 15; done
+          TITLE_UPDATE_URL="${{ inputs.title_update_url }}"
+          if [ -n "$TITLE_UPDATE_URL" ]; then
+             echo "Using custom URL for Title Update..."
+             if [[ "$TITLE_UPDATE_URL" == *"drive.google.com"* ]] || ! [[ "$TITLE_UPDATE_URL" =~ ^https?:// ]]; then
+                 gdown "$TITLE_UPDATE_URL" -O title_update.rar
+             else
+                 curl -L -o title_update.rar "$TITLE_UPDATE_URL"
+             fi
+          else
+             for i in {1..3}; do gdown 1eYsQCzGOtcxxdCSwd7a0WHVbZELrSEEF -O title_update.rar && break || sleep 15; done
+          fi
 
           # Move Game Data
           mv game_data.iso private/
