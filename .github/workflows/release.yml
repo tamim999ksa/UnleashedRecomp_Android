@@ -101,55 +101,150 @@ jobs:
           # Download Game Data
           echo "Downloading Game Data..."
           GAME_DATA_URL="${{ inputs.game_data_url }}"
+          download_success=false
           if [ -n "$GAME_DATA_URL" ]; then
              echo "Using custom URL for Game Data..."
              if [[ "$GAME_DATA_URL" == *"drive.google.com"* ]] || ! [[ "$GAME_DATA_URL" =~ ^https?:// ]]; then
-                 gdown "$GAME_DATA_URL" -O game_data.iso
+                 if gdown "$GAME_DATA_URL" -O game_data.iso; then download_success=true; fi
              else
-                 curl -L -o game_data.iso "$GAME_DATA_URL"
+                 if curl -L -o game_data.iso "$GAME_DATA_URL"; then download_success=true; fi
              fi
           else
-             for i in {1..3}; do gdown 1QfU4ewEbJoFPYYcaPdmT9Ma1WhR-5jck -O game_data.iso && break || sleep 15; done
+             echo "Attempting primary download (Google Drive)..."
+             for i in {1..3}; do
+               if gdown 1QfU4ewEbJoFPYYcaPdmT9Ma1WhR-5jck -O game_data.iso; then
+                 download_success=true
+                 break
+               fi
+               sleep 15
+             done
+
+             if [ "$download_success" = false ]; then
+                 echo "Primary download failed. Attempting secondary download (CDN)..."
+                 if curl -L -o game_data.7z "https://cdn.atserver.us/Games/Windows/Sonic%20Unleashed/BASE%20ROM%20%5BADVANCED%5D.7z"; then
+                    download_success=true
+                 fi
+             fi
+          fi
+
+          if [ "$download_success" = false ]; then
+             echo "Failed to download Game Data."
+             exit 1
           fi
 
           # Download DLC
           echo "Downloading DLC..."
           DLC_DATA_URL="${{ inputs.dlc_data_url }}"
+          download_success=false
           if [ -n "$DLC_DATA_URL" ]; then
              echo "Using custom URL for DLC Data..."
              if [[ "$DLC_DATA_URL" == *"drive.google.com"* ]] || ! [[ "$DLC_DATA_URL" =~ ^https?:// ]]; then
-                 gdown "$DLC_DATA_URL" -O dlc_data.rar
+                 if gdown "$DLC_DATA_URL" -O dlc_data.rar; then download_success=true; fi
              else
-                 curl -L -o dlc_data.rar "$DLC_DATA_URL"
+                 if curl -L -o dlc_data.rar "$DLC_DATA_URL"; then download_success=true; fi
              fi
           else
-             for i in {1..3}; do gdown 1qnthOSI-rO-M09yN8OigABqRDeTTVSbB -O dlc_data.rar && break || sleep 15; done
+             echo "Attempting primary download (Google Drive)..."
+             for i in {1..3}; do
+               if gdown 1qnthOSI-rO-M09yN8OigABqRDeTTVSbB -O dlc_data.rar; then
+                 download_success=true
+                 break
+               fi
+               sleep 15
+             done
+
+             if [ "$download_success" = false ]; then
+                 echo "Primary download failed. Attempting secondary download (CDN)..."
+                 if curl -L -o dlc_data.7z "https://cdn.atserver.us/Games/Windows/Sonic%20Unleashed/DLC%20%5BADVANCED%5D.7z"; then
+                    download_success=true
+                 fi
+             fi
+          fi
+
+          if [ "$download_success" = false ]; then
+             echo "Failed to download DLC Data."
+             exit 1
           fi
 
           # Download Title Update
           echo "Downloading Title Update..."
           TITLE_UPDATE_URL="${{ inputs.title_update_url }}"
+          download_success=false
           if [ -n "$TITLE_UPDATE_URL" ]; then
              echo "Using custom URL for Title Update..."
              if [[ "$TITLE_UPDATE_URL" == *"drive.google.com"* ]] || ! [[ "$TITLE_UPDATE_URL" =~ ^https?:// ]]; then
-                 gdown "$TITLE_UPDATE_URL" -O title_update.rar
+                 if gdown "$TITLE_UPDATE_URL" -O title_update.rar; then download_success=true; fi
              else
-                 curl -L -o title_update.rar "$TITLE_UPDATE_URL"
+                 if curl -L -o title_update.rar "$TITLE_UPDATE_URL"; then download_success=true; fi
              fi
           else
-             for i in {1..3}; do gdown 1eYsQCzGOtcxxdCSwd7a0WHVbZELrSEEF -O title_update.rar && break || sleep 15; done
+             echo "Attempting primary download (Google Drive)..."
+             for i in {1..3}; do
+               if gdown 1eYsQCzGOtcxxdCSwd7a0WHVbZELrSEEF -O title_update.rar; then
+                 download_success=true
+                 break
+               fi
+               sleep 15
+             done
+
+             if [ "$download_success" = false ]; then
+                 echo "Primary download failed. Attempting secondary download (CDN)..."
+                 if curl -L -o title_update.7z "https://cdn.atserver.us/Games/Windows/Sonic%20Unleashed/UPDATE%20%5BADVANCED%5D.7z"; then
+                    download_success=true
+                 fi
+             fi
           fi
 
-          # Move Game Data
-          mv game_data.iso private/
+          if [ "$download_success" = false ]; then
+             echo "Failed to download Title Update."
+             exit 1
+          fi
 
-          # Extract DLC
+          # Process Game Data
+          if [ -f game_data.iso ]; then
+             echo "Moving Game Data ISO to private/..."
+             mv game_data.iso private/
+          elif [ -f game_data.7z ]; then
+             echo "Extracting Game Data 7z to private/..."
+             7z x game_data.7z -oprivate -y
+          else
+             echo "Error: Game Data not found!"
+             exit 1
+          fi
+
+          # Process DLC
           echo "Extracting DLC..."
-          7z x dlc_data.rar -oprivate -y
+          if [ -f dlc_data.rar ]; then
+             7z x dlc_data.rar -oprivate -y
+          elif [ -f dlc_data.7z ]; then
+             7z x dlc_data.7z -oprivate -y
+          else
+             echo "Error: DLC Data not found!"
+             exit 1
+          fi
 
-          # Extract Title Update
+          # Process Title Update
           echo "Extracting Title Update..."
-          python3 tools/extract_stfs.py title_update.rar private
+          if [ -f title_update.rar ]; then
+             python3 tools/extract_stfs.py title_update.rar private
+          elif [ -f title_update.7z ]; then
+             echo "Extracting Title Update 7z..."
+             mkdir -p temp_tu
+             7z x title_update.7z -otemp_tu -y
+             find temp_tu -type f | while read f; do
+                echo "Processing extracted file: $f"
+                if python3 tools/extract_stfs.py "$f" private; then
+                   echo "Successfully extracted STFS package."
+                else
+                   echo "Not an STFS package, moving to private..."
+                   mv "$f" private/
+                fi
+             done
+             rm -rf temp_tu
+          else
+             echo "Error: Title Update not found!"
+             exit 1
+          fi
 
           # Search for and extract ISOs
           echo "Searching for ISOs..."
