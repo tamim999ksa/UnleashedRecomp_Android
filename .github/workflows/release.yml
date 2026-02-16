@@ -66,8 +66,9 @@ jobs:
         run: |
           git clone https://github.com/XboxDev/extract-xiso.git
           cd extract-xiso
-          sed -i 's|if ( ( err = mkdir( dir->filename, 0755 ) ) ) mkdir_err( dir->filename );|if ( ( err = mkdir( dir->filename, 0755 ) ) ) { if ( errno != EEXIST ) mkdir_err( dir->filename ); else err = 0; }|' extract-xiso.c
-          sed -i 's|if ( ( err = mkdir( iso_name, 0755 ) ) ) mkdir_err( iso_name );|if ( ( err = mkdir( iso_name, 0755 ) ) ) { if ( errno != EEXIST ) mkdir_err( iso_name ); else err = 0; }|' extract-xiso.c
+          git checkout 7f81390a1d1e72778557db2b62aa0d14c38e4235
+          sed -i 's|if ( ( err = mkdir( dir->filename, 0755 ) ) ) mkdir_err( dir->filename );|if ( ( err = mkdir( dir->filename, 0755 ) ) ) { if ( errno != EEXIST ) mkdir_err( dir->filename ) else err = 0; }|' extract-xiso.c
+          sed -i 's|if ( ( err = mkdir( iso_name, 0755 ) ) ) mkdir_err( iso_name );|if ( ( err = mkdir( iso_name, 0755 ) ) ) { if ( errno != EEXIST ) mkdir_err( iso_name ) else err = 0; }|' extract-xiso.c
           mkdir build
           cd build
           cmake ..
