@@ -11,13 +11,24 @@ jobs:
   build-release:
     name: Build Release
     runs-on: ubuntu-24.04
+    env:
+      ASSET_REPO: ${{ secrets.ASSET_REPO }}
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
         with:
           submodules: recursive
 
+      - name: Checkout Private Repository
+        if: env.ASSET_REPO != ''
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.ASSET_REPO }}
+          token: ${{ secrets.ASSET_REPO_TOKEN }}
+          path: ./private
+
       - name: Install dependencies
+        if: env.ASSET_REPO == ''
         run: |
           sudo apt-get update
           sudo apt-get install -y 7zip
@@ -50,6 +61,7 @@ jobs:
           ./thirdparty/vcpkg/bootstrap-vcpkg.sh
 
       - name: Build extract-xiso
+        if: env.ASSET_REPO == ''
         run: |
           git clone https://github.com/XboxDev/extract-xiso.git
           cd extract-xiso
@@ -74,6 +86,7 @@ jobs:
           ./build_tools.sh
 
       - name: Download and Extract Assets
+        if: env.ASSET_REPO == ''
         run: |
           mkdir -p private
 
