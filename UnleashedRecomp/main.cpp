@@ -244,7 +244,7 @@ int main(int argc, char *argv[])
             {
                 if ((progressMiB - lastProgressMiB) > MiBProgressThreshold)
                 {
-                    fprintf(stdout, "Checking files: %0.2f MiB / %0.2f MiB\n", progressMiB, totalMiB);
+                    LOGFN("Checking files: {:.2f} MiB / {:.2f} MiB", progressMiB, totalMiB);
                     lastProgressMiB = progressMiB;
                 }
             }
@@ -252,7 +252,7 @@ int main(int argc, char *argv[])
             {
                 if ((totalMiB - lastTotalMib) > MiBProgressThreshold)
                 {
-                    fprintf(stdout, "Scanning files: %0.2f MiB\n", totalMiB);
+                    LOGFN("Scanning files: {:.2f} MiB", totalMiB);
                     lastTotalMib = totalMiB;
                 }
             }
@@ -265,13 +265,13 @@ int main(int argc, char *argv[])
         if (journal.lastResult == Journal::Result::Success)
         {
             snprintf(resultText, sizeof(resultText), "%s", Localise("IntegrityCheck_Success").c_str());
-            fprintf(stdout, "%s\n", resultText);
+            LOGN(resultText);
             messageBoxStyle = SDL_MESSAGEBOX_INFORMATION;
         }
         else
         {
             snprintf(resultText, sizeof(resultText), Localise("IntegrityCheck_Failed").c_str(), journal.lastErrorMessage.c_str());
-            fprintf(stderr, "%s\n", resultText);
+            LOGN_ERROR(resultText);
             messageBoxStyle = SDL_MESSAGEBOX_ERROR;
         }
 
