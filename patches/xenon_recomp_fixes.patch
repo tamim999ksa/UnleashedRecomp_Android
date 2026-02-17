@@ -1,26 +1,37 @@
 diff --git a/XenonRecomp/recompiler.cpp b/XenonRecomp/recompiler.cpp
-index fa91527..cb08239 100644
+index fa91527..09ac5c9 100644
 --- a/XenonRecomp/recompiler.cpp
 +++ b/XenonRecomp/recompiler.cpp
-@@ -73,6 +73,18 @@ bool Recompiler::LoadConfig(const std::string_view& configFilePath)
-                         fmt::println("patch unsupported");
-                         break;
+@@ -12,6 +12,7 @@ static uint64_t ComputeMask(uint32_t mstart, uint32_t mstop)
 
-+                    case XexPatcher::Result::PatchHashMismatch:
-+                        fmt::println("patch hash mismatch (corrupted file?)");
-+                        break;
+ bool Recompiler::LoadConfig(const std::string_view& configFilePath)
+ {
++    fmt::println("Loading config from: {}", configFilePath);
+     config.Load(configFilePath);
+
+     std::vector<uint8_t> file;
+@@ -83,7 +84,20 @@ bool Recompiler::LoadConfig(const std::string_view& configFilePath)
+             }
+             else
+             {
+-                fmt::println("ERROR: Unable to load the patch file");
++                const auto fullPath = config.directoryPath + config.patchFilePath;
++                fmt::println("ERROR: Unable to load the patch file: {}", fullPath);
 +
-+                    case XexPatcher::Result::PatchDecompressionFailed:
-+                        fmt::println("patch decompression failed");
-+                        break;
++                std::error_code ec;
++                if (std::filesystem::exists(fullPath, ec))
++                {
++                    auto fileSize = std::filesystem::file_size(fullPath, ec);
++                    fmt::println("File exists. Size: {} bytes", fileSize);
++                }
++                else
++                {
++                    fmt::println("File does not exist. Error: {}", ec.message());
++                }
 +
-+                    case XexPatcher::Result::PatchDeltaFailed:
-+                        fmt::println("patch delta failed");
-+                        break;
-+
-                     default:
-                         fmt::println("reason unknown");
-                         break;
+                 return false;
+             }
+         }
 diff --git a/XenonUtils/xex_patcher.cpp b/XenonUtils/xex_patcher.cpp
 index 8492a5d..f9f9203 100644
 --- a/XenonUtils/xex_patcher.cpp
