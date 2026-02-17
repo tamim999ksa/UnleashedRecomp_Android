@@ -48,6 +48,7 @@ def extract_stfs(file_path, output_dir):
                 with open(out_path, 'wb') as out_f:
                     remaining = size
                     current_block = start_block
+                    current_pos = f.tell()
 
                     while remaining > 0:
                         # Calculate physical offset
@@ -59,7 +60,10 @@ def extract_stfs(file_path, output_dir):
                         phys_block = current_block + (current_block // 170) + (current_block // 28900)
                         offset = 0xC000 + phys_block * 0x1000
 
-                        f.seek(offset)
+                        if current_pos != offset:
+                            f.seek(offset)
+                            current_pos = offset
+
                         chunk_size = min(0x1000, remaining)
                         data = f.read(chunk_size)
                         if not data:
@@ -67,7 +71,9 @@ def extract_stfs(file_path, output_dir):
                             break
                         out_f.write(data)
 
-                        remaining -= len(data)
+                        read_len = len(data)
+                        remaining -= read_len
+                        current_pos += read_len
                         current_block += 1
 
                 if os.path.getsize(out_path) == 0:
