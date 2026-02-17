@@ -13,6 +13,8 @@
 
 #include <cstring>
 #include <stack>
+#include <unordered_set>
+#include <utility>
 #include <vector>
 
 ISOFileSystem::ISOFileSystem(const std::filesystem::path &isoPath)
@@ -73,7 +75,7 @@ ISOFileSystem::ISOFileSystem(const std::filesystem::path &isoPath)
         size_t entryOffset = 0;
 
         IterationStep() = default;
-        IterationStep(std::string fileNameBase, size_t nodeOffset, size_t entryOffset) : fileNameBase(fileNameBase), nodeOffset(nodeOffset), entryOffset(entryOffset) { }
+        IterationStep(std::string fileNameBase, size_t nodeOffset, size_t entryOffset) : fileNameBase(std::move(fileNameBase)), nodeOffset(nodeOffset), entryOffset(entryOffset) { }
     };
 
     std::stack<IterationStep> iterationStack;
