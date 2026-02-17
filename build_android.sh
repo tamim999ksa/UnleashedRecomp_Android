@@ -48,6 +48,20 @@ else
 fi
 cd ../..
 
+# Apply Hedgehog String Holder Patch
+echo "Applying Hedgehog String Holder patch..."
+cd UnleashedRecomp/api
+if ! grep -q "std::memcpy" Hedgehog/Base/Type/detail/hhStringHolder.inl; then
+    echo "Applying patch via git apply..."
+    if ! git apply ../../patches/hh_string_holder_fix.patch; then
+        echo "git apply failed, attempting to use patch..."
+        patch -p1 < ../../patches/hh_string_holder_fix.patch
+    fi
+else
+    echo "Hedgehog String Holder patch already applied."
+fi
+cd ../..
+
 # Build APK
 echo "Building APK..."
 cd android
