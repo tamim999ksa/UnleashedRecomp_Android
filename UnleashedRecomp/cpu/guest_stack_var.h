@@ -2,6 +2,7 @@
 
 #include "ppc_context.h"
 #include <kernel/memory.h>
+#include <type_traits>
 
 // DO NOT use this type as anything other than a local variable.
 // This includes returning. It'll cause memory to leak in the guest stack!
@@ -10,8 +11,8 @@ template<typename T, bool Init = true>
 class guest_stack_var
 {
 private:
-    uint32_t m_ptr = NULL;
-    uint32_t m_oldStackPtr = NULL;
+    uint32_t m_ptr = 0;
+    uint32_t m_oldStackPtr = 0;
 
     void AllocGuestStackMemory()
     {
@@ -33,6 +34,7 @@ public:
     }
 
     template<typename... Args>
+        requires (!std::is_same_v<std::remove_cvref_t<Args>, guest_stack_var> && ...)
     guest_stack_var(Args&&... args)
     {
         AllocGuestStackMemory();
@@ -46,7 +48,7 @@ public:
         AllocGuestStackMemory();
 
         if (Init)
-            new (get()) T(*other->get());
+            new (get()) T(*other.get());
     }
 
     guest_stack_var(guest_stack_var<T>&& other)
@@ -54,7 +56,7 @@ public:
         AllocGuestStackMemory();
 
         if (Init)
-            new (get()) T(std::move(*other->get()));
+            new (get()) T(std::move(*other.get()));
     }
 
     ~guest_stack_var()
@@ -70,25 +72,25 @@ public:
     void operator=(const guest_stack_var<T>& other)
     {
         if (this != &other)
-            *get() = *other->get();
+            *get() = *other.get();
     }
 
     void operator=(guest_stack_var<T>&& other)
     {
         if (this != &other)
-            *get() = std::move(*other->get());
+            *get() = std::move(*other.get());
     }
 
     void operator=(const T& other)
     {
         if (get() != &other)
-            *get() = *other;
+            *get() = other;
     }
 
     void operator=(T&& other)
     {
         if (get() != &other)
-            *get() = std::move(*other);
+            *get() = std::move(other);
     }
 
     operator const T* () const
