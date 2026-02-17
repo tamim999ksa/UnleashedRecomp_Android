@@ -1,3 +1,20 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index b89407f..53fa2af 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -20,8 +20,10 @@ set(XENONRECOMP_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/XenonRecomp)
+
+ project ("XenonRecomp-ALL")
+
+-add_subdirectory(${XENONANALYSE_ROOT})
+-add_subdirectory(${XENONRECOMP_ROOT})
++if (NOT ANDROID)
++    add_subdirectory(${XENONANALYSE_ROOT})
++    add_subdirectory(${XENONRECOMP_ROOT})
++endif()
+ add_subdirectory(${XENONUTILS_ROOT})
+
+ # Only tests if this is the top level project
 diff --git a/XenonRecomp/recompiler.cpp b/XenonRecomp/recompiler.cpp
 index fa91527..09ac5c9 100644
 --- a/XenonRecomp/recompiler.cpp
