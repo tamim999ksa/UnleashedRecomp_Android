@@ -384,7 +384,36 @@ uint32_t hid::GetCapabilities(uint32_t dwUserIndex, XAMINPUT_CAPABILITIES* pCaps
     memset(pCaps, 0, sizeof(*pCaps));
 
     pCaps->Type = XAMINPUT_DEVTYPE_GAMEPAD;
-    pCaps->SubType = XAMINPUT_DEVSUBTYPE_GAMEPAD; // TODO: other types?
+
+    auto type = SDL_JoystickGetType(g_activeController->joystick);
+    switch (type)
+    {
+        case SDL_JOYSTICK_TYPE_WHEEL:
+            pCaps->SubType = XAMINPUT_DEVSUBTYPE_WHEEL;
+            break;
+        case SDL_JOYSTICK_TYPE_ARCADE_STICK:
+            pCaps->SubType = XAMINPUT_DEVSUBTYPE_ARCADE_STICK;
+            break;
+        case SDL_JOYSTICK_TYPE_FLIGHT_STICK:
+            pCaps->SubType = XAMINPUT_DEVSUBTYPE_FLIGHT_STICK;
+            break;
+        case SDL_JOYSTICK_TYPE_DANCE_PAD:
+            pCaps->SubType = XAMINPUT_DEVSUBTYPE_DANCE_PAD;
+            break;
+        case SDL_JOYSTICK_TYPE_GUITAR:
+            pCaps->SubType = XAMINPUT_DEVSUBTYPE_GUITAR;
+            break;
+        case SDL_JOYSTICK_TYPE_DRUM_KIT:
+            pCaps->SubType = XAMINPUT_DEVSUBTYPE_DRUM_KIT;
+            break;
+        case SDL_JOYSTICK_TYPE_ARCADE_PAD:
+            pCaps->SubType = XAMINPUT_DEVSUBTYPE_ARCADE_PAD;
+            break;
+        default:
+            pCaps->SubType = XAMINPUT_DEVSUBTYPE_GAMEPAD;
+            break;
+    }
+
     pCaps->Flags = 0;
     pCaps->Gamepad = g_activeController->state;
     pCaps->Vibration = g_activeController->vibration;
