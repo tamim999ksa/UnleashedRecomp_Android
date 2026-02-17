@@ -134,7 +134,7 @@ static void TraverseScene(Chao::CSD::Scene* scene, std::string& path)
     path.pop_back();
 }
 
-static void TraverseSceneNodeImpl(Chao::CSD::SceneNode* sceneNode, std::string path)
+static void TraverseSceneNodeImpl(Chao::CSD::SceneNode* sceneNode, std::string& path)
 {
     EmplacePathUnsafe(sceneNode, path);
     path += "/";
@@ -151,7 +151,10 @@ static void TraverseSceneNodeImpl(Chao::CSD::SceneNode* sceneNode, std::string p
     for (size_t i = 0; i < sceneNode->SceneNodeCount; i++)
     {
         auto& sceneNodeIndex = sceneNode->pSceneNodeIndices[i];
-        TraverseSceneNodeImpl(&sceneNode->pSceneNodes[sceneNodeIndex.SceneNodeIndex], path + sceneNodeIndex.pSceneNodeName.get());
+        size_t len = path.length();
+        path += sceneNodeIndex.pSceneNodeName.get();
+        TraverseSceneNodeImpl(&sceneNode->pSceneNodes[sceneNodeIndex.SceneNodeIndex], path);
+        path.resize(len);
     }
     path.pop_back();
 }
