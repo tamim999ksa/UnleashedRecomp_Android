@@ -25,6 +25,8 @@ set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 
 project("UnleashedRecomp-ALL")
 
+enable_testing()
+
 if (APPLE)
     enable_language(OBJC OBJCXX)
 endif()
@@ -51,6 +53,12 @@ add_subdirectory(${UNLEASHED_RECOMP_TOOLS_ROOT})
 
 # Include sub-projects.
 option(BUILD_TOOLS_ONLY "Build only tools" OFF)
+option(BUILD_UNIT_TESTS "Build unit tests" OFF)
+
+if (BUILD_UNIT_TESTS)
+    add_subdirectory("UnleashedRecomp/tests")
+endif()
+
 if (NOT BUILD_TOOLS_ONLY)
     add_subdirectory("UnleashedRecompLib")
     add_subdirectory("UnleashedRecomp")
