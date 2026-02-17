@@ -22,6 +22,7 @@ if (ANDROID AND DEFINED HOST_TOOLS_DIR)
     # Manually add XenosRecomp thirdparty to satisfy dependencies (e.g. zstd)
     # but do NOT add XenosRecomp executable because it fails to link on Android.
     set(XENOS_RECOMP_THIRDPARTY_ROOT "${UNLEASHED_RECOMP_TOOLS_ROOT}/XenosRecomp/thirdparty")
+    set(ZSTD_BUILD_PROGRAMS OFF CACHE BOOL "" FORCE)
     add_subdirectory(${XENOS_RECOMP_THIRDPARTY_ROOT})
 else()
     add_subdirectory(${UNLEASHED_RECOMP_TOOLS_ROOT}/bc_diff)

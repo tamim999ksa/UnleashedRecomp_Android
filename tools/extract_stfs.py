@@ -70,6 +70,9 @@ def extract_stfs(file_path, output_dir):
                         remaining -= len(data)
                         current_block += 1
 
+                if os.path.getsize(out_path) == 0:
+                    print(f"Warning: Extracted file {filename} is 0 bytes.")
+
                 extracted_count += 1
 
             if extracted_count == 0:
