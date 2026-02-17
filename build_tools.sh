@@ -16,6 +16,14 @@ if [ -f "patches/xenon_recomp_fixes.patch" ]; then
     cd ../..
 fi
 
+# Apply absolute branch fixes
+if [ -f "patches/xenon_recomp_absolute_branch.patch" ]; then
+    echo "Applying absolute branch fixes..."
+    cd tools/XenonRecomp
+    git apply ../../patches/xenon_recomp_absolute_branch.patch || echo "Warning: Failed to apply absolute branch patch or already applied."
+    cd ../..
+fi
+
 echo "=== Building GCC compatible tools ==="
 rm -rf build_tools/build_gcc
 mkdir -p build_tools/build_gcc
