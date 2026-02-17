@@ -3,6 +3,8 @@
 #include <gpu/imgui/imgui_common.h>
 #include <gpu/video.h>
 
+#include <functional>
+
 #define PIXELS_TO_UV_COORDS(textureWidth, textureHeight, x, y, width, height) \
     std::make_tuple(ImVec2((float)x / (float)textureWidth, (float)y / (float)textureHeight), \
                     ImVec2(((float)x + (float)width) / (float)textureWidth, ((float)y + (float)height) / (float)textureHeight))
@@ -78,6 +80,7 @@ float Cubic(float a, float b, float t);
 float Hermite(float a, float b, float t);
 ImVec2 Lerp(const ImVec2& a, const ImVec2& b, float t);
 ImU32 ColourLerp(ImU32 c0, ImU32 c1, float t);
+void DrawScanlineBars(float height, float alpha = 1.0f, std::function<void()> drawContent = nullptr);
 void DrawVersionString(const ImFont* font, const ImU32 col = IM_COL32(255, 255, 255, 70));
 void DrawSelectionContainer(ImVec2 min, ImVec2 max, bool fadeTop = false);
 void DrawToggleLight(ImVec2 pos, bool isEnabled, float alpha = 1.0f);

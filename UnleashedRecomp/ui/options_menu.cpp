@@ -259,114 +259,6 @@ static void DrawTitle()
     SetAdditive(false);
 }
 
-static void DrawScanlineBars()
-{
-    constexpr uint32_t COLOR0 = IM_COL32(203, 255, 0, 0);
-    constexpr uint32_t COLOR1 = IM_COL32(203, 255, 0, 55);
-    constexpr uint32_t FADE_COLOR0 = IM_COL32(0, 0, 0, 255);
-    constexpr uint32_t FADE_COLOR1 = IM_COL32(0, 0, 0, 0);
-
-    float height = Scale(105.0f);
-
-    auto& res = ImGui::GetIO().DisplaySize;
-    auto drawList = ImGui::GetBackgroundDrawList();
-
-    if (OptionsMenu::s_pauseMenuType != SWA::eMenuType_WorldMap)
-    {
-        // Top bar fade
-        drawList->AddRectFilledMultiColor
-        (
-            { 0.0f, 0.0f },
-            { res.x, height },
-            FADE_COLOR0,
-            FADE_COLOR0,
-            FADE_COLOR1,
-            FADE_COLOR1
-        );
-
-        // Bottom bar fade
-        drawList->AddRectFilledMultiColor
-        (
-            { res.x, res.y },
-            { 0.0f, res.y - height },
-            FADE_COLOR0,
-            FADE_COLOR0,
-            FADE_COLOR1,
-            FADE_COLOR1
-        );
-    }
-
-    SetShaderModifier(IMGUI_SHADER_MODIFIER_SCANLINE);
-
-    // Top bar
-    drawList->AddRectFilledMultiColor
-    (
-        { 0.0f, 0.0f },
-        { res.x, height },
-        COLOR0,
-        COLOR0,
-        COLOR1,
-        COLOR1
-    );
-
-    // Bottom bar
-    ImVec2 max{ 0.0f, res.y - height };
-    SetProceduralOrigin(max);
-
-    drawList->AddRectFilledMultiColor
-    (
-        { res.x, res.y },
-        max,
-        COLOR0,
-        COLOR0,
-        COLOR1,
-        COLOR1
-    );
-
-    ResetProceduralOrigin();
-
-    SetShaderModifier(IMGUI_SHADER_MODIFIER_NONE);
-
-    DrawTitle();
-
-    auto drawLine = [&](bool top)
-    {
-        float y = top ? height : (res.y - height);
-
-        constexpr uint32_t TOP_COLOR0 = IM_COL32(222, 255, 189, 7);
-        constexpr uint32_t TOP_COLOR1 = IM_COL32(222, 255, 189, 65);
-        constexpr uint32_t BOTTOM_COLOR0 = IM_COL32(173, 255, 156, 65);
-        constexpr uint32_t BOTTOM_COLOR1 = IM_COL32(173, 255, 156, 7);
-
-        drawList->AddRectFilledMultiColor(
-            { 0.0f, y - Scale(2.0f) },
-            { res.x, y }, 
-            top ? TOP_COLOR0 : BOTTOM_COLOR1,
-            top ? TOP_COLOR0 : BOTTOM_COLOR1, 
-            top ? TOP_COLOR1 : BOTTOM_COLOR0,
-            top ? TOP_COLOR1 : BOTTOM_COLOR0);
-
-        drawList->AddRectFilledMultiColor(
-            { 0.0f, y + Scale(1.0f) }, 
-            { res.x, y + Scale(3.0f) }, 
-            top ? BOTTOM_COLOR0 : TOP_COLOR1, 
-            top ? BOTTOM_COLOR0 : TOP_COLOR1,
-            top ? BOTTOM_COLOR1 : TOP_COLOR0, 
-            top ? BOTTOM_COLOR1 : TOP_COLOR0);
-
-        constexpr uint32_t CENTER_COLOR = IM_COL32(115, 178, 104, 255);
-        drawList->AddRectFilled({ 0.0f, y }, { res.x, y + Scale(1.0f) }, CENTER_COLOR);
-    };
-
-    // Top bar line
-    drawLine(true);
-
-    // Bottom bar line
-    drawLine(false);
-
-    DrawVersionString(g_newRodinFont);
-}
-
 static float AlignToNextGrid(float value)
 {
     return round(value / GRID_SIZE) * GRID_SIZE;
@@ -1770,7 +1662,38 @@ void OptionsMenu::Draw()
         if (g_isStage)
             drawList->AddRectFilled({ 0.0f, 0.0f }, res, IM_COL32(0, 0, 0, 223));
 
-        DrawScanlineBars();
+        if (OptionsMenu::s_pauseMenuType != SWA::eMenuType_WorldMap)
+        {
+            constexpr uint32_t FADE_COLOR0 = IM_COL32(0, 0, 0, 255);
+            constexpr uint32_t FADE_COLOR1 = IM_COL32(0, 0, 0, 0);
+
+            float height = Scale(105.0f);
+
+            // Top bar fade
+            drawList->AddRectFilledMultiColor
+            (
+                { 0.0f, 0.0f },
+                { res.x, height },
+                FADE_COLOR0,
+                FADE_COLOR0,
+                FADE_COLOR1,
+                FADE_COLOR1
+            );
+
+            // Bottom bar fade
+            drawList->AddRectFilledMultiColor
+            (
+                { res.x, res.y },
+                { 0.0f, res.y - height },
+                FADE_COLOR0,
+                FADE_COLOR0,
+                FADE_COLOR1,
+                FADE_COLOR1
+            );
+        }
+
+        DrawScanlineBars(Scale(105.0f), 1.0f, [&]() { DrawTitle(); });
+        DrawVersionString(g_newRodinFont);
 
         float settingsGridCount = floor(Lerp(SETTINGS_NARROW_GRID_COUNT, SETTINGS_WIDE_GRID_COUNT, g_aspectRatioNarrowScale));
         float paddingGridCount = Lerp(PADDING_NARROW_GRID_COUNT, PADDING_WIDE_GRID_COUNT, g_aspectRatioNarrowScale);
