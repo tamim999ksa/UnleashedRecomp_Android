@@ -411,21 +411,21 @@ CONFIG_DEFINE_ENUM_TEMPLATE(EUIAlignmentMode)
 
 // CONFIG_DEFINE
 template<typename T, bool isHidden>
-ConfigDef<T, isHidden>::ConfigDef(std::string section, std::string name, T defaultValue) : Section(section), Name(name), DefaultValue(defaultValue)
+ConfigDef<T, isHidden>::ConfigDef(std::string section, std::string name, T defaultValue) : Section(std::move(section)), Name(std::move(name)), DefaultValue(defaultValue)
 {
     g_configDefinitions.emplace_back(this);
 }
 
 // CONFIG_DEFINE_LOCALISED
 template<typename T, bool isHidden>
-ConfigDef<T, isHidden>::ConfigDef(std::string section, std::string name, CONFIG_LOCALE* nameLocale, T defaultValue) : Section(section), Name(name), Locale(nameLocale), DefaultValue(defaultValue)
+ConfigDef<T, isHidden>::ConfigDef(std::string section, std::string name, CONFIG_LOCALE* nameLocale, T defaultValue) : Section(std::move(section)), Name(std::move(name)), Locale(nameLocale), DefaultValue(defaultValue)
 {
     g_configDefinitions.emplace_back(this);
 }
 
 // CONFIG_DEFINE_ENUM
 template<typename T, bool isHidden>
-ConfigDef<T, isHidden>::ConfigDef(std::string section, std::string name, T defaultValue, std::unordered_map<std::string, T>* enumTemplate) : Section(section), Name(name), DefaultValue(defaultValue), EnumTemplate(enumTemplate)
+ConfigDef<T, isHidden>::ConfigDef(std::string section, std::string name, T defaultValue, std::unordered_map<std::string, T>* enumTemplate) : Section(std::move(section)), Name(std::move(name)), DefaultValue(defaultValue), EnumTemplate(enumTemplate)
 {
     for (const auto& pair : *EnumTemplate)
         EnumTemplateReverse[pair.second] = pair.first;
@@ -435,7 +435,7 @@ ConfigDef<T, isHidden>::ConfigDef(std::string section, std::string name, T defau
 
 // CONFIG_DEFINE_ENUM_LOCALISED
 template<typename T, bool isHidden>
-ConfigDef<T, isHidden>::ConfigDef(std::string section, std::string name, CONFIG_LOCALE* nameLocale, T defaultValue, std::unordered_map<std::string, T>* enumTemplate, CONFIG_ENUM_LOCALE(T)* enumLocale) : Section(section), Name(name), Locale(nameLocale), DefaultValue(defaultValue), EnumTemplate(enumTemplate), EnumLocale(enumLocale)
+ConfigDef<T, isHidden>::ConfigDef(std::string section, std::string name, CONFIG_LOCALE* nameLocale, T defaultValue, std::unordered_map<std::string, T>* enumTemplate, CONFIG_ENUM_LOCALE(T)* enumLocale) : Section(std::move(section)), Name(std::move(name)), Locale(nameLocale), DefaultValue(defaultValue), EnumTemplate(enumTemplate), EnumLocale(enumLocale)
 {
     for (const auto& pair : *EnumTemplate)
         EnumTemplateReverse[pair.second] = pair.first;
