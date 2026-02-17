@@ -136,8 +136,8 @@ public:
             
                 g_isCursorActive = true;
             
-                ms_cursorDeltaX = (float)event->motion.xrel / 100.0f;
-                ms_cursorDeltaY = (float)event->motion.yrel / 100.0f;
+                ms_cursorDeltaX = static_cast<float>(event->motion.xrel) / 100.0f;
+                ms_cursorDeltaY = static_cast<float>(event->motion.yrel) / 100.0f;
             
                 break;
             }
@@ -187,8 +187,8 @@ public:
             case SDL_CONTROLLERTOUCHPADDOWN:
             {
                 g_worldMapCursorParams = hid::g_inputDeviceExplicit == hid::EInputDeviceExplicit::DualSense
-                    ? (WorldMapCursorParams)g_worldMapCursorParamsProspero
-                    : (WorldMapCursorParams)g_worldMapCursorParamsOrbis;
+                    ? static_cast<WorldMapCursorParams>(g_worldMapCursorParamsProspero)
+                    : static_cast<WorldMapCursorParams>(g_worldMapCursorParamsOrbis);
 
                 ms_touchpadFingerCount++;
                 ms_cursorPrevX = event->ctouchpad.x;
@@ -243,7 +243,7 @@ static void SetDPadAnalogDirectionX(PPCRegister& pPadState, PPCRegister& x, bool
     if (Config::DisableDPadMovement)
         return;
 
-    auto pGuestPadState = (SWA::SPadState*)g_memory.Translate(pPadState.u32);
+    auto pGuestPadState = static_cast<SWA::SPadState*>(g_memory.Translate(pPadState.u32));
 
     if (pGuestPadState->IsDown(SWA::eKeyState_DpadLeft))
         x.f64 = invert ? max : -max;
@@ -257,7 +257,7 @@ static void SetDPadAnalogDirectionY(PPCRegister& pPadState, PPCRegister& y, bool
     if (Config::DisableDPadMovement)
         return;
 
-    auto pGuestPadState = (SWA::SPadState*)g_memory.Translate(pPadState.u32);
+    auto pGuestPadState = static_cast<SWA::SPadState*>(g_memory.Translate(pPadState.u32));
 
     if (pGuestPadState->IsDown(SWA::eKeyState_DpadUp))
         y.f64 = invert ? -max : max;
@@ -295,7 +295,7 @@ void PostureSpaceHurrierDPadSupportXMidAsmHook(PPCRegister& pPadState, PPCVRegis
     if (Config::DisableDPadMovement)
         return;
     
-    auto pGuestPadState = (SWA::SPadState*)g_memory.Translate(pPadState.u32);
+    auto pGuestPadState = static_cast<SWA::SPadState*>(g_memory.Translate(pPadState.u32));
 
     if (pGuestPadState->IsDown(SWA::eKeyState_DpadLeft))
         vector.f32[3] = -1.0f;
@@ -309,7 +309,7 @@ void PostureSpaceHurrierDPadSupportYMidAsmHook(PPCRegister& pPadState, PPCVRegis
     if (Config::DisableDPadMovement)
         return;
 
-    auto pGuestPadState = (SWA::SPadState*)g_memory.Translate(pPadState.u32);
+    auto pGuestPadState = static_cast<SWA::SPadState*>(g_memory.Translate(pPadState.u32));
 
     if (pGuestPadState->IsDown(SWA::eKeyState_DpadUp))
         vector.f32[3] = 1.0f;
@@ -320,7 +320,7 @@ void PostureSpaceHurrierDPadSupportYMidAsmHook(PPCRegister& pPadState, PPCVRegis
 
 void SetXButtonHomingMidAsmHook(PPCRegister& r1)
 {
-    auto pXButtonHoming = (bool*)(g_memory.base + r1.u32 + 0x63);
+    auto pXButtonHoming = reinterpret_cast<bool*>(g_memory.base + r1.u32 + 0x63);
 
     *pXButtonHoming = !Config::HomingAttackOnJump;
 }
@@ -334,7 +334,7 @@ bool IsHomingAttackOnJump()
 
 bool WorldMapDeadzoneMidAsmHook(PPCRegister& pPadState)
 {
-    auto pGuestPadState = (SWA::SPadState*)g_memory.Translate(pPadState.u32);
+    auto pGuestPadState = static_cast<SWA::SPadState*>(g_memory.Translate(pPadState.u32));
 
     if (IsDPadThreshold(pGuestPadState) || IsLeftStickThreshold(pGuestPadState))
     {
@@ -372,7 +372,7 @@ bool WorldMapMagnetismMidAsmHook(PPCRegister& f0)
 
 void WorldMapHidSupportXMidAsmHook(PPCRegister& pPadState, PPCRegister& x)
 {
-    auto pGuestPadState = (SWA::SPadState*)g_memory.Translate(pPadState.u32);
+    auto pGuestPadState = static_cast<SWA::SPadState*>(g_memory.Translate(pPadState.u32));
 
     if (IsDPadThreshold(pGuestPadState))
     {
@@ -386,7 +386,7 @@ void WorldMapHidSupportXMidAsmHook(PPCRegister& pPadState, PPCRegister& x)
 
 void WorldMapHidSupportYMidAsmHook(PPCRegister& pPadState, PPCRegister& y)
 {
-    auto pGuestPadState = (SWA::SPadState*)g_memory.Translate(pPadState.u32);
+    auto pGuestPadState = static_cast<SWA::SPadState*>(g_memory.Translate(pPadState.u32));
 
     if (IsDPadThreshold(pGuestPadState))
     {
@@ -402,7 +402,7 @@ void WorldMapHidSupportYMidAsmHook(PPCRegister& pPadState, PPCRegister& y)
 PPC_FUNC_IMPL(__imp__sub_82486968);
 PPC_FUNC(sub_82486968)
 {
-    auto pWorldMapCamera = (SWA::CWorldMapCamera*)g_memory.Translate(ctx.r3.u32);
+    auto pWorldMapCamera = static_cast<SWA::CWorldMapCamera*>(g_memory.Translate(ctx.r3.u32));
 
     // Reset vertical velocity if maximum pitch reached.
     if (fabs(pWorldMapCamera->m_Pitch) >= 80.0f)
@@ -414,7 +414,7 @@ PPC_FUNC(sub_82486968)
 // World Map cursor move hook.
 PPC_FUNC(sub_8256C938)
 {
-    auto pWorldMapCursor = (SWA::CWorldMapCursor*)g_memory.Translate(ctx.r3.u32);
+    auto pWorldMapCursor = static_cast<SWA::CWorldMapCursor*>(g_memory.Translate(ctx.r3.u32));
 
     pWorldMapCursor->m_IsCursorMoving = g_isCursorActive && IsCursorThreshold(1.0);
 
