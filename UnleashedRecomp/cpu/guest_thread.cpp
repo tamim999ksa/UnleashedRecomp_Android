@@ -1,4 +1,8 @@
 #include <stdafx.h>
+#ifdef __ANDROID__
+#include <unistd.h>
+#include <os/android/perf_android.h>
+#endif
 #include "guest_thread.h"
 #include <kernel/memory.h>
 #include <kernel/heap.h>
@@ -141,6 +145,11 @@ uint32_t GuestThreadHandle::Wait(uint32_t timeout)
 
 uint32_t GuestThread::Start(const GuestThreadParams& params)
 {
+#ifdef __ANDROID__
+    perf::SetThreadPriority(false);
+    perf::RegisterHintThread(gettid());
+#endif
+
     const auto procMask = (uint8_t)(params.flags >> 24);
     const auto cpuNumber = procMask == 0 ? 0 : 7 - std::countl_zero(procMask);
 

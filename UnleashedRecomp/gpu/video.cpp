@@ -1,5 +1,10 @@
 #include "video.h"
 
+#ifdef __ANDROID__
+#include <unistd.h>
+#include <os/android/perf_android.h>
+#endif
+
 #include "imgui/imgui_common.h"
 #include "imgui/imgui_snapshot.h"
 #include "imgui/imgui_font_builder.h"
@@ -1631,6 +1636,10 @@ bool Video::CreateHostDevice(const char *sdlVideoDriver, bool graphicsApiRetry)
 
     GameWindow::Init(sdlVideoDriver);
 
+#ifdef __ANDROID__
+    perf::ConfigureNativeWindow(GameWindow::s_pWindow);
+#endif
+
     // Attempt to create the possible backends using a vector of function pointers. Whichever succeeds first will be the chosen API.
     using RenderInterfaceFunction = std::unique_ptr<RenderInterface>(void);
     std::vector<RenderInterfaceFunction *> interfaceFunctions;
@@ -2721,6 +2730,14 @@ void Video::Present()
 
         s_next += 1000000000ns / Config::FPS;
     }
+
+#ifdef __ANDROID__
+    static auto lastTime = std::chrono::steady_clock::now();
+    auto now = std::chrono::steady_clock::now();
+    perf::ReportFrameTime(std::chrono::duration_cast<std::chrono::nanoseconds>(now - lastTime).count());
+    perf::MonitorThermals();
+    lastTime = now;
+#endif
 
     g_presentProfiler.Reset();
 }
@@ -5088,6 +5105,10 @@ static void ProcSetPixelShader(const RenderCommand& cmd)
 
 static std::thread g_renderThread([]
     {
+#ifdef __ANDROID__
+    perf::SetThreadPriority(true);
+    perf::RegisterHintThread(gettid());
+#endif
 #ifdef _WIN32
         SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_ABOVE_NORMAL);
         GuestThread::SetThreadName(GetCurrentThreadId(), "Render Thread");
