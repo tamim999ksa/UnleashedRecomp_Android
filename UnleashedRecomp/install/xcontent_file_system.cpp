@@ -15,6 +15,7 @@
 #include <bit>
 #include <set>
 #include <stack>
+#include <utility>
 
 enum class XContentPackageType
 {
@@ -437,7 +438,7 @@ XContentFileSystem::XContentFileSystem(const std::filesystem::path &contentPath)
             uint32_t ordinalIndex = 0;
 
             IterationStep() = default;
-            IterationStep(std::string fileNameBase, uint32_t blockIndex, uint32_t ordinalIndex) : fileNameBase(fileNameBase), blockIndex(blockIndex), ordinalIndex(ordinalIndex) { }
+            IterationStep(std::string fileNameBase, uint32_t blockIndex, uint32_t ordinalIndex) : fileNameBase(std::move(fileNameBase)), blockIndex(blockIndex), ordinalIndex(ordinalIndex) { }
         };
 
         std::stack<IterationStep> iterationStack;
