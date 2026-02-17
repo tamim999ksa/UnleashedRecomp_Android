@@ -49,6 +49,28 @@ index fa91527..dbd4fa6 100644
                  return false;
              }
          }
+diff --git a/XenonUtils/xbox.h b/XenonUtils/xbox.h
+index 0361b0f..a2f3310 100644
+--- a/XenonUtils/xbox.h
++++ b/XenonUtils/xbox.h
+@@ -359,7 +359,17 @@ typedef struct _XDEVICE_DATA
+ // Direct reflection of XInput structures
+
+ #define XAMINPUT_DEVTYPE_GAMEPAD          0x01
++#define XAMINPUT_DEVSUBTYPE_UNKNOWN       0x00
+ #define XAMINPUT_DEVSUBTYPE_GAMEPAD       0x01
++#define XAMINPUT_DEVSUBTYPE_WHEEL         0x02
++#define XAMINPUT_DEVSUBTYPE_ARCADE_STICK  0x03
++#define XAMINPUT_DEVSUBTYPE_FLIGHT_STICK  0x04
++#define XAMINPUT_DEVSUBTYPE_DANCE_PAD     0x05
++#define XAMINPUT_DEVSUBTYPE_GUITAR        0x06
++#define XAMINPUT_DEVSUBTYPE_GUITAR_ALTERNATE 0x07
++#define XAMINPUT_DEVSUBTYPE_DRUM_KIT      0x08
++#define XAMINPUT_DEVSUBTYPE_GUITAR_BASS   0x0B
++#define XAMINPUT_DEVSUBTYPE_ARCADE_PAD    0x13
+
+ #define XAMINPUT_GAMEPAD_DPAD_UP          0x0001
+ #define XAMINPUT_GAMEPAD_DPAD_DOWN        0x0002
 diff --git a/XenonUtils/xex_patcher.cpp b/XenonUtils/xex_patcher.cpp
 index 8492a5d..f9f9203 100644
 --- a/XenonUtils/xex_patcher.cpp
