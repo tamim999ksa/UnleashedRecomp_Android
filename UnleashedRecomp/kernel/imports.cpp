@@ -275,7 +275,8 @@ uint32_t XamUserGetSigninInfo(uint32_t userIndex, uint32_t flags, XUSER_SIGNIN_I
         memset(info, 0, sizeof(*info));
         info->xuid = 0xB13EBABEBABEBABE;
         info->SigninState = 1;
-        strcpy(info->Name, "SWA");
+        strncpy(info->Name, "SWA", sizeof(info->Name));
+        info->Name[sizeof(info->Name) - 1] = '\0';
         return 0;
     }
 
