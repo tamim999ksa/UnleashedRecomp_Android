@@ -229,15 +229,21 @@ diff --git a/XenonUtils/xbox.h b/XenonUtils/xbox.h
 index 0361b0f..5b72b64 100644
 --- a/XenonUtils/xbox.h
 +++ b/XenonUtils/xbox.h
-@@ -247,7 +247,7 @@ typedef struct _XXOVERLAPPED {
+@@ -247,13 +247,13 @@ typedef struct _XXOVERLAPPED {
          {
              be<uint32_t> Error;
              be<uint32_t> Length;
 -        };
-+        } NamedStruct;
++        } _ErrorLength;
 
          struct
          {
+             uint32_t InternalLow;
+             uint32_t InternalHigh;
+-        };
++        } _Internal;
+     };
+     uint32_t InternalContext;
 diff --git a/XenonUtils/xdbf.h b/XenonUtils/xdbf.h
 index 347ac2c..19d7079 100644
 --- a/XenonUtils/xdbf.h
@@ -247,7 +253,7 @@ index 347ac2c..19d7079 100644
          be<uint16_t> u16;
          char u8[0x02];
 -    };
-+    } NamedStruct;
++    } AsU16;
 
      be<uint32_t> u32;
  };

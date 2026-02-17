@@ -12,7 +12,7 @@
 #pragma once
 
 #include <filesystem>
-#include <map>
+#include <ankerl/unordered_dense.h>
 
 #include "virtual_file_system.h"
 
@@ -21,7 +21,7 @@
 struct ISOFileSystem : VirtualFileSystem
 {
     MemoryMappedFile mappedFile;
-    std::map<std::string, std::tuple<size_t, size_t>> fileMap;
+    ankerl::unordered_dense::map<std::string, std::tuple<size_t, size_t>> fileMap;
     std::string name;
 
     ISOFileSystem(const std::filesystem::path &isoPath);
