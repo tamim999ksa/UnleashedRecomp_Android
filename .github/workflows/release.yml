@@ -229,7 +229,14 @@ jobs:
           # Process Title Update
           echo "Extracting Title Update..."
           if [ -f title_update.rar ]; then
-             python3 tools/extract_stfs.py title_update.rar private
+             echo "Checking if title_update.rar is a standard archive..."
+             if 7z l title_update.rar > /dev/null 2>&1; then
+                 echo "Extracting title_update.rar with 7z..."
+                 7z x title_update.rar -oprivate -y
+             else
+                 echo "Not a standard archive, attempting STFS extraction..."
+                 python3 tools/extract_stfs.py title_update.rar private
+             fi
           elif [ -f title_update.7z ]; then
              echo "Extracting Title Update 7z..."
              mkdir -p temp_tu
@@ -253,13 +260,27 @@ jobs:
           echo "Searching for ISOs..."
           find private -name "*.iso" | while read iso_file; do
             echo "Extracting ISO: $iso_file"
+            ls -lh "$iso_file"
+            file "$iso_file"
+            echo "Hex dump of header:"
+            head -c 64 "$iso_file" | xxd || true
 
             # Create a temporary directory for extraction to avoid conflicts
             # and to prioritize DLC/Title Update files (which are already in private/)
             rm -rf temp_iso
             mkdir -p temp_iso
 
-            extract-xiso -x "$iso_file" -d temp_iso
+            if extract-xiso -x "$iso_file" -d temp_iso; then
+                echo "extract-xiso successful."
+            else
+                echo "extract-xiso failed. Attempting fallback to 7z..."
+                if 7z x "$iso_file" -otemp_iso -y; then
+                    echo "7z extraction successful."
+                else
+                    echo "Failed to extract ISO with both extract-xiso and 7z."
+                    exit 1
+                fi
+            fi
 
             echo "Resolving conflicts and merging into private/..."
 
