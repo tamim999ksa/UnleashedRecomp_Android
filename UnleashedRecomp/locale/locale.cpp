@@ -409,24 +409,24 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
         // Japanese Notes: This localization should include furigana.
         "Installer_Step_RequiredSpace",
         {
-            { ELanguage::English,  "Required space: %2.2f GiB" },
-            { ELanguage::Japanese, "[必要:ひつよう]な[容量:ようりょう]: %2.2f GiB" },
-            { ELanguage::German,   "Benötigter Speicherplatz:\n%2.2f GiB" },
-            { ELanguage::French,   "Espace nécessaire :\n%2.2f Gio" },
-            { ELanguage::Spanish,  "Espacio necesario: %2.2f GiB" },
-            { ELanguage::Italian,  "Spazio necessario: %2.2f GiB" }
+            { ELanguage::English,  "Required space: {:.2f} GiB" },
+            { ELanguage::Japanese, "[必要:ひつよう]な[容量:ようりょう]: {:.2f} GiB" },
+            { ELanguage::German,   "Benötigter Speicherplatz:\n{:.2f} GiB" },
+            { ELanguage::French,   "Espace nécessaire :\n{:.2f} Gio" },
+            { ELanguage::Spanish,  "Espacio necesario: {:.2f} GiB" },
+            { ELanguage::Italian,  "Spazio necessario: {:.2f} GiB" }
         }
     },
     {
         // Japanese Notes: This localization should include furigana.
         "Installer_Step_AvailableSpace",
         {
-            { ELanguage::English,  "Available space: %2.2f GiB" },
-            { ELanguage::Japanese, "[使用:しよう][可能:かのう]な[容量:ようりょう]: %2.2f GiB" },
-            { ELanguage::German,   "Verfügbarer Speicherplatz:\n%2.2f GiB" },
-            { ELanguage::French,   "Espace disponible :\n%2.2f Gio" },
-            { ELanguage::Spanish,  "Espacio disponible: %2.2f GiB" },
-            { ELanguage::Italian,  "Spazio disponibile: %2.2f GiB" }
+            { ELanguage::English,  "Available space: {:.2f} GiB" },
+            { ELanguage::Japanese, "[使用:しよう][可能:かのう]な[容量:ようりょう]: {:.2f} GiB" },
+            { ELanguage::German,   "Verfügbarer Speicherplatz:\n{:.2f} GiB" },
+            { ELanguage::French,   "Espace disponible :\n{:.2f} Gio" },
+            { ELanguage::Spanish,  "Espacio disponible: {:.2f} GiB" },
+            { ELanguage::Italian,  "Spazio disponibile: {:.2f} GiB" }
         }
     },
     {
