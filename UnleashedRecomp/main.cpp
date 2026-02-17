@@ -1,4 +1,7 @@
 #include <stdafx.h>
+#ifdef __ANDROID__
+#include <os/android/perf_android.h>
+#endif
 #ifdef __x86_64__
 #include <cpuid.h>
 #endif
@@ -176,6 +179,8 @@ int main(int argc, char *argv[])
 #ifdef __ANDROID__
     SDL_setenv("SDL_AUDIO_DRIVER", "aaudio", 1);
     SDL_setenv("SDL_VIDEODRIVER", "android", 1);
+
+    perf::EnableSustainedPerformanceMode(true);
 #endif
 
     os::process::CheckConsole();
