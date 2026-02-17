@@ -1,3 +1,4 @@
+#include <cstring>
 #include <api/SWA.h>
 #include <ui/game_window.h>
 #include <user/achievement_manager.h>
@@ -20,7 +21,10 @@ PPC_FUNC(sub_82AC36E0)
 {
     auto pPerfectDarkGaiaChipHintName = (xpointer<char>*)g_memory.Translate(0x8338EF10);
 
-    strcpy(pPerfectDarkGaiaChipHintName->get(), Config::Hints ? "V_CHP_067\0" : "end\0");
+    const char* hint = Config::Hints ? "V_CHP_067" : "end";
+    const size_t bufferSize = sizeof("V_CHP_067");
+    strncpy(pPerfectDarkGaiaChipHintName->get(), hint, bufferSize);
+    pPerfectDarkGaiaChipHintName->get()[bufferSize - 1] = '\0';
 
     __imp__sub_82AC36E0(ctx, base);
 }
