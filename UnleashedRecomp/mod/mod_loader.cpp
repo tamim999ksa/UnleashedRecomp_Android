@@ -644,15 +644,16 @@ PPC_FUNC(sub_82E0CC38)
     auto r8 = ctx.r8;
 
     const char* arFilePath = reinterpret_cast<const char*>(base + PPC_LOAD_U32(r5.u32));
+    size_t arFilePathLen = strlen(arFilePath);
 
     // __HH_ALLOC
-    ctx.r3.u32 = 22 + strlen(arFilePath);
+    ctx.r3.u32 = 22 + arFilePathLen;
     sub_822C0988(ctx, base);
     char* prefixedArFilePath = reinterpret_cast<char*>(base + ctx.r3.u32);
 
     *reinterpret_cast<be<uint32_t>*>(prefixedArFilePath) = 1;
-    strcpy(prefixedArFilePath + 0x4, "/UnleashedRecomp/");
-    strcpy(prefixedArFilePath + 0x15, arFilePath);
+    memcpy(prefixedArFilePath + 0x4, "/UnleashedRecomp/", 17);
+    memcpy(prefixedArFilePath + 0x15, arFilePath, arFilePathLen + 1);
 
     ctx.r1.u32 -= 0x10;
     uint32_t stackSpace = ctx.r1.u32;
