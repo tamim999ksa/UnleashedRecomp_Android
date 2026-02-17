@@ -1,6 +1,7 @@
 #include "installer_wizard.h"
 
 #include <nfd.h>
+#include <fmt/format.h>
 
 #include <apu/embedded_player.h>
 #include <install/installer.h>
@@ -619,8 +620,8 @@ static void DrawDescriptionContainer()
         constexpr double DivisorGiB = (1024.0 * 1024.0 * 1024.0);
         double requiredGiB = double(g_installerSources.totalSize) / DivisorGiB;
         double availableGiB = double(g_installerAvailableSize) / DivisorGiB;
-        snprintf(requiredSpaceText, sizeof(requiredSpaceText), Localise("Installer_Step_RequiredSpace").c_str(), requiredGiB);
-        snprintf(availableSpaceText, sizeof(availableSpaceText), (g_installerAvailableSize > 0) ? Localise("Installer_Step_AvailableSpace").c_str() : "", availableGiB);
+        snprintf(requiredSpaceText, sizeof(requiredSpaceText), "%s", fmt::format(fmt::runtime(Localise("Installer_Step_RequiredSpace")), requiredGiB).c_str());
+        snprintf(availableSpaceText, sizeof(availableSpaceText), "%s", (g_installerAvailableSize > 0) ? fmt::format(fmt::runtime(Localise("Installer_Step_AvailableSpace")), availableGiB).c_str() : "");
         snprintf(descriptionText, sizeof(descriptionText), "%s%s\n%s", GetWizardText(g_currentPage).c_str(), requiredSpaceText, availableSpaceText);
     }
     else if (g_currentPage == WizardPage::InstallFailed)
