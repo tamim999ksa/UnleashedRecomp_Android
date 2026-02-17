@@ -566,117 +566,6 @@ static void DrawHeaderIcons()
     }
 }
 
-static void DrawScanlineBars()
-{
-    double scanlinesAlpha = ComputeMotionInstaller(g_appearTime, g_disappearTime, 0.0, SCANLINES_ANIMATION_DURATION);
-
-    const uint32_t COLOR0 = IM_COL32(203, 255, 0, 0);
-    const uint32_t COLOR1 = IM_COL32(203, 255, 0, 55 * scanlinesAlpha);
-    const uint32_t FADE_COLOR0 = IM_COL32(0, 0, 0, 255 * scanlinesAlpha);
-    const uint32_t FADE_COLOR1 = IM_COL32(0, 0, 0, 0);
-
-    float height = Scale(105.0f) * ComputeMotionInstaller(g_appearTime, g_disappearTime, 0.0, SCANLINES_ANIMATION_DURATION);
-    if (height < 1e-6f)
-    {
-        return;
-    }
-
-    auto &res = ImGui::GetIO().DisplaySize;
-    auto drawList = ImGui::GetBackgroundDrawList();
-
-    SetShaderModifier(IMGUI_SHADER_MODIFIER_SCANLINE);
-
-    // Top bar
-    drawList->AddRectFilledMultiColor
-    (
-        { 0.0f, 0.0f },
-        { res.x, height },
-        COLOR0,
-        COLOR0,
-        COLOR1,
-        COLOR1
-    );
-
-    // Bottom bar
-    ImVec2 max{ 0.0f, res.y - height };
-    SetProceduralOrigin(max);
-
-    drawList->AddRectFilledMultiColor
-    (
-        { res.x, res.y },
-        max,
-        COLOR0,
-        COLOR0,
-        COLOR1,
-        COLOR1
-    );
-
-    ResetProceduralOrigin();
-
-    SetShaderModifier(IMGUI_SHADER_MODIFIER_NONE);
-
-    // Installer text
-    auto& headerText = Localise(g_currentPage == WizardPage::Installing ? "Installer_Header_Installing" : "Installer_Header_Installer");
-    auto alphaMotion = ComputeMotionInstaller(g_appearTime, g_disappearTime, TITLE_ANIMATION_TIME, TITLE_ANIMATION_DURATION);
-    auto breatheMotion = 1.0f;
-
-    if (g_currentPage == WizardPage::Installing)
-    {
-        // Breathing animation
-        static auto breatheStart = ImGui::GetTime();
-        breatheMotion = BREATHE_MOTION(1.0f, 0.55f, breatheStart, 1.5f);
-    }
-
-    DrawTextWithOutline
-    (
-        g_dfsogeistdFont,
-        Scale(48.0f),
-        { g_aspectRatioOffsetX + Scale(288.0f), Scale(54.5f) },
-        IM_COL32(255, 195, 0, 255 * alphaMotion * breatheMotion),
-        headerText.c_str(), 4,
-        IM_COL32(0, 0, 0, 255 * alphaMotion * breatheMotion),
-        IMGUI_SHADER_MODIFIER_TITLE_BEVEL
-    );
-
-    auto drawLine = [&](bool top)
-    {
-        float y = top ? height : (res.y - height);
-
-        const uint32_t TOP_COLOR0 = IM_COL32(222, 255, 189, 7 * scanlinesAlpha);
-        const uint32_t TOP_COLOR1 = IM_COL32(222, 255, 189, 65 * scanlinesAlpha);
-        const uint32_t BOTTOM_COLOR0 = IM_COL32(173, 255, 156, 65 * scanlinesAlpha);
-        const uint32_t BOTTOM_COLOR1 = IM_COL32(173, 255, 156, 7 * scanlinesAlpha);
-
-        drawList->AddRectFilledMultiColor(
-            { 0.0f, y - Scale(2.0f) },
-            { res.x, y },
-            top ? TOP_COLOR0 : BOTTOM_COLOR1,
-            top ? TOP_COLOR0 : BOTTOM_COLOR1,
-            top ? TOP_COLOR1 : BOTTOM_COLOR0,
-            top ? TOP_COLOR1 : BOTTOM_COLOR0);
-
-        drawList->AddRectFilledMultiColor(
-            { 0.0f, y + Scale(1.0f) },
-            { res.x, y + Scale(3.0f) },
-            top ? BOTTOM_COLOR0 : TOP_COLOR1,
-            top ? BOTTOM_COLOR0 : TOP_COLOR1,
-            top ? BOTTOM_COLOR1 : TOP_COLOR0,
-            top ? BOTTOM_COLOR1 : TOP_COLOR0);
-
-        const uint32_t CENTER_COLOR = IM_COL32(115, 178, 104, 255 * scanlinesAlpha);
-        drawList->AddRectFilled({ 0.0f, y }, { res.x, y + Scale(1.0f) }, CENTER_COLOR);
-    };
-
-    // Top bar line
-    drawLine(true);
-
-    // Bottom bar line
-    drawLine(false);
-
-    DrawHeaderIcons();
-    DrawVersionString(g_newRodinFont, IM_COL32(255, 255, 255, 70 * alphaMotion));
-}
-
 static void DrawContainer(ImVec2 min, ImVec2 max, bool isTextArea)
 {   
     auto &res = ImGui::GetIO().DisplaySize;
@@ -1780,7 +1669,38 @@ void InstallerWizard::Draw()
     ResetCursorRects();
     DrawBackground();
     DrawLeftImage();
-    DrawScanlineBars();
+
+    double scanlinesAlpha = ComputeMotionInstaller(g_appearTime, g_disappearTime, 0.0, SCANLINES_ANIMATION_DURATION);
+    float height = Scale(105.0f) * (float)scanlinesAlpha;
+
+    DrawScanlineBars(height, (float)scanlinesAlpha, [&]() {
+        auto& headerText = Localise(g_currentPage == WizardPage::Installing ? "Installer_Header_Installing" : "Installer_Header_Installer");
+        auto alphaMotion = ComputeMotionInstaller(g_appearTime, g_disappearTime, TITLE_ANIMATION_TIME, TITLE_ANIMATION_DURATION);
+        auto breatheMotion = 1.0f;
+
+        if (g_currentPage == WizardPage::Installing)
+        {
+            static auto breatheStart = ImGui::GetTime();
+            breatheMotion = BREATHE_MOTION(1.0f, 0.55f, breatheStart, 1.5f);
+        }
+
+        DrawTextWithOutline
+        (
+            g_dfsogeistdFont,
+            Scale(48.0f),
+            { g_aspectRatioOffsetX + Scale(288.0f), Scale(54.5f) },
+            IM_COL32(255, 195, 0, 255 * alphaMotion * breatheMotion),
+            headerText.c_str(), 4,
+            IM_COL32(0, 0, 0, 255 * alphaMotion * breatheMotion),
+            IMGUI_SHADER_MODIFIER_TITLE_BEVEL
+        );
+    });
+
+    DrawHeaderIcons();
+
+    auto alphaMotion = ComputeMotionInstaller(g_appearTime, g_disappearTime, TITLE_ANIMATION_TIME, TITLE_ANIMATION_DURATION);
+    DrawVersionString(g_newRodinFont, IM_COL32(255, 255, 255, 70 * alphaMotion));
+
     DrawDescriptionContainer();
     DrawLanguagePicker();
     DrawSourcePickers();

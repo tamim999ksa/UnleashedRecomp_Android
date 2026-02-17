@@ -772,6 +772,87 @@ ImU32 ColourLerp(ImU32 c0, ImU32 c1, float t)
     return ImGui::ColorConvertFloat4ToU32(result);
 }
 
+void DrawScanlineBars(float height, float alpha, std::function<void()> drawContent)
+{
+    if (height < 1e-6f)
+        return;
+
+    const uint32_t COLOR0 = IM_COL32(203, 255, 0, 0);
+    const uint32_t COLOR1 = IM_COL32(203, 255, 0, 55 * alpha);
+
+    auto& res = ImGui::GetIO().DisplaySize;
+    auto drawList = ImGui::GetBackgroundDrawList();
+
+    SetShaderModifier(IMGUI_SHADER_MODIFIER_SCANLINE);
+
+    // Top bar
+    drawList->AddRectFilledMultiColor
+    (
+        { 0.0f, 0.0f },
+        { res.x, height },
+        COLOR0,
+        COLOR0,
+        COLOR1,
+        COLOR1
+    );
+
+    // Bottom bar
+    ImVec2 max{ 0.0f, res.y - height };
+    SetProceduralOrigin(max);
+
+    drawList->AddRectFilledMultiColor
+    (
+        { res.x, res.y },
+        max,
+        COLOR0,
+        COLOR0,
+        COLOR1,
+        COLOR1
+    );
+
+    ResetProceduralOrigin();
+
+    SetShaderModifier(IMGUI_SHADER_MODIFIER_NONE);
+
+    if (drawContent)
+        drawContent();
+
+    auto drawLine = [&](bool top)
+    {
+        float y = top ? height : (res.y - height);
+
+        const uint32_t TOP_COLOR0 = IM_COL32(222, 255, 189, 7 * alpha);
+        const uint32_t TOP_COLOR1 = IM_COL32(222, 255, 189, 65 * alpha);
+        const uint32_t BOTTOM_COLOR0 = IM_COL32(173, 255, 156, 65 * alpha);
+        const uint32_t BOTTOM_COLOR1 = IM_COL32(173, 255, 156, 7 * alpha);
+
+        drawList->AddRectFilledMultiColor(
+            { 0.0f, y - Scale(2.0f) },
+            { res.x, y },
+            top ? TOP_COLOR0 : BOTTOM_COLOR1,
+            top ? TOP_COLOR0 : BOTTOM_COLOR1,
+            top ? TOP_COLOR1 : BOTTOM_COLOR0,
+            top ? TOP_COLOR1 : BOTTOM_COLOR0);
+
+        drawList->AddRectFilledMultiColor(
+            { 0.0f, y + Scale(1.0f) },
+            { res.x, y + Scale(3.0f) },
+            top ? BOTTOM_COLOR0 : TOP_COLOR1,
+            top ? BOTTOM_COLOR0 : TOP_COLOR1,
+            top ? BOTTOM_COLOR1 : TOP_COLOR0,
+            top ? BOTTOM_COLOR1 : TOP_COLOR0);
+
+        const uint32_t CENTER_COLOR = IM_COL32(115, 178, 104, 255 * alpha);
+        drawList->AddRectFilled({ 0.0f, y }, { res.x, y + Scale(1.0f) }, CENTER_COLOR);
+    };
+
+    // Top bar line
+    drawLine(true);
+
+    // Bottom bar line
+    drawLine(false);
+}
+
 void DrawVersionString(const ImFont* font, const ImU32 col)
 {
     auto drawList = ImGui::GetBackgroundDrawList();
