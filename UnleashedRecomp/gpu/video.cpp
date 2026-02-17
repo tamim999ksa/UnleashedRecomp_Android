@@ -5203,9 +5203,9 @@ static void D3DXFillVolumeTexture(GuestTexture* texture, uint32_t function, void
     auto uploadBuffer = g_device->createBuffer(RenderBufferDesc::UploadBuffer(slicePitch0 + slicePitch1));
     uint8_t* mappedData = reinterpret_cast<uint8_t*>(uploadBuffer->map());
 
-    thread_local std::vector<float> mipData;
+    thread_local std::vector<uint16_t> mipData;
     mipData.resize(halfWidth * halfHeight * halfDepth * 4);
-    memset(mipData.data(), 0, mipData.size() * sizeof(float));
+    memset(mipData.data(), 0, mipData.size() * sizeof(uint16_t));
 
     if (function == 0x82BC7820)
     {
@@ -5225,7 +5225,38 @@ static void D3DXFillVolumeTexture(GuestTexture* texture, uint32_t function, void
                 size_t yDiv2 = y / 2;
                 size_t mipIndexBaseY = (mipIndexBaseZ + yDiv2 * halfWidth) * 4;
 
-                for (size_t x = 0; x < width; x++)
+                size_t x = 0;
+                for (; x + 1 < width; x += 2)
+                {
+                    auto dest = destRow + x * 4;
+                    size_t index = yIndexBase + x;
+
+                    size_t mipIndex = mipIndexBaseY + (x / 2) * 4;
+
+                    auto src1 = reinterpret_cast<be<float>*>(data) + index * 4;
+
+                    uint8_t r1 = static_cast<uint8_t>(src1[0] * 255.0f);
+                    uint8_t g1 = static_cast<uint8_t>(src1[1] * 255.0f);
+                    uint8_t b1 = static_cast<uint8_t>(src1[2] * 255.0f);
+                    uint8_t a1 = static_cast<uint8_t>(src1[3] * 255.0f);
+
+                    dest[0] = r1; dest[1] = g1; dest[2] = b1; dest[3] = a1;
+
+                    auto src2 = src1 + 4;
+                    uint8_t r2 = static_cast<uint8_t>(src2[0] * 255.0f);
+                    uint8_t g2 = static_cast<uint8_t>(src2[1] * 255.0f);
+                    uint8_t b2 = static_cast<uint8_t>(src2[2] * 255.0f);
+                    uint8_t a2 = static_cast<uint8_t>(src2[3] * 255.0f);
+
+                    dest[4] = r2; dest[5] = g2; dest[6] = b2; dest[7] = a2;
+
+                    mipData[mipIndex + 0] += r1 + r2;
+                    mipData[mipIndex + 1] += g1 + g2;
+                    mipData[mipIndex + 2] += b1 + b2;
+                    mipData[mipIndex + 3] += a1 + a2;
+                }
+
+                if (x < width)
                 {
                     auto dest = destRow + x * 4;
                     size_t index = yIndexBase + x;
@@ -5234,20 +5265,20 @@ static void D3DXFillVolumeTexture(GuestTexture* texture, uint32_t function, void
 
                     auto src = reinterpret_cast<be<float>*>(data) + index * 4;
 
-                    float r = static_cast<uint8_t>(src[0] * 255.0f);
-                    float g = static_cast<uint8_t>(src[1] * 255.0f);
-                    float b = static_cast<uint8_t>(src[2] * 255.0f);
-                    float a = static_cast<uint8_t>(src[3] * 255.0f);
+                    uint8_t r = static_cast<uint8_t>(src[0] * 255.0f);
+                    uint8_t g = static_cast<uint8_t>(src[1] * 255.0f);
+                    uint8_t b = static_cast<uint8_t>(src[2] * 255.0f);
+                    uint8_t a = static_cast<uint8_t>(src[3] * 255.0f);
 
-                    dest[0] = r;
-                    dest[1] = g;
-                    dest[2] = b;
-                    dest[3] = a;
+                    dest[0] = r; dest[1] = g; dest[2] = b; dest[3] = a;
 
-                    mipData[mipIndex + 0] += r;
-                    mipData[mipIndex + 1] += g;
-                    mipData[mipIndex + 2] += b;
-                    mipData[mipIndex + 3] += a;
+                    if (mipIndex + 3 < mipData.size())
+                    {
+                        mipData[mipIndex + 0] += r;
+                        mipData[mipIndex + 1] += g;
+                        mipData[mipIndex + 2] += b;
+                        mipData[mipIndex + 3] += a;
+                    }
                 }
             }
         }
@@ -5270,24 +5301,45 @@ static void D3DXFillVolumeTexture(GuestTexture* texture, uint32_t function, void
                 size_t yDiv2 = y / 2;
                 size_t mipIndexBaseY = (mipIndexBaseZ + yDiv2 * halfWidth) * 4;
 
-                for (size_t x = 0; x < width; x++)
+                auto srcBase = reinterpret_cast<uint32_t*>(data) + yIndexBase;
+                auto destRow32 = reinterpret_cast<uint32_t*>(destRow);
+
+                size_t x = 0;
+                for (; x + 1 < width; x += 2)
                 {
-                    auto dest = destRow + x * 4;
-                    size_t index = yIndexBase + x;
+                    // Pixel 1
+                    uint32_t val1 = srcBase[x];
+                    uint32_t swapped1 = ByteSwap(val1);
+                    destRow32[x] = swapped1;
+
+                    // Pixel 2
+                    uint32_t val2 = srcBase[x + 1];
+                    uint32_t swapped2 = ByteSwap(val2);
+                    destRow32[x + 1] = swapped2;
 
                     size_t mipIndex = mipIndexBaseY + (x / 2) * 4;
 
-                    auto src = reinterpret_cast<uint8_t*>(data) + index * 4;
+                    mipData[mipIndex + 0] += (swapped1 & 0xFF) + (swapped2 & 0xFF);
+                    mipData[mipIndex + 1] += ((swapped1 >> 8) & 0xFF) + ((swapped2 >> 8) & 0xFF);
+                    mipData[mipIndex + 2] += ((swapped1 >> 16) & 0xFF) + ((swapped2 >> 16) & 0xFF);
+                    mipData[mipIndex + 3] += ((swapped1 >> 24) & 0xFF) + ((swapped2 >> 24) & 0xFF);
+                }
 
-                    dest[0] = src[3];
-                    dest[1] = src[2];
-                    dest[2] = src[1];
-                    dest[3] = src[0];
+                if (x < width)
+                {
+                    uint32_t val = srcBase[x];
+                    uint32_t swapped = ByteSwap(val);
+                    destRow32[x] = swapped;
 
-                    mipData[mipIndex + 0] += src[3];
-                    mipData[mipIndex + 1] += src[2];
-                    mipData[mipIndex + 2] += src[1];
-                    mipData[mipIndex + 3] += src[0];
+                    size_t mipIndex = mipIndexBaseY + (x / 2) * 4;
+
+                    if (mipIndex + 3 < mipData.size())
+                    {
+                        mipData[mipIndex + 0] += (swapped & 0xFF);
+                        mipData[mipIndex + 1] += ((swapped >> 8) & 0xFF);
+                        mipData[mipIndex + 2] += ((swapped >> 16) & 0xFF);
+                        mipData[mipIndex + 3] += ((swapped >> 24) & 0xFF);
+                    }
                 }
             }
         }
@@ -5303,15 +5355,23 @@ static void D3DXFillVolumeTexture(GuestTexture* texture, uint32_t function, void
             uint8_t* destRow = destSlice + y * rowPitch1;
             size_t yIndexBase = zIndexBase + y * halfWidth;
 
+            auto mipRow = mipData.data() + yIndexBase * 4;
+            auto destRow32 = reinterpret_cast<uint32_t*>(destRow);
+
             for (size_t x = 0; x < halfWidth; x++)
             {
-                auto dest = destRow + x * 4;
-                size_t index = (yIndexBase + x) * 4;
+                uint16_t r = mipRow[x * 4 + 0];
+                uint16_t g = mipRow[x * 4 + 1];
+                uint16_t b = mipRow[x * 4 + 2];
+                uint16_t a = mipRow[x * 4 + 3];
 
-                dest[0] = static_cast<uint8_t>(mipData[index + 0] / 8.0f);
-                dest[1] = static_cast<uint8_t>(mipData[index + 1] / 8.0f);
-                dest[2] = static_cast<uint8_t>(mipData[index + 2] / 8.0f);
-                dest[3] = static_cast<uint8_t>(mipData[index + 3] / 8.0f);
+                uint32_t pixel =
+                    (static_cast<uint8_t>(r / 8)) |
+                    (static_cast<uint8_t>(g / 8) << 8) |
+                    (static_cast<uint8_t>(b / 8) << 16) |
+                    (static_cast<uint8_t>(a / 8) << 24);
+
+                destRow32[x] = pixel;
             }
         }
     }
