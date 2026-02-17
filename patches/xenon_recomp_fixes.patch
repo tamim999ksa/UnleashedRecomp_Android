@@ -16,7 +16,7 @@ index b89407f..53fa2af 100644
 
  # Only tests if this is the top level project
 diff --git a/XenonRecomp/recompiler.cpp b/XenonRecomp/recompiler.cpp
-index fa91527..09ac5c9 100644
+index fa91527..dbd4fa6 100644
 --- a/XenonRecomp/recompiler.cpp
 +++ b/XenonRecomp/recompiler.cpp
 @@ -12,6 +12,7 @@ static uint64_t ComputeMask(uint32_t mstart, uint32_t mstop)
