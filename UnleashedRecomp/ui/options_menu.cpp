@@ -22,6 +22,7 @@
 #include <sdl_listener.h>
 
 #include <res/images/options_menu/miles_electric.dds.h>
+#include <fmt/printf.h>
 
 static constexpr double MILES_ELECTRIC_SCALE_DURATION = 16.0;
 static constexpr double MILES_ELECTRIC_BACKGROUND_DURATION = 16.0;
@@ -1435,14 +1436,11 @@ static void DrawInfoPanel(ImVec2 infoMin, ImVec2 infoMax)
             // Specialised description for resolution scale.
             if (g_selectedItem == &Config::ResolutionScale)
             {
-                char buf[100];
                 auto resScale = round(*static_cast<const float*>(g_selectedItem->GetValue()) * 1000) / 1000;
 
-                std::snprintf(buf, sizeof(buf), desc.c_str(),
+                desc = fmt::sprintf(desc,
                     static_cast<int>(static_cast<float>(Video::s_viewportWidth) * resScale),
                     static_cast<int>(static_cast<float>(Video::s_viewportHeight) * resScale));
-
-                desc = buf;
             }
 
             const auto& valueDescription = g_selectedItem->GetValueDescription(Config::Language);
