@@ -3,19 +3,28 @@
 #include <os/media.h>
 #include <os/version.h>
 #include <patches/audio_patches.h>
+#include <patches/audio_internal.h>
 #include <api/SWA.h>
 
 int AudioPatches::m_isAttenuationSupported = -1;
 
 static be<float>* GetVolume(bool isMusic = true)
 {
-    auto ppUnkClass = (be<uint32_t>*)g_memory.Translate(0x83362FFC);
+    auto pAudioCenterPtr = reinterpret_cast<be<uint32_t>*>(g_memory.Translate(AudioInternal::AUDIO_CENTER_PTR_ADDR));
 
-    if (!ppUnkClass->get())
+    if (!pAudioCenterPtr || !pAudioCenterPtr->get())
+        return nullptr;
+
+    auto pAudioCenter = reinterpret_cast<AudioInternal::AudioCenter*>(g_memory.Translate(*pAudioCenterPtr));
+    if (!pAudioCenter)
+        return nullptr;
+
+    auto pSubsystem = reinterpret_cast<AudioInternal::AudioSubsystem*>(g_memory.Translate(pAudioCenter->subsystemPtr));
+    if (!pSubsystem)
         return nullptr;
 
     // NOTE (Hyper): This is fine, trust me. See 0x82E58728.
-    return (be<float>*)g_memory.Translate(4 * ((int)isMusic + 0x1C) + ((be<uint32_t>*)g_memory.Translate(ppUnkClass->get() + 4))->get());
+    return isMusic ? &pSubsystem->musicVolume : &pSubsystem->effectsVolume;
 }
 
 bool AudioPatches::CanAttenuate()

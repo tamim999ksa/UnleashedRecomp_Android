@@ -11,6 +11,7 @@
 #include <exports.h>
 #include <decompressor.h>
 #include <patches/inspire_patches.h>
+#include <patches/audio_internal.h>
 
 constexpr double OVERLAY_CONTAINER_COMMON_MOTION_START = 0;
 constexpr double OVERLAY_CONTAINER_COMMON_MOTION_END = 11;
@@ -100,14 +101,20 @@ static bool CanDequeueAchievement()
     if (g_soundAdministratorUpdated && std::this_thread::get_id() == g_mainThreadId && !AchievementOverlay::s_queue.empty())
     {
         // Check if we can actually play any audio right now. If not, we'll wait until we can.
-        uint32_t audioCenter = *reinterpret_cast<be<uint32_t>*>(g_memory.Translate(0x83362FFC));
-        if (audioCenter != NULL)
-        {
-            uint32_t member = *reinterpret_cast<be<uint32_t>*>(g_memory.Translate(audioCenter + 0x4));
-            uint32_t category = !InspirePatches::s_sceneName.empty() ? 10 : 7; // EVENT category is used during Inspire cutscenes.
+        auto pAudioCenterPtr = reinterpret_cast<be<uint32_t>*>(g_memory.Translate(AudioInternal::AUDIO_CENTER_PTR_ADDR));
 
-            // Check if the volume is non zero.
-            return *reinterpret_cast<uint32_t*>(g_memory.Translate(member + 0x7C + category * 0x10 + 0x8)) != 0;
+        if (pAudioCenterPtr && *pAudioCenterPtr != NULL)
+        {
+            auto pAudioCenter = reinterpret_cast<AudioInternal::AudioCenter*>(g_memory.Translate(*pAudioCenterPtr));
+            if (pAudioCenter)
+            {
+                auto pSubsystem = reinterpret_cast<AudioInternal::AudioSubsystem*>(g_memory.Translate(pAudioCenter->subsystemPtr));
+                if (pSubsystem)
+                {
+                    uint32_t categoryIndex = !InspirePatches::s_sceneName.empty() ? 10 : 7; // EVENT category is used during Inspire cutscenes.
+                    return pSubsystem->categories[categoryIndex].volume != 0.0f;
+                }
+            }
         }
     }
 
