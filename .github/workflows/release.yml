@@ -94,7 +94,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ./private
-          key: game-assets-v1
+          key: game-assets-v2
 
       - name: Download and Extract Assets
         if: steps.cache-assets.outputs.cache-hit != 'true'
@@ -256,65 +256,88 @@ jobs:
              exit 1
           fi
 
-          # Search for and extract ISOs
+          # Search for and extract ISOs recursively
           echo "Searching for ISOs..."
-          find private -name "*.iso" | while read iso_file; do
-            echo "Extracting ISO: $iso_file"
-            ls -lh "$iso_file"
-            file "$iso_file"
-            echo "Hex dump of header:"
-            head -c 64 "$iso_file" | xxd || true
-
-            # Create a temporary directory for extraction to avoid conflicts
-            # and to prioritize DLC/Title Update files (which are already in private/)
-            rm -rf temp_iso
-            mkdir -p temp_iso
-
-            if extract-xiso -x "$iso_file" -d temp_iso; then
-                echo "extract-xiso successful."
-            else
-                echo "extract-xiso failed. Attempting fallback to 7z..."
-                if 7z x "$iso_file" -otemp_iso -y; then
-                    echo "7z extraction successful."
-                else
-                    echo "Failed to extract ISO with both extract-xiso and 7z."
-                    exit 1
-                fi
+          while true; do
+            # Use a temporary file to list ISOs to avoid pipe subshell issues
+            find private -name "*.iso" > iso_list.txt
+            if [ ! -s iso_list.txt ]; then
+              echo "No more ISOs found."
+              rm iso_list.txt
+              break
             fi
 
-            echo "Resolving conflicts and merging into private/..."
+            echo "Found ISOs to extract:"
+            cat iso_list.txt
 
-            # 1. Remove directories from temp_iso that conflict with existing files in private
-            # (We prioritize the file version from DLC/TU)
-            if [ -d "temp_iso" ]; then
-                find temp_iso -depth -type d | while read dir; do
-                    # Strip temp_iso/ prefix to get relative path
-                    rel_path="${dir#temp_iso/}"
-                    if [ "$rel_path" != "temp_iso" ] && [ -f "private/$rel_path" ]; then
-                        echo "Conflict: '$rel_path' is a directory in ISO but a file in private. Keeping private file."
-                        rm -rf "$dir"
-                    fi
-                done
-            fi
+            while read iso_file; do
+               echo "Processing ISO: $iso_file"
+               ls -lh "$iso_file"
+               file "$iso_file"
+               echo "Hex dump of header:"
+               head -c 64 "$iso_file" | xxd || true
 
-            # 2. Remove files from temp_iso that conflict with existing directories in private
-            if [ -d "temp_iso" ]; then
-                find temp_iso -type f | while read file; do
-                    rel_path="${file#temp_iso/}"
-                    if [ -d "private/$rel_path" ]; then
-                        echo "Conflict: '$rel_path' is a file in ISO but a directory in private. Keeping private directory."
-                        rm "$file"
-                    fi
-                done
-            fi
+               # Create temp dir
+               rm -rf temp_iso
+               mkdir -p temp_iso
 
-            # 3. Merge remaining content into private
-            # -n (no-clobber) ensures we don't overwrite existing files (prioritizing DLC/TU)
-            if [ -d "temp_iso" ] && [ "$(ls -A temp_iso)" ]; then
-               cp -rn temp_iso/* private/ || true
-            fi
+               extraction_success=false
+               if extract-xiso -x "$iso_file" -d temp_iso; then
+                   echo "extract-xiso successful."
+                   extraction_success=true
+               else
+                   echo "extract-xiso failed. Attempting fallback to 7z..."
+                   if 7z x "$iso_file" -otemp_iso -y; then
+                       echo "7z extraction successful."
+                       extraction_success=true
+                   else
+                       echo "Failed to extract ISO with both extract-xiso and 7z."
+                       exit 1
+                   fi
+               fi
 
-            rm -rf temp_iso
+               if [ "$extraction_success" = true ]; then
+                   echo "Resolving conflicts and merging into private/..."
+
+                   # 1. Remove directories from temp_iso that conflict with existing files in private
+                   # (We prioritize the file version from DLC/TU)
+                   if [ -d "temp_iso" ]; then
+                       find temp_iso -depth -type d | while read dir; do
+                           # Strip temp_iso/ prefix to get relative path
+                           rel_path="${dir#temp_iso/}"
+                           if [ "$rel_path" != "temp_iso" ] && [ -f "private/$rel_path" ]; then
+                               echo "Conflict: '$rel_path' is a directory in ISO but a file in private. Keeping private file."
+                               rm -rf "$dir"
+                           fi
+                       done
+                   fi
+
+                   # 2. Remove files from temp_iso that conflict with existing directories in private
+                   if [ -d "temp_iso" ]; then
+                       find temp_iso -type f | while read file; do
+                           rel_path="${file#temp_iso/}"
+                           if [ -d "private/$rel_path" ]; then
+                               echo "Conflict: '$rel_path' is a file in ISO but a directory in private. Keeping private directory."
+                               rm "$file"
+                           fi
+                       done
+                   fi
+
+                   # 3. Merge remaining content into private
+                   # -n (no-clobber) ensures we don't overwrite existing files (prioritizing DLC/TU)
+                   if [ -d "temp_iso" ] && [ "$(ls -A temp_iso)" ]; then
+                      cp -rn temp_iso/* private/ || true
+                   fi
+
+                   rm -rf temp_iso
+
+                   # Delete the source ISO
+                   echo "Deleting processed ISO: $iso_file"
+                   rm "$iso_file"
+               fi
+
+            done < iso_list.txt
+            rm iso_list.txt
           done
 
           echo "Listing private directory contents:"
