@@ -1498,11 +1498,11 @@ static void DrawInfoPanel(ImVec2 infoMin, ImVec2 infoMax)
             if (g_selectedItem == &Config::ResolutionScale)
             {
                 char buf[100];
-                auto resScale = round(*(float*)g_selectedItem->GetValue() * 1000) / 1000;
+                auto resScale = round(*static_cast<const float*>(g_selectedItem->GetValue()) * 1000) / 1000;
 
                 std::snprintf(buf, sizeof(buf), desc.c_str(),
-                    (int)((float)Video::s_viewportWidth * resScale),
-                    (int)((float)Video::s_viewportHeight * resScale));
+                    static_cast<int>(static_cast<float>(Video::s_viewportWidth) * resScale),
+                    static_cast<int>(static_cast<float>(Video::s_viewportHeight) * resScale));
 
                 desc = buf;
             }
