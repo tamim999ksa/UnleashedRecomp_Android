@@ -34,6 +34,20 @@ else
 fi
 cd ../..
 
+# Apply XenonRecomp Patch
+echo "Applying XenonRecomp fixes..."
+cd tools/XenonRecomp
+if ! grep -q "if (NOT ANDROID)" CMakeLists.txt; then
+    echo "Applying patch via git apply..."
+    if ! git apply ../../patches/xenon_recomp_fixes.patch; then
+        echo "git apply failed, attempting to use patch..."
+        patch -p1 < ../../patches/xenon_recomp_fixes.patch
+    fi
+else
+    echo "XenonRecomp fixes already applied."
+fi
+cd ../..
+
 # Build APK
 echo "Building APK..."
 cd android
