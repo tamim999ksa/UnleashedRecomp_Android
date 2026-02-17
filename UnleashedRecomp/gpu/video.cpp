@@ -1,5 +1,7 @@
 #include "video.h"
 
+using namespace plume;
+
 #ifdef __ANDROID__
 #include <unistd.h>
 #include <os/android/perf_android.h>

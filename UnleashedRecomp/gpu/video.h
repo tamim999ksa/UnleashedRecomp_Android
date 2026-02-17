@@ -13,8 +13,6 @@
 
 #define LOAD_ZSTD_TEXTURE(name) LoadTexture(decompressZstd(name, name##_uncompressed_size).get(), name##_uncompressed_size)
 
-using namespace plume;
-
 struct Video
 {
     static inline uint32_t s_viewportWidth;
@@ -138,14 +136,14 @@ enum GuestFormat
 
 struct GuestBaseTexture : GuestResource
 {
-    std::shared_ptr<RenderTexture> textureHolder;
-    RenderTexture* texture = nullptr;
-    std::unique_ptr<RenderTextureView> textureView;
+    std::shared_ptr<plume::RenderTexture> textureHolder;
+    plume::RenderTexture* texture = nullptr;
+    std::unique_ptr<plume::RenderTextureView> textureView;
     uint32_t width = 0;
     uint32_t height = 0;
-    RenderFormat format = RenderFormat::UNKNOWN;
+    plume::RenderFormat format = plume::RenderFormat::UNKNOWN;
     uint32_t descriptorIndex = 0;
-    RenderTextureLayout layout = RenderTextureLayout::UNKNOWN;
+    plume::RenderTextureLayout layout = plume::RenderTextureLayout::UNKNOWN;
 
     GuestBaseTexture(ResourceType type) : GuestResource(type)
     {
@@ -156,9 +154,9 @@ struct GuestBaseTexture : GuestResource
 struct GuestTexture : GuestBaseTexture
 {
     uint32_t depth = 0;
-    RenderTextureViewDimension viewDimension = RenderTextureViewDimension::UNKNOWN;
+    plume::RenderTextureViewDimension viewDimension = plume::RenderTextureViewDimension::UNKNOWN;
     void* mappedMemory = nullptr;
-    std::unique_ptr<RenderFramebuffer> framebuffer;
+    std::unique_ptr<plume::RenderFramebuffer> framebuffer;
     std::unique_ptr<GuestTexture> patchedTexture;
     std::unique_ptr<GuestTexture> recreatedCubeMapTexture;
     struct GuestSurface* sourceSurface = nullptr;
@@ -189,10 +187,10 @@ struct GuestBufferDesc
 // VertexBuffer/IndexBuffer
 struct GuestBuffer : GuestResource
 {
-    std::unique_ptr<RenderBuffer> buffer;
+    std::unique_ptr<plume::RenderBuffer> buffer;
     void* mappedMemory = nullptr;
     uint32_t dataSize = 0;
-    RenderFormat format = RenderFormat::UNKNOWN;
+    plume::RenderFormat format = plume::RenderFormat::UNKNOWN;
     uint32_t guestFormat = 0;
     bool lockedReadOnly = false;
 };
@@ -213,8 +211,8 @@ struct GuestSurfaceDesc
 struct GuestSurface : GuestBaseTexture
 {
     uint32_t guestFormat = 0;
-    ankerl::unordered_dense::map<const RenderTexture*, std::unique_ptr<RenderFramebuffer>> framebuffers;
-    RenderSampleCounts sampleCount = RenderSampleCount::COUNT_1;
+    ankerl::unordered_dense::map<const plume::RenderTexture*, std::unique_ptr<plume::RenderFramebuffer>> framebuffers;
+    plume::RenderSampleCounts sampleCount = plume::RenderSampleCount::COUNT_1;
     ankerl::unordered_dense::set<GuestTexture*> destinationTextures;
 };
 
@@ -279,7 +277,7 @@ struct GuestVertexElement
 struct GuestVertexDeclaration : GuestResource
 {
     XXH64_hash_t hash = 0;
-    std::unique_ptr<RenderInputElement[]> inputElements;
+    std::unique_ptr<plume::RenderInputElement[]> inputElements;
     std::unique_ptr<GuestVertexElement[]> vertexElements;
     uint32_t inputElementCount = 0;
     uint32_t vertexElementCount = 0;
@@ -293,9 +291,9 @@ struct GuestVertexDeclaration : GuestResource
 struct GuestShader : GuestResource
 {
     Mutex mutex;
-    std::unique_ptr<RenderShader> shader;
+    std::unique_ptr<plume::RenderShader> shader;
     struct ShaderCacheEntry* shaderCacheEntry = nullptr;
-    ankerl::unordered_dense::map<uint32_t, std::unique_ptr<RenderShader>> linkedShaders;
+    ankerl::unordered_dense::map<uint32_t, std::unique_ptr<plume::RenderShader>> linkedShaders;
 #ifdef UNLEASHED_RECOMP_D3D12
     std::vector<ComPtr<IDxcBlob>> shaderBlobs;
     ComPtr<IDxcBlobEncoding> libraryBlob;
@@ -416,6 +414,6 @@ enum GuestTextureAddress
 
 inline bool g_needsResize;
 
-extern std::unique_ptr<GuestTexture> LoadTexture(const uint8_t* data, size_t dataSize, RenderComponentMapping componentMapping = RenderComponentMapping());
+extern std::unique_ptr<GuestTexture> LoadTexture(const uint8_t* data, size_t dataSize, plume::RenderComponentMapping componentMapping = plume::RenderComponentMapping());
 
 extern void VideoConfigValueChangedCallback(class IConfigDef* config);
