@@ -155,3 +155,77 @@ index 3e224b4..4b78abf 100644
              else if ((operand->flags & PPC_OPERAND_CR) == 0
                  || (dialect & PPC_OPCODE_PPC) == 0)
                  stream = stream + sprintf(stream, "%ld", value);
+diff --git a/XenonRecomp/test_recompiler.cpp b/XenonRecomp/test_recompiler.cpp
+index f4fcdfe..6e396c4 100644
+--- a/XenonRecomp/test_recompiler.cpp
++++ b/XenonRecomp/test_recompiler.cpp
+@@ -1,4 +1,5 @@
+ #include "test_recompiler.h"
++#include <cctype>
+
+ void TestRecompiler::Analyse(const std::string_view& testName)
+ {
+@@ -213,7 +214,24 @@ void TestRecompiler::RecompileTests(const char* srcDirectoryPath, const char* ds
+                                         int secondSpaceIndex = str.find(' ', spaceIndex + 1);
+                                         auto reg = str.substr(spaceIndex + 1, secondSpaceIndex - spaceIndex - 1);
+                                         if (reg[0] == 'c')
+-                                            continue; // TODO
++                                        {
++                                            if (reg == "ctr")
++                                            {
++                                                fmt::println(file, "\tPPC_CHECK_VALUE_U({}, ctx.ctr.u64, 0x{});", name, str.substr(secondSpaceIndex + 1));
++                                            }
++                                            else if (reg.size() >= 2 && reg[1] == 'r')
++                                            {
++                                                if (reg.size() == 3 && isdigit(reg[2]))
++                                                {
++                                                    fmt::println(file, "\tPPC_CHECK_VALUE_U({}, ((ctx.{}.lt << 3) | (ctx.{}.gt << 2) | (ctx.{}.eq << 1) | ctx.{}.so), 0x{});", name, reg, reg, reg, reg, str.substr(secondSpaceIndex + 1));
++                                                }
++                                                else if (reg == "cr")
++                                                {
++                                                    fmt::println(file, "\tPPC_CHECK_VALUE_U({}, ((((ctx.cr0.lt << 3) | (ctx.cr0.gt << 2) | (ctx.cr0.eq << 1) | ctx.cr0.so) << 28) | (((ctx.cr1.lt << 3) | (ctx.cr1.gt << 2) | (ctx.cr1.eq << 1) | ctx.cr1.so) << 24) | (((ctx.cr2.lt << 3) | (ctx.cr2.gt << 2) | (ctx.cr2.eq << 1) | ctx.cr2.so) << 20) | (((ctx.cr3.lt << 3) | (ctx.cr3.gt << 2) | (ctx.cr3.eq << 1) | ctx.cr3.so) << 16) | (((ctx.cr4.lt << 3) | (ctx.cr4.gt << 2) | (ctx.cr4.eq << 1) | ctx.cr4.so) << 12) | (((ctx.cr5.lt << 3) | (ctx.cr5.gt << 2) | (ctx.cr5.eq << 1) | ctx.cr5.so) << 8) | (((ctx.cr6.lt << 3) | (ctx.cr6.gt << 2) | (ctx.cr6.eq << 1) | ctx.cr6.so) << 4) | (((ctx.cr7.lt << 3) | (ctx.cr7.gt << 2) | (ctx.cr7.eq << 1) | ctx.cr7.so) << 0)), 0x{});", name, str.substr(secondSpaceIndex + 1));
++                                                }
++                                            }
++                                            continue;
++                                        }
+                                         if (reg[0] == 'v')
+                                         {
+                                             int openingBracketIndex = str.find('[', secondSpaceIndex + 1);
+diff --git a/XenonUtils/CMakeLists.txt b/XenonUtils/CMakeLists.txt
+index 1807323..4354c8e 100644
+--- a/XenonUtils/CMakeLists.txt
++++ b/XenonUtils/CMakeLists.txt
+@@ -30,3 +30,7 @@ target_link_libraries(XenonUtils
+     PUBLIC
+         disasm
+ )
++
++if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
++    target_compile_options(XenonUtils PRIVATE -fms-extensions)
++endif()
+diff --git a/XenonUtils/xbox.h b/XenonUtils/xbox.h
+index 0361b0f..5b72b64 100644
+--- a/XenonUtils/xbox.h
++++ b/XenonUtils/xbox.h
+@@ -247,7 +247,7 @@ typedef struct _XXOVERLAPPED {
+         {
+             be<uint32_t> Error;
+             be<uint32_t> Length;
+-        };
++        } NamedStruct;
+
+         struct
+         {
+diff --git a/XenonUtils/xdbf.h b/XenonUtils/xdbf.h
+index 347ac2c..19d7079 100644
+--- a/XenonUtils/xdbf.h
++++ b/XenonUtils/xdbf.h
+@@ -132,7 +132,7 @@ union XDBFTitleID
+     {
+         be<uint16_t> u16;
+         char u8[0x02];
+-    };
++    } NamedStruct;
+
+     be<uint32_t> u32;
+ };
