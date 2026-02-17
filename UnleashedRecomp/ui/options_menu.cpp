@@ -759,40 +759,9 @@ static void DrawSelectionArrows(ImVec2 min, ImVec2 max, bool isLeftTapped, bool 
 }
 
 template<typename T>
-static void DrawConfigOption(int32_t rowIndex, float yOffset, ConfigDef<T>* config,
-    bool isAccessible, std::string* inaccessibleReason = nullptr,
-    T valueMin = T(0), T valueCenter = T(0.5), T valueMax = T(1), bool isSlider = true)
+static void HandleOptionSelection(int32_t rowIndex, ConfigDef<T>* config, bool isAccessible,
+    const SWA::PadState& padState, bool& lockedOnOption, std::string* inaccessibleReason)
 {
-    auto drawList = ImGui::GetBackgroundDrawList();
-    auto clipRectMin = drawList->GetClipRectMin();
-    auto clipRectMax = drawList->GetClipRectMax();
-    auto& padState = SWA::CInputState::GetInstance()->GetPadState();
-
-    constexpr float OPTION_NARROW_GRID_COUNT = 36.0f;
-    constexpr float OPTION_WIDE_GRID_COUNT = 54.0f;
-    constexpr bool IS_SLIDER_TYPE = std::is_same_v<T, float> || std::is_same_v<T, int32_t>;
-
-    auto isValueSlider = IS_SLIDER_TYPE && isSlider;
-    auto gridSize = Scale(GRID_SIZE);
-    auto optionWidth = gridSize * floor(Lerp(OPTION_NARROW_GRID_COUNT, OPTION_WIDE_GRID_COUNT, g_aspectRatioNarrowScale));
-    auto optionHeight = gridSize * 5.5f;
-    auto optionPadding = gridSize * 0.5f;
-    auto valueWidth = Scale(192.0f);
-    auto valueHeight = gridSize * 3.0f;
-
-    // Left side
-    ImVec2 min = { clipRectMin.x, clipRectMin.y + (optionHeight + optionPadding) * rowIndex + yOffset };
-    ImVec2 max = { min.x + optionWidth, min.y + optionHeight };
-
-    auto configName = config->GetNameLocalised(Config::Language);
-    auto size = Scale(26.0f);
-    auto textSize = g_seuratFont->CalcTextSizeA(size, FLT_MAX, 0.0f, configName.c_str());
-
-    ImVec2 textPos = { min.x + gridSize, min.y + (optionHeight - textSize.y) / 2.0f };
-    ImVec4 textClipRect = { min.x, min.y, max.x, max.y };
-
-    bool lockedOnOption = false;
-
     if (g_selectedRowIndex == rowIndex)
     {
         g_selectedItem = config;
@@ -890,6 +859,19 @@ static void DrawConfigOption(int32_t rowIndex, float yOffset, ConfigDef<T>* conf
             }
         }
     }
+}
+
+template<typename T>
+static void DrawOptionName(int32_t rowIndex, float optionHeight, float optionPadding, float yOffset,
+    ConfigDef<T>* config, bool isAccessible, ImDrawList* drawList,
+    const ImVec2& min, const ImVec2& max, float gridSize)
+{
+    auto configName = config->GetNameLocalised(Config::Language);
+    auto size = Scale(26.0f);
+    auto textSize = g_seuratFont->CalcTextSizeA(size, FLT_MAX, 0.0f, configName.c_str());
+
+    ImVec2 textPos = { min.x + gridSize, min.y + (optionHeight - textSize.y) / 2.0f };
+    ImVec4 textClipRect = { min.x, min.y, max.x, max.y };
 
     auto fadedOut = (g_lockedOnOption && g_selectedItem != config) || !isAccessible;
     auto alpha = fadedOut ? 0.5f : 1.0f;
@@ -942,17 +924,21 @@ static void DrawConfigOption(int32_t rowIndex, float yOffset, ConfigDef<T>* conf
 
         drawList->PopClipRect();
     }
+}
 
-    // Right side
-    min = { max.x + (clipRectMax.x - max.x - valueWidth) / 2.0f, min.y + (optionHeight - valueHeight) / 2.0f };
-    max = { min.x + valueWidth, min.y + valueHeight };
-
+static void DrawOptionValueBackground(ImDrawList* drawList, const ImVec2& min, const ImVec2& max, float alpha)
+{
     SetShaderModifier(IMGUI_SHADER_MODIFIER_SCANLINE_BUTTON);
 
     drawList->AddRectFilledMultiColor(min, max, IM_COL32(0, 130, 0, 223 * alpha), IM_COL32(0, 130, 0, 178 * alpha), IM_COL32(0, 130, 0, 223 * alpha), IM_COL32(0, 130, 0, 178 * alpha));
     drawList->AddRectFilledMultiColor(min, max, IM_COL32(0, 0, 0, 13 * alpha), IM_COL32(0, 0, 0, 0), IM_COL32(0, 0, 0, 55 * alpha), IM_COL32(0, 0, 0, 6 * alpha));
     drawList->AddRectFilledMultiColor(min, max, IM_COL32(0, 130, 0, 13 * alpha), IM_COL32(0, 130, 0, 111 * alpha), IM_COL32(0, 130, 0, 0), IM_COL32(0, 130, 0, 55 * alpha));
+}
 
+template<typename T>
+static void DrawOptionSlider(ConfigDef<T>* config, ImDrawList* drawList, const ImVec2& min, const ImVec2& max,
+    T valueMin, T valueCenter, T valueMax, bool isSlider, bool lockedOnOption, float alpha)
+{
     if (isSlider)
     {
         if constexpr (std::is_same_v<T, float> || std::is_same_v<T, int32_t>)
@@ -1002,12 +988,13 @@ static void DrawConfigOption(int32_t rowIndex, float yOffset, ConfigDef<T>* conf
             drawList->AddRectFilledMultiColor(sliderMin, sliderMax, sliderColor0, sliderColor0, sliderColor1, sliderColor1);
         }
     }
+}
 
-    SetShaderModifier(IMGUI_SHADER_MODIFIER_NONE);
-
-    if constexpr (std::is_same_v<T, bool>)
-        DrawToggleLight({ min.x + Scale(14), min.y + ((max.y - min.y) - Scale(14)) / 2 + Scale(1) }, config->Value, alpha);
-
+template<typename T>
+static void HandleOptionValueAdjustment(ConfigDef<T>* config, const SWA::PadState& padState,
+    const ImVec2& min, const ImVec2& max, T valueMin, T valueMax,
+    bool isSlider, bool isValueSlider, bool lockedOnOption)
+{
     // Selection triangles
     if (lockedOnOption)
     {
@@ -1125,7 +1112,12 @@ static void DrawConfigOption(int32_t rowIndex, float yOffset, ConfigDef<T>* conf
                 config->Callback(config);
         }
     }
+}
 
+template<typename T>
+static void DrawOptionValueText(ConfigDef<T>* config, const ImVec2& min, const ImVec2& max,
+    T valueMax, bool isSlider, float alpha)
+{
     std::string valueText;
     if constexpr (std::is_same_v<T, float>)
     {
@@ -1173,8 +1165,8 @@ static void DrawConfigOption(int32_t rowIndex, float yOffset, ConfigDef<T>* conf
         valueText = config->GetValueLocalised(Config::Language);
     }
 
-    size = Scale(20.0f);
-    textSize = g_newRodinFont->CalcTextSizeA(size, FLT_MAX, 0.0f, valueText.data());
+    auto size = Scale(20.0f);
+    auto textSize = g_newRodinFont->CalcTextSizeA(size, FLT_MAX, 0.0f, valueText.data());
 
     auto textSquashRatio = 1.0f;
 
@@ -1210,6 +1202,60 @@ static void DrawConfigOption(int32_t rowIndex, float yOffset, ConfigDef<T>* conf
     SetOrigin({ 0.0f, 0.0f });
 
     ResetGradient();
+}
+
+template<typename T>
+static void DrawConfigOption(int32_t rowIndex, float yOffset, ConfigDef<T>* config,
+    bool isAccessible, std::string* inaccessibleReason = nullptr,
+    T valueMin = T(0), T valueCenter = T(0.5), T valueMax = T(1), bool isSlider = true)
+{
+    auto drawList = ImGui::GetBackgroundDrawList();
+    auto clipRectMin = drawList->GetClipRectMin();
+    auto clipRectMax = drawList->GetClipRectMax();
+    auto& padState = SWA::CInputState::GetInstance()->GetPadState();
+
+    constexpr float OPTION_NARROW_GRID_COUNT = 36.0f;
+    constexpr float OPTION_WIDE_GRID_COUNT = 54.0f;
+    constexpr bool IS_SLIDER_TYPE = std::is_same_v<T, float> || std::is_same_v<T, int32_t>;
+
+    auto isValueSlider = IS_SLIDER_TYPE && isSlider;
+    auto gridSize = Scale(GRID_SIZE);
+    auto optionWidth = gridSize * floor(Lerp(OPTION_NARROW_GRID_COUNT, OPTION_WIDE_GRID_COUNT, g_aspectRatioNarrowScale));
+    auto optionHeight = gridSize * 5.5f;
+    auto optionPadding = gridSize * 0.5f;
+    auto valueWidth = Scale(192.0f);
+    auto valueHeight = gridSize * 3.0f;
+
+    // Left side
+    ImVec2 min = { clipRectMin.x, clipRectMin.y + (optionHeight + optionPadding) * rowIndex + yOffset };
+    ImVec2 max = { min.x + optionWidth, min.y + optionHeight };
+
+    bool lockedOnOption = false;
+
+    HandleOptionSelection(rowIndex, config, isAccessible, padState, lockedOnOption, inaccessibleReason);
+
+    DrawOptionName(rowIndex, optionHeight, optionPadding, yOffset, config, isAccessible,
+        drawList, min, max, gridSize);
+
+    auto fadedOut = (g_lockedOnOption && g_selectedItem != config) || !isAccessible;
+    auto alpha = fadedOut ? 0.5f : 1.0f;
+
+    // Right side
+    min = { max.x + (clipRectMax.x - max.x - valueWidth) / 2.0f, min.y + (optionHeight - valueHeight) / 2.0f };
+    max = { min.x + valueWidth, min.y + valueHeight };
+
+    DrawOptionValueBackground(drawList, min, max, alpha);
+
+    DrawOptionSlider(config, drawList, min, max, valueMin, valueCenter, valueMax, isSlider, lockedOnOption, alpha);
+
+    SetShaderModifier(IMGUI_SHADER_MODIFIER_NONE);
+
+    if constexpr (std::is_same_v<T, bool>)
+        DrawToggleLight({ min.x + Scale(14), min.y + ((max.y - min.y) - Scale(14)) / 2 + Scale(1) }, config->Value, alpha);
+
+    HandleOptionValueAdjustment(config, padState, min, max, valueMin, valueMax, isSlider, isValueSlider, lockedOnOption);
+
+    DrawOptionValueText(config, min, max, valueMax, isSlider, alpha);
 }
 
 static void DrawConfigOptions()
