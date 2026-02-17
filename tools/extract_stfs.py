@@ -12,7 +12,7 @@ def extract_stfs(file_path, output_dir):
         with open(file_path, 'rb') as f:
             magic = f.read(4)
             if magic not in [b'LIVE', b'PIRS', b'CON ']:
-                print(f"Error: Invalid STFS magic: {magic}")
+                print(f"Error: Invalid STFS magic: {magic} (hex: {magic.hex()})")
                 return False
 
             # File table at 0xC000 (Block 0)
@@ -31,27 +31,18 @@ def extract_stfs(file_path, output_dir):
                 if not filename:
                     continue
 
-                # Start Block (0x2F, 3 bytes)
+                # Start Block (0x2F, 3 bytes) - Big Endian
                 sb_bytes = entry[0x2F:0x32]
-                # Size (0x34, 4 bytes)
+                # Size (0x34, 4 bytes) - Big Endian
                 size_bytes = entry[0x34:0x38]
 
-                # Try Little Endian first (based on analysis of 01 00 00 -> 1)
-                start_block = sb_bytes[0] | (sb_bytes[1] << 8) | (sb_bytes[2] << 16)
-                size = struct.unpack('<I', size_bytes)[0]
-
-                # Sanity check: usually STFS is Big Endian, but this file seems to be LE.
-                # If start block is huge, try BE.
-                if start_block > 0x10000:
-                    start_block_be = (sb_bytes[0] << 16) | (sb_bytes[1] << 8) | sb_bytes[2]
-                    size_be = struct.unpack('>I', size_bytes)[0]
-                    # If BE looks more reasonable (smaller start block), use it.
-                    if start_block_be < start_block:
-                        print(f"Switching to Big Endian for {filename} (Start Block {start_block_be})")
-                        start_block = start_block_be
-                        size = size_be
+                start_block = (sb_bytes[0] << 16) | (sb_bytes[1] << 8) | sb_bytes[2]
+                size = struct.unpack('>I', size_bytes)[0]
 
                 print(f"Extracting {filename}: Start Block {start_block}, Size {size}")
+
+                if size > 1024 * 1024 * 1024: # 1GB check
+                    print(f"Warning: File {filename} size {size} seems unusually large.")
 
                 out_path = os.path.join(output_dir, filename)
                 with open(out_path, 'wb') as out_f:
@@ -71,9 +62,12 @@ def extract_stfs(file_path, output_dir):
                         f.seek(offset)
                         chunk_size = min(0x1000, remaining)
                         data = f.read(chunk_size)
+                        if not data:
+                            print(f"Error: Unexpected end of file while reading {filename} at offset {offset}")
+                            break
                         out_f.write(data)
 
-                        remaining -= chunk_size
+                        remaining -= len(data)
                         current_block += 1
 
                 extracted_count += 1
