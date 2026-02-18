@@ -48,6 +48,20 @@ else
 fi
 cd ../..
 
+# Apply SDL Android Patch
+echo "Applying SDL Android fixes..."
+cd thirdparty/SDL
+if ! grep -q "ASensorManager_getInstanceForPackage" src/sensor/android/SDL_androidsensor.c; then
+    echo "Applying patch via git apply..."
+    if ! git apply ../../patches/sdl_android_fixes.patch; then
+        echo "git apply failed, attempting to use patch..."
+        patch -p1 < ../../patches/sdl_android_fixes.patch
+    fi
+else
+    echo "SDL Android fixes already applied."
+fi
+cd ../..
+
 # Apply Hedgehog String Holder Patch
 echo "Applying Hedgehog String Holder patch..."
 cd UnleashedRecomp/api
