@@ -1468,6 +1468,7 @@ static void CreateImGuiBackend()
     g_imAdditivePipeline = g_device->createGraphicsPipeline(pipelineDesc);
 
 #ifndef ENABLE_IM_FONT_ATLAS_SNAPSHOT
+#ifdef GENERATE_IM_FONT_ATLAS
     ImFontAtlasSnapshot snapshot;
     snapshot.Snap();
 
@@ -1491,6 +1492,7 @@ static void CreateImGuiBackend()
         fwrite(pixels, 4, width * height, file);
         fclose(file);
     }
+#endif
 #endif
 }
 
