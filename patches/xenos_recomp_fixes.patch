@@ -113,7 +113,7 @@ index 698a418..79c02f1 100644
 
          for (auto& cfInstr : controlFlow)
          {
-@@ -1733,12 +1733,12 @@ void ShaderRecompiler::recompile(const uint8_t* shaderData, const std::string_vi
+@@ -1733,12 +1733,12 @@
                          uint32_t code0;
                          uint32_t code1;
                          uint32_t code2;
