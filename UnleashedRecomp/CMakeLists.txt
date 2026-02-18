@@ -280,7 +280,7 @@ target_link_libraries(UnleashedRecomp PRIVATE
     fmt::fmt
     libzstd_static
     msdf-atlas-gen::msdf-atlas-gen
-    nfd::nfd
+    $<$<NOT:$<BOOL:${SKIP_NFD}>>:nfd::nfd>
     o1heap
     XenonUtils
     SDL2::SDL2-static
