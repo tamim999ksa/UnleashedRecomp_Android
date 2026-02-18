@@ -1,6 +1,7 @@
 #pragma once
 
 #include <locale/locale.h>
+#include <cassert>
 
 class IConfigDef
 {

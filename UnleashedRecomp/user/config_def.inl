@@ -240,20 +240,26 @@ std::string ConfigDef<T, isHidden>::ToString(bool strWithQuotes) const
 
     if constexpr (std::is_same_v<T, std::string>)
     {
-        result = fmt::format("{}", Value);
-
         if (strWithQuotes)
-            result = fmt::format("\"{}\"", result);
+            result = fmt::format("\"{}\"", Value);
+        else
+            result = Value;
     }
     else if constexpr (std::is_enum_v<T>)
     {
         auto it = EnumTemplateReverse.find(Value);
 
         if (it != EnumTemplateReverse.end())
-            result = fmt::format("{}", it->second);
-
-        if (strWithQuotes)
-            result = fmt::format("\"{}\"", result);
+        {
+            if (strWithQuotes)
+                result = fmt::format("\"{}\"", it->second);
+            else
+                result = it->second;
+        }
+        else if (strWithQuotes)
+        {
+            result = "\"N/A\"";
+        }
     }
     else
     {
