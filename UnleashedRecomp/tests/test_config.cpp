@@ -2,6 +2,7 @@
 #include "doctest.h"
 
 // Dependencies for ConfigDef
+#include <cassert>
 #include <vector>
 #include <string>
 #include <unordered_map>

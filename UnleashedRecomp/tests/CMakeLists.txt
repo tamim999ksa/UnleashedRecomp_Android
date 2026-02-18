@@ -28,3 +28,15 @@ target_link_libraries(test_config PRIVATE
 )
 
 add_test(NAME ConfigTest COMMAND test_config)
+
+# test_directory_file_system
+add_executable(test_directory_file_system test_directory_file_system.cpp)
+
+target_include_directories(test_directory_file_system PRIVATE
+    ${CMAKE_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/UnleashedRecomp
+)
+
+target_compile_features(test_directory_file_system PRIVATE cxx_std_20)
+
+add_test(NAME DirectoryFileSystemTest COMMAND test_directory_file_system)
