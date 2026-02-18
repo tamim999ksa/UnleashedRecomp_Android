@@ -24,6 +24,14 @@ if [ -f "patches/xenon_recomp_absolute_branch.patch" ]; then
     cd ../..
 fi
 
+# Apply XenosRecomp patch
+if [ -f "patches/xenos_recomp_fixes.patch" ]; then
+    echo "Applying XenosRecomp fixes..."
+    cd tools/XenosRecomp
+    git apply ../../patches/xenos_recomp_fixes.patch || echo "Warning: Failed to apply patch or already applied."
+    cd ../..
+fi
+
 echo "=== Building GCC compatible tools ==="
 rm -rf build_tools/build_gcc
 mkdir -p build_tools/build_gcc
@@ -58,20 +66,19 @@ copy_tool "bc_diff"
 
 cd ../..
 
-echo "=== Building Clang compatible tools (XenonRecomp/XenosRecomp) ==="
-# XenonUtils requires MSVC extensions which Clang supports but GCC does not.
-# However, Clang C compiler crashed on zstd, so we use GCC for C code.
-# And file_to_c failed with Clang++, so we built it with G++ above.
+echo "=== Building host tools (XenonRecomp/XenosRecomp) ==="
+# XenonUtils requires MSVC extensions which we enable via CMakeLists.txt patch.
+# We use g++ to avoid segmentation faults in fmt caused by Clang compilation.
 
 rm -rf build_tools/build_clang
 mkdir -p build_tools/build_clang
 cd build_tools/build_clang
 
 export CC=gcc
-export CXX=clang++
+export CXX=g++
 
-# Configure with -fms-extensions for C++
-cmake ../.. -DCMAKE_BUILD_TYPE=Release -DBUILD_TOOLS_ONLY=ON -DCMAKE_CXX_FLAGS="-fms-extensions"
+# Configure
+cmake ../.. -DCMAKE_BUILD_TYPE=Release -DBUILD_TOOLS_ONLY=ON
 
 # Build
 cmake --build . --target XenonRecomp XenosRecomp --parallel $(nproc)
