@@ -51,7 +51,7 @@ cd ../..
 # Apply XenosRecomp Patch
 echo "Applying XenosRecomp fixes..."
 cd tools/XenosRecomp
-if ! grep -q "if (NOT ANDROID)" CMakeLists.txt; then
+if ! grep -q "MATCHES \"GNU|Clang\"" CMakeLists.txt; then
     echo "Applying patch via git apply..."
     if ! git apply ../../patches/xenos_recomp_fixes.patch; then
         echo "git apply failed, attempting to use patch..."
