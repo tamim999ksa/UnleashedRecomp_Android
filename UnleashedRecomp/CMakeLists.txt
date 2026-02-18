@@ -18,6 +18,23 @@ if(GIT_FOUND AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../patches/hh_string_holder
     endif()
 endif()
 
+# Apply input state patch to SWA
+if(GIT_FOUND AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../patches/swa_input_state_fix.patch")
+    execute_process(
+        COMMAND ${GIT_EXECUTABLE} apply --check "${CMAKE_CURRENT_SOURCE_DIR}/../patches/swa_input_state_fix.patch"
+        WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/api"
+        RESULT_VARIABLE PATCH_CHECK_RESULT
+        ERROR_QUIET
+    )
+    if(PATCH_CHECK_RESULT EQUAL 0)
+        message(STATUS "Applying input state patch to SWA...")
+        execute_process(
+            COMMAND ${GIT_EXECUTABLE} apply "${CMAKE_CURRENT_SOURCE_DIR}/../patches/swa_input_state_fix.patch"
+            WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/api"
+        )
+    endif()
+endif()
+
 if (ANDROID AND CMAKE_CROSSCOMPILING)
     set(DXC_BIN_ROOT "${CMAKE_SOURCE_DIR}/tools/XenosRecomp/thirdparty/dxc-bin")
 

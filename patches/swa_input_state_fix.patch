@@ -1,0 +1,38 @@
+diff --git a/SWA/System/InputState.h b/SWA/System/InputState.h
+index b42c67e..5f61141 100644
+--- a/SWA/System/InputState.h
++++ b/SWA/System/InputState.h
+@@ -2,14 +2,15 @@
+
+ #include "SWA.inl"
+ #include "PadState.h"
++#include <Hedgehog/Base/Thread/hhSynchronizedPtr.h>
++#include <Hedgehog/Base/Thread/hhSynchronizedObject.h>
+
+ namespace SWA
+ {
+     class CInputState : public Hedgehog::Base::CSynchronizedObject
+     {
+     public:
+-        // TODO: Hedgehog::Base::TSynchronizedPtr<CInputState>
+-        static CInputState* GetInstance();
++        static Hedgehog::Base::TSynchronizedPtr<CInputState> GetInstance();
+
+         SPadState m_PadStates[8];
+         be<uint32_t> m_CurrentPadStateIndex;
+diff --git a/SWA/System/InputState.inl b/SWA/System/InputState.inl
+index 7b961c4..b1c1808 100644
+--- a/SWA/System/InputState.inl
++++ b/SWA/System/InputState.inl
+@@ -1,9 +1,8 @@
+ namespace SWA
+ {
+-    // TODO: Hedgehog::Base::TSynchronizedPtr<CInputState>
+-    inline CInputState* CInputState::GetInstance()
++    inline Hedgehog::Base::TSynchronizedPtr<CInputState> CInputState::GetInstance()
+     {
+-        return *(xpointer<CInputState>*)MmGetHostAddress(0x83361F5C);
++        return static_cast<CInputState*>(*(xpointer<CInputState>*)MmGetHostAddress(0x83361F5C));
+     }
+
+     inline const SPadState& CInputState::GetPadState() const
