@@ -11,6 +11,11 @@ def extract_stfs(file_path, output_dir):
     try:
         with open(file_path, 'rb') as f:
             magic = f.read(4)
+            if magic == b'Rar!':
+                print(f"Error: Input file {file_path} is a RAR archive, not an STFS container.")
+                print("Please extract it first using '7z x <file>'.")
+                return False
+
             if magic not in [b'LIVE', b'PIRS', b'CON ']:
                 print(f"Error: Invalid STFS magic: {magic} (hex: {magic.hex()})")
                 return False
@@ -20,6 +25,7 @@ def extract_stfs(file_path, output_dir):
             file_table = f.read(0x1000)
 
             extracted_count = 0
+            overall_success = True
 
             for i in range(0, len(file_table), 0x40):
                 entry = file_table[i:i+0x40]
@@ -45,6 +51,8 @@ def extract_stfs(file_path, output_dir):
                     print(f"Warning: File {filename} size {size} seems unusually large.")
 
                 out_path = os.path.join(output_dir, filename)
+                file_success = True
+
                 with open(out_path, 'wb') as out_f:
                     remaining = size
                     current_block = start_block
@@ -52,11 +60,6 @@ def extract_stfs(file_path, output_dir):
 
                     while remaining > 0:
                         # Calculate physical offset
-                        # Every 170 blocks (0xAA), a hash block is inserted.
-                        # Phys = Log + (Log // 170)
-                        # Every 170*170 blocks, an L1 hash block is inserted.
-                        # Phys = Log + (Log // 170) + (Log // 28900)
-
                         phys_block = current_block + (current_block // 170) + (current_block // 28900)
                         offset = 0xC000 + phys_block * 0x1000
 
@@ -66,8 +69,10 @@ def extract_stfs(file_path, output_dir):
 
                         chunk_size = min(0x1000, remaining)
                         data = f.read(chunk_size)
-                        if not data:
+                        if not data or len(data) < chunk_size:
                             print(f"Error: Unexpected end of file while reading {filename} at offset {offset}")
+                            print(f"Expected {chunk_size} bytes, got {len(data) if data else 0} bytes.")
+                            file_success = False
                             break
                         out_f.write(data)
 
@@ -76,14 +81,30 @@ def extract_stfs(file_path, output_dir):
                         current_pos += read_len
                         current_block += 1
 
-                if os.path.getsize(out_path) == 0:
-                    print(f"Warning: Extracted file {filename} is 0 bytes.")
+                if not file_success:
+                    print(f"Error: Extraction failed for {filename}. Deleting incomplete file.")
+                    try:
+                        os.remove(out_path)
+                    except OSError:
+                        pass
+                    overall_success = False
+                elif os.path.getsize(out_path) == 0 and size > 0:
+                    print(f"Error: Extracted file {filename} is 0 bytes but expected {size}.")
+                    try:
+                        os.remove(out_path)
+                    except OSError:
+                        pass
+                    overall_success = False
 
                 extracted_count += 1
 
             if extracted_count == 0:
                 print("No files found in STFS package.")
                 return False
+
+            if not overall_success:
+                 print("Some files failed to extract.")
+                 return False
 
         return True
     except Exception as e:

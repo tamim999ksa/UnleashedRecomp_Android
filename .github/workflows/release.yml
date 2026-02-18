@@ -235,7 +235,10 @@ jobs:
                  7z x title_update.rar -oprivate -y
              else
                  echo "Not a standard archive, attempting STFS extraction..."
-                 python3 tools/extract_stfs.py title_update.rar private
+                 if ! python3 tools/extract_stfs.py title_update.rar private; then
+                     echo "Error: STFS extraction failed!"
+                     exit 1
+                 fi
              fi
           elif [ -f title_update.7z ]; then
              echo "Extracting Title Update 7z..."
@@ -363,16 +366,16 @@ jobs:
             echo "Private directory is empty or does not exist."
           fi
 
-          if [ ! -f "./UnleashedRecompLib/private/default.xex" ]; then
-            echo "Error: default.xex not found in UnleashedRecompLib/private/ or ASSET_REPO."
+          if [ ! -s "./UnleashedRecompLib/private/default.xex" ]; then
+            echo "Error: default.xex not found or empty in UnleashedRecompLib/private/ or ASSET_REPO."
             exit 1
           fi
-          if [ ! -f "./UnleashedRecompLib/private/default.xexp" ]; then
-            echo "Error: default.xexp not found in UnleashedRecompLib/private/ or ASSET_REPO."
+          if [ ! -s "./UnleashedRecompLib/private/default.xexp" ]; then
+            echo "Error: default.xexp not found or empty in UnleashedRecompLib/private/ or ASSET_REPO."
             exit 1
           fi
-          if [ ! -f "./UnleashedRecompLib/private/shader.ar" ]; then
-            echo "Error: shader.ar not found in UnleashedRecompLib/private/ or ASSET_REPO."
+          if [ ! -s "./UnleashedRecompLib/private/shader.ar" ]; then
+            echo "Error: shader.ar not found or empty in UnleashedRecompLib/private/ or ASSET_REPO."
             exit 1
           fi
 

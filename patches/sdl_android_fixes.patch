@@ -1,0 +1,11 @@
+--- a/src/sensor/android/SDL_androidsensor.c	2026-02-17 21:24:52.220630211 +0000
++++ b/src/sensor/android/SDL_androidsensor.c	2026-02-17 21:24:52.228630211 +0000
+@@ -53,7 +53,7 @@
+     int i, sensors_count;
+     ASensorList sensors;
+
+-    SDL_sensor_manager = ASensorManager_getInstance();
++    SDL_sensor_manager = ASensorManager_getInstanceForPackage(NULL);
+     if (!SDL_sensor_manager) {
+         return SDL_SetError("Couldn't create sensor manager");
+     }

@@ -1,8 +1,6 @@
-diff --git a/CMakeLists.txt b/CMakeLists.txt
-index b89407f..53fa2af 100644
---- a/CMakeLists.txt
-+++ b/CMakeLists.txt
-@@ -20,8 +20,10 @@ set(XENONRECOMP_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/XenonRecomp)
+--- a/CMakeLists.txt	2026-02-17 21:04:24.460644034 +0000
++++ b/CMakeLists.txt	2026-02-17 21:24:11.148630673 +0000
+@@ -20,8 +20,10 @@
 
  project ("XenonRecomp-ALL")
 
@@ -15,11 +13,9 @@ index b89407f..53fa2af 100644
  add_subdirectory(${XENONUTILS_ROOT})
 
  # Only tests if this is the top level project
-diff --git a/XenonRecomp/recompiler.cpp b/XenonRecomp/recompiler.cpp
-index fa91527..dbd4fa6 100644
---- a/XenonRecomp/recompiler.cpp
-+++ b/XenonRecomp/recompiler.cpp
-@@ -12,6 +12,7 @@ static uint64_t ComputeMask(uint32_t mstart, uint32_t mstop)
+--- a/XenonRecomp/recompiler.cpp	2026-02-17 21:04:24.460644034 +0000
++++ b/XenonRecomp/recompiler.cpp	2026-02-17 21:24:11.152630673 +0000
+@@ -12,6 +12,7 @@
 
  bool Recompiler::LoadConfig(const std::string_view& configFilePath)
  {
@@ -27,7 +23,7 @@ index fa91527..dbd4fa6 100644
      config.Load(configFilePath);
 
      std::vector<uint8_t> file;
-@@ -83,7 +84,20 @@ bool Recompiler::LoadConfig(const std::string_view& configFilePath)
+@@ -83,7 +84,19 @@
              }
              else
              {
@@ -45,15 +41,12 @@ index fa91527..dbd4fa6 100644
 +                {
 +                    fmt::println("File does not exist. Error: {}", ec.message());
 +                }
-+
                  return false;
              }
          }
-diff --git a/XenonUtils/xbox.h b/XenonUtils/xbox.h
-index 0361b0f..a2f3310 100644
---- a/XenonUtils/xbox.h
-+++ b/XenonUtils/xbox.h
-@@ -359,7 +359,17 @@ typedef struct _XDEVICE_DATA
+--- a/XenonUtils/xbox.h	2026-02-17 21:04:24.464644034 +0000
++++ b/XenonUtils/xbox.h	2026-02-17 21:24:11.172630673 +0000
+@@ -359,7 +359,17 @@
  // Direct reflection of XInput structures
 
  #define XAMINPUT_DEVTYPE_GAMEPAD          0x01
@@ -71,10 +64,8 @@ index 0361b0f..a2f3310 100644
 
  #define XAMINPUT_GAMEPAD_DPAD_UP          0x0001
  #define XAMINPUT_GAMEPAD_DPAD_DOWN        0x0002
-diff --git a/XenonUtils/xex_patcher.cpp b/XenonUtils/xex_patcher.cpp
-index 8492a5d..f9f9203 100644
---- a/XenonUtils/xex_patcher.cpp
-+++ b/XenonUtils/xex_patcher.cpp
+--- a/XenonUtils/xex_patcher.cpp	2026-02-17 21:04:24.468644034 +0000
++++ b/XenonUtils/xex_patcher.cpp	2026-02-17 21:24:11.172630673 +0000
 @@ -16,6 +16,7 @@
  #include <cassert>
  #include <climits>
@@ -83,7 +74,7 @@ index 8492a5d..f9f9203 100644
 
  #include <aes.hpp>
  #include <lzx.h>
-@@ -304,7 +305,8 @@ XexPatcher::Result XexPatcher::apply(const uint8_t* xexBytes, size_t xexBytesSiz
+@@ -304,7 +305,8 @@
      int resultCode = lzxDeltaApplyPatch(&patchDescriptor->info, patchDescriptor->size, ((const Xex2FileNormalCompressionInfo*)(patchFileFormatInfo + 1))->windowSize, outBytes.data());
      if (resultCode != 0)
      {
@@ -93,7 +84,7 @@ index 8492a5d..f9f9203 100644
      }
 
      // Make the header the specified size by the patch.
-@@ -428,7 +430,10 @@ XexPatcher::Result XexPatcher::apply(const uint8_t* xexBytes, size_t xexBytesSiz
+@@ -428,7 +430,10 @@
              s.finalize(blockCalcedDigest);
 
              if (memcmp(blockCalcedDigest, blocks->blockHash, 0x14) != 0)
@@ -105,7 +96,7 @@ index 8492a5d..f9f9203 100644
 
              p += 4;
              p += 20;
-@@ -457,7 +462,10 @@ XexPatcher::Result XexPatcher::apply(const uint8_t* xexBytes, size_t xexBytesSiz
+@@ -457,7 +462,10 @@
          resultCode = lzxDecompress(compressBuffer.get(), d - compressBuffer.get(), buffer, uncompressedSize, ((const Xex2FileNormalCompressionInfo*)(fileFormatInfo + 1))->windowSize, nullptr, 0);
 
          if (resultCode)
@@ -117,7 +108,7 @@ index 8492a5d..f9f9203 100644
      }
      else if (fileFormatInfo->compressionType == XEX_COMPRESSION_DELTA)
      {
-@@ -471,6 +479,7 @@ XexPatcher::Result XexPatcher::apply(const uint8_t* xexBytes, size_t xexBytesSiz
+@@ -471,6 +479,7 @@
      Xex2OptFileFormatInfo *newFileFormatInfo = (Xex2OptFileFormatInfo *)(getOptHeaderPtr(outBytes.data(), XEX_HEADER_FILE_FORMAT_INFO));
      if (newFileFormatInfo == nullptr)
      {
@@ -125,17 +116,16 @@ index 8492a5d..f9f9203 100644
          return Result::PatchFailed;
      }
 
-@@ -514,7 +523,8 @@ XexPatcher::Result XexPatcher::apply(const uint8_t* xexBytes, size_t xexBytesSiz
+@@ -514,6 +523,8 @@
          sha1Context.finalize(sha1Digest);
          if (memcmp(sha1Digest, currentBlock->blockHash, DigestSize) != 0)
          {
--            return Result::PatchFailed;
 +            std::cerr << "Hash mismatch in patch block!" << std::endl;
 +            return Result::PatchHashMismatch;
+             return Result::PatchFailed;
          }
 
-         patchDataCursor += 24;
-@@ -523,7 +533,8 @@ XexPatcher::Result XexPatcher::apply(const uint8_t* xexBytes, size_t xexBytesSiz
+@@ -523,7 +534,8 @@
          uint32_t blockDataSize = currentBlock->blockSize - 24;
          if (lzxDeltaApplyPatch((const Xex2DeltaPatch *)(patchDataCursor), blockDataSize, ((const Xex2FileNormalCompressionInfo*)(patchFileFormatInfo + 1))->windowSize, outExe) != 0)
          {
@@ -145,11 +135,9 @@ index 8492a5d..f9f9203 100644
          }
 
          patchDataCursor += blockDataSize;
-diff --git a/XenonUtils/xex_patcher.h b/XenonUtils/xex_patcher.h
-index 44b2bf0..487cd1b 100644
---- a/XenonUtils/xex_patcher.h
-+++ b/XenonUtils/xex_patcher.h
-@@ -29,7 +29,10 @@ struct XexPatcher
+--- a/XenonUtils/xex_patcher.h	2026-02-17 21:04:24.468644034 +0000
++++ b/XenonUtils/xex_patcher.h	2026-02-17 21:24:11.172630673 +0000
+@@ -29,7 +29,10 @@
          PatchFileInvalid,
          PatchIncompatible,
          PatchFailed,
@@ -161,11 +149,9 @@ index 44b2bf0..487cd1b 100644
      };
 
      static Result apply(const uint8_t* xexBytes, size_t xexBytesSize, const uint8_t* patchBytes, size_t patchBytesSize, std::vector<uint8_t> &outBytes, bool skipData);
-diff --git a/thirdparty/disasm/ppc-dis.c b/thirdparty/disasm/ppc-dis.c
-index 3e224b4..4b78abf 100644
---- a/thirdparty/disasm/ppc-dis.c
-+++ b/thirdparty/disasm/ppc-dis.c
-@@ -5765,9 +5765,9 @@ again:
+--- a/thirdparty/disasm/ppc-dis.c	2026-02-17 21:04:24.472644034 +0000
++++ b/thirdparty/disasm/ppc-dis.c	2026-02-17 21:24:11.176630673 +0000
+@@ -5765,9 +5765,9 @@
              else if ((operand->flags & PPC_OPERAND_VR) != 0)
                  stream = stream + sprintf(stream, "v%ld", value);
              else if ((operand->flags & PPC_OPERAND_RELATIVE) != 0)
@@ -177,22 +163,20 @@ index 3e224b4..4b78abf 100644
              else if ((operand->flags & PPC_OPERAND_CR) == 0
                  || (dialect & PPC_OPCODE_PPC) == 0)
                  stream = stream + sprintf(stream, "%ld", value);
-diff --git a/XenonRecomp/test_recompiler.cpp b/XenonRecomp/test_recompiler.cpp
-index f4fcdfe..6e396c4 100644
---- a/XenonRecomp/test_recompiler.cpp
-+++ b/XenonRecomp/test_recompiler.cpp
+--- a/XenonRecomp/test_recompiler.cpp	2026-02-17 21:04:24.460644034 +0000
++++ b/XenonRecomp/test_recompiler.cpp	2026-02-17 21:24:11.176630673 +0000
 @@ -1,4 +1,5 @@
  #include "test_recompiler.h"
 +#include <cctype>
 
  void TestRecompiler::Analyse(const std::string_view& testName)
  {
-@@ -213,7 +214,24 @@ void TestRecompiler::RecompileTests(const char* srcDirectoryPath, const char* ds
+@@ -213,7 +214,24 @@
                                          int secondSpaceIndex = str.find(' ', spaceIndex + 1);
                                          auto reg = str.substr(spaceIndex + 1, secondSpaceIndex - spaceIndex - 1);
                                          if (reg[0] == 'c')
 -                                            continue; // TODO
-+                                        {
++                                            {
 +                                            if (reg == "ctr")
 +                                            {
 +                                                fmt::println(file, "\tPPC_CHECK_VALUE_U({}, ctx.ctr.u64, 0x{});", name, str.substr(secondSpaceIndex + 1));
@@ -213,11 +197,9 @@ index f4fcdfe..6e396c4 100644
                                          if (reg[0] == 'v')
                                          {
                                              int openingBracketIndex = str.find('[', secondSpaceIndex + 1);
-diff --git a/XenonUtils/CMakeLists.txt b/XenonUtils/CMakeLists.txt
-index 1807323..4354c8e 100644
---- a/XenonUtils/CMakeLists.txt
-+++ b/XenonUtils/CMakeLists.txt
-@@ -30,3 +30,7 @@ target_link_libraries(XenonUtils
+--- a/XenonUtils/CMakeLists.txt	2026-02-17 21:04:24.464644034 +0000
++++ b/XenonUtils/CMakeLists.txt	2026-02-17 21:24:11.176630673 +0000
+@@ -30,3 +30,7 @@
      PUBLIC
          disasm
  )
@@ -225,30 +207,10 @@ index 1807323..4354c8e 100644
 +if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
 +    target_compile_options(XenonUtils PRIVATE -fms-extensions)
 +endif()
-diff --git a/XenonUtils/xbox.h b/XenonUtils/xbox.h
-index 0361b0f..5b72b64 100644
---- a/XenonUtils/xbox.h
-+++ b/XenonUtils/xbox.h
-@@ -247,13 +247,13 @@ typedef struct _XXOVERLAPPED {
-         {
-             be<uint32_t> Error;
-             be<uint32_t> Length;
--        };
-+        } _ErrorLength;
-
-         struct
-         {
-             uint32_t InternalLow;
-             uint32_t InternalHigh;
--        };
-+        } _Internal;
-     };
-     uint32_t InternalContext;
-diff --git a/XenonUtils/xdbf.h b/XenonUtils/xdbf.h
-index 347ac2c..19d7079 100644
---- a/XenonUtils/xdbf.h
-+++ b/XenonUtils/xdbf.h
-@@ -132,7 +132,7 @@ union XDBFTitleID
+\ No newline at end of file
+--- a/XenonUtils/xdbf.h	2026-02-17 21:04:24.468644034 +0000
++++ b/XenonUtils/xdbf.h	2026-02-17 21:24:11.180630673 +0000
+@@ -132,7 +132,7 @@
      {
          be<uint16_t> u16;
          char u8[0x02];
