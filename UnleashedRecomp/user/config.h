@@ -233,3 +233,4 @@ public:
     static void Load();
     static void Save();
 };
+#include "config_def.inl"
