@@ -1,5 +1,5 @@
---- a/CMakeLists.txt	2026-02-17 21:04:24.460644034 +0000
-+++ b/CMakeLists.txt	2026-02-17 21:24:11.148630673 +0000
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
 @@ -20,8 +20,10 @@
 
  project ("XenonRecomp-ALL")
@@ -13,8 +13,8 @@
  add_subdirectory(${XENONUTILS_ROOT})
 
  # Only tests if this is the top level project
---- a/XenonRecomp/recompiler.cpp	2026-02-17 21:04:24.460644034 +0000
-+++ b/XenonRecomp/recompiler.cpp	2026-02-17 21:24:11.152630673 +0000
+--- a/XenonRecomp/recompiler.cpp
++++ b/XenonRecomp/recompiler.cpp
 @@ -12,6 +12,7 @@
 
  bool Recompiler::LoadConfig(const std::string_view& configFilePath)
@@ -44,8 +44,17 @@
                  return false;
              }
          }
---- a/XenonUtils/xbox.h	2026-02-17 21:04:24.464644034 +0000
-+++ b/XenonUtils/xbox.h	2026-02-17 21:24:11.172630673 +0000
+--- a/XenonUtils/xbox.h
++++ b/XenonUtils/xbox.h
+@@ -247,7 +247,7 @@
+         {
+             be<uint32_t> Error;
+             be<uint32_t> Length;
+-        };
++        } _ErrorLength;
+
+         struct
+         {
 @@ -359,7 +359,17 @@
  // Direct reflection of XInput structures
 
@@ -64,8 +73,8 @@
 
  #define XAMINPUT_GAMEPAD_DPAD_UP          0x0001
  #define XAMINPUT_GAMEPAD_DPAD_DOWN        0x0002
---- a/XenonUtils/xex_patcher.cpp	2026-02-17 21:04:24.468644034 +0000
-+++ b/XenonUtils/xex_patcher.cpp	2026-02-17 21:24:11.172630673 +0000
+--- a/XenonUtils/xex_patcher.cpp
++++ b/XenonUtils/xex_patcher.cpp
 @@ -16,6 +16,7 @@
  #include <cassert>
  #include <climits>
@@ -74,7 +83,7 @@
 
  #include <aes.hpp>
  #include <lzx.h>
-@@ -304,7 +305,8 @@
+@@ -305,7 +306,8 @@
      int resultCode = lzxDeltaApplyPatch(&patchDescriptor->info, patchDescriptor->size, ((const Xex2FileNormalCompressionInfo*)(patchFileFormatInfo + 1))->windowSize, outBytes.data());
      if (resultCode != 0)
      {
@@ -84,7 +93,7 @@
      }
 
      // Make the header the specified size by the patch.
-@@ -428,7 +430,10 @@
+@@ -432,7 +434,10 @@
              s.finalize(blockCalcedDigest);
 
              if (memcmp(blockCalcedDigest, blocks->blockHash, 0x14) != 0)
@@ -96,7 +105,7 @@
 
              p += 4;
              p += 20;
-@@ -457,7 +462,10 @@
+@@ -461,7 +466,10 @@
          resultCode = lzxDecompress(compressBuffer.get(), d - compressBuffer.get(), buffer, uncompressedSize, ((const Xex2FileNormalCompressionInfo*)(fileFormatInfo + 1))->windowSize, nullptr, 0);
 
          if (resultCode)
@@ -108,7 +117,7 @@
      }
      else if (fileFormatInfo->compressionType == XEX_COMPRESSION_DELTA)
      {
-@@ -471,6 +479,7 @@
+@@ -475,6 +483,7 @@
      Xex2OptFileFormatInfo *newFileFormatInfo = (Xex2OptFileFormatInfo *)(getOptHeaderPtr(outBytes.data(), XEX_HEADER_FILE_FORMAT_INFO));
      if (newFileFormatInfo == nullptr)
      {
@@ -116,7 +125,7 @@
          return Result::PatchFailed;
      }
 
-@@ -514,6 +523,8 @@
+@@ -518,6 +527,8 @@
          sha1Context.finalize(sha1Digest);
          if (memcmp(sha1Digest, currentBlock->blockHash, DigestSize) != 0)
          {
@@ -125,7 +134,7 @@
              return Result::PatchFailed;
          }
 
-@@ -523,7 +534,8 @@
+@@ -527,7 +538,8 @@
          uint32_t blockDataSize = currentBlock->blockSize - 24;
          if (lzxDeltaApplyPatch((const Xex2DeltaPatch *)(patchDataCursor), blockDataSize, ((const Xex2FileNormalCompressionInfo*)(patchFileFormatInfo + 1))->windowSize, outExe) != 0)
          {
@@ -135,8 +144,8 @@
          }
 
          patchDataCursor += blockDataSize;
---- a/XenonUtils/xex_patcher.h	2026-02-17 21:04:24.468644034 +0000
-+++ b/XenonUtils/xex_patcher.h	2026-02-17 21:24:11.172630673 +0000
+--- a/XenonUtils/xex_patcher.h
++++ b/XenonUtils/xex_patcher.h
 @@ -29,7 +29,10 @@
          PatchFileInvalid,
          PatchIncompatible,
@@ -149,8 +158,8 @@
      };
 
      static Result apply(const uint8_t* xexBytes, size_t xexBytesSize, const uint8_t* patchBytes, size_t patchBytesSize, std::vector<uint8_t> &outBytes, bool skipData);
---- a/thirdparty/disasm/ppc-dis.c	2026-02-17 21:04:24.472644034 +0000
-+++ b/thirdparty/disasm/ppc-dis.c	2026-02-17 21:24:11.176630673 +0000
+--- a/thirdparty/disasm/ppc-dis.c
++++ b/thirdparty/disasm/ppc-dis.c
 @@ -5765,9 +5765,9 @@
              else if ((operand->flags & PPC_OPERAND_VR) != 0)
                  stream = stream + sprintf(stream, "v%ld", value);
@@ -163,8 +172,8 @@
              else if ((operand->flags & PPC_OPERAND_CR) == 0
                  || (dialect & PPC_OPCODE_PPC) == 0)
                  stream = stream + sprintf(stream, "%ld", value);
---- a/XenonRecomp/test_recompiler.cpp	2026-02-17 21:04:24.460644034 +0000
-+++ b/XenonRecomp/test_recompiler.cpp	2026-02-17 21:24:11.176630673 +0000
+--- a/XenonRecomp/test_recompiler.cpp
++++ b/XenonRecomp/test_recompiler.cpp
 @@ -1,4 +1,5 @@
  #include "test_recompiler.h"
 +#include <cctype>
@@ -197,8 +206,8 @@
                                          if (reg[0] == 'v')
                                          {
                                              int openingBracketIndex = str.find('[', secondSpaceIndex + 1);
---- a/XenonUtils/CMakeLists.txt	2026-02-17 21:04:24.464644034 +0000
-+++ b/XenonUtils/CMakeLists.txt	2026-02-17 21:24:11.176630673 +0000
+--- a/XenonUtils/CMakeLists.txt
++++ b/XenonUtils/CMakeLists.txt
 @@ -30,3 +30,7 @@
      PUBLIC
          disasm
@@ -208,8 +217,8 @@
 +    target_compile_options(XenonUtils PRIVATE -fms-extensions)
 +endif()
 \ No newline at end of file
---- a/XenonUtils/xdbf.h	2026-02-17 21:04:24.468644034 +0000
-+++ b/XenonUtils/xdbf.h	2026-02-17 21:24:11.180630673 +0000
+--- a/XenonUtils/xdbf.h
++++ b/XenonUtils/xdbf.h
 @@ -132,7 +132,7 @@
      {
          be<uint16_t> u16;

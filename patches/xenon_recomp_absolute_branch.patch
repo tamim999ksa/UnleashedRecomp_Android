@@ -179,29 +179,3 @@ index 0000000..7d61e46
 +
 +    return 0;
 +}
-diff --git a/XenonUtils/xbox.h b/XenonUtils/xbox.h
-index 0361b0f..a8db71d 100644
---- a/XenonUtils/xbox.h
-+++ b/XenonUtils/xbox.h
-@@ -247,7 +247,7 @@ typedef struct _XXOVERLAPPED {
-         {
-             be<uint32_t> Error;
-             be<uint32_t> Length;
--        };
-+        } _ErrorLength;
-
-         struct
-         {
-diff --git a/XenonUtils/xdbf.h b/XenonUtils/xdbf.h
-index 347ac2c..2ef954a 100644
---- a/XenonUtils/xdbf.h
-+++ b/XenonUtils/xdbf.h
-@@ -132,7 +132,7 @@ union XDBFTitleID
-     {
-         be<uint16_t> u16;
-         char u8[0x02];
--    };
-+    } _u16;
-
-     be<uint32_t> u32;
- };
