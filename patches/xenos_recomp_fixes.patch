@@ -1,6 +1,8 @@
+diff --git a/XenosRecomp/CMakeLists.txt b/XenosRecomp/CMakeLists.txt
+index e505a5e..0574517 100644
 --- a/XenosRecomp/CMakeLists.txt
 +++ b/XenosRecomp/CMakeLists.txt
-@@ -28,7 +28,7 @@
+@@ -28,7 +28,7 @@ target_include_directories(XenosRecomp PRIVATE ${SMOLV_SOURCE_DIR})
 
  target_precompile_headers(XenosRecomp PRIVATE pch.h)
 
@@ -9,9 +11,11 @@
      target_compile_options(XenosRecomp PRIVATE -Wno-switch -Wno-unused-variable -Wno-null-arithmetic -fms-extensions)
 
      include(CheckCXXSymbolExists)
+diff --git a/XenosRecomp/shader_recompiler.cpp b/XenosRecomp/shader_recompiler.cpp
+index 698a418..79c02f1 100644
 --- a/XenosRecomp/shader_recompiler.cpp
 +++ b/XenosRecomp/shader_recompiler.cpp
-@@ -1308,15 +1308,15 @@
+@@ -1308,15 +1308,15 @@ void ShaderRecompiler::recompile(const uint8_t* shaderData, const std::string_vi
              {
                  VertexElement vertexElement;
                  uint32_t value;
@@ -32,7 +36,7 @@
              {
                  usageType = "uint4";
              }
-@@ -1326,17 +1326,17 @@
+@@ -1326,17 +1326,17 @@ void ShaderRecompiler::recompile(const uint8_t* shaderData, const std::string_vi
 
              for (auto& usageLocation : USAGE_LOCATIONS)
              {
@@ -54,7 +58,7 @@
          }
 
      #ifdef UNLEASHED_RECOMP
-@@ -1403,13 +1403,13 @@
+@@ -1403,13 +1403,13 @@ void ShaderRecompiler::recompile(const uint8_t* shaderData, const std::string_vi
                          int8_t y;
                          int8_t z;
                          int8_t w;
@@ -70,7 +74,7 @@
              }
              definitions += 2;
              definitions += definition->count;
-@@ -1502,7 +1502,7 @@
+@@ -1502,7 +1502,7 @@ void ShaderRecompiler::recompile(const uint8_t* shaderData, const std::string_vi
              uint32_t code1;
              uint32_t code2;
              uint32_t code3;
@@ -79,7 +83,7 @@
      };
 
      auto controlFlowCode = code;
-@@ -1512,10 +1512,10 @@
+@@ -1512,10 +1512,10 @@ void ShaderRecompiler::recompile(const uint8_t* shaderData, const std::string_vi
 
      while (instrAddress < instrSize)
      {
@@ -94,7 +98,7 @@
 
          for (auto& cfInstr : controlFlow)
          {
-@@ -1579,10 +1579,10 @@
+@@ -1579,10 +1579,10 @@ void ShaderRecompiler::recompile(const uint8_t* shaderData, const std::string_vi
 
      while (instrAddress < instrSize)
      {
@@ -109,7 +113,7 @@
 
          for (auto& cfInstr : controlFlow)
          {
-@@ -1733,12 +1733,12 @@
+@@ -1733,12 +1733,12 @@ void ShaderRecompiler::recompile(const uint8_t* shaderData, const std::string_vi
                          uint32_t code0;
                          uint32_t code1;
                          uint32_t code2;
