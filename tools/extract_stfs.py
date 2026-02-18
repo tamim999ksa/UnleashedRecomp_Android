@@ -37,12 +37,12 @@ def extract_stfs(file_path, output_dir):
                 if not filename:
                     continue
 
-                # Start Block (0x2F, 3 bytes) - Big Endian
+                # Start Block (0x2F, 3 bytes) - Little Endian (unlike most STFS fields)
                 sb_bytes = entry[0x2F:0x32]
                 # Size (0x34, 4 bytes) - Big Endian
                 size_bytes = entry[0x34:0x38]
 
-                start_block = (sb_bytes[0] << 16) | (sb_bytes[1] << 8) | sb_bytes[2]
+                start_block = sb_bytes[0] | (sb_bytes[1] << 8) | (sb_bytes[2] << 16)
                 size = struct.unpack('>I', size_bytes)[0]
 
                 print(f"Extracting {filename}: Start Block {start_block}, Size {size}")
