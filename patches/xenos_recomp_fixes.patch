@@ -12,19 +12,15 @@ index e505a5e..0574517 100644
 
      include(CheckCXXSymbolExists)
 diff --git a/XenosRecomp/main.cpp b/XenosRecomp/main.cpp
-index d015145..a9c54c1 100644
+index d015145..374ea11 100644
 --- a/XenosRecomp/main.cpp
 +++ b/XenosRecomp/main.cpp
-@@ -9,7 +9,11 @@ static std::unique_ptr<uint8_t[]> readAllBytes(const char* filePath, size_t& fil
+@@ -9,7 +9,7 @@ static std::unique_ptr<uint8_t[]> readAllBytes(const char* filePath, size_t& fil
      fileSize = ftell(file);
      fseek(file, 0, SEEK_SET);
      auto data = std::make_unique<uint8_t[]>(fileSize);
 -    fread(data.get(), 1, fileSize, file);
-+    if (fread(data.get(), 1, fileSize, file) != fileSize)
-+    {
-+        fclose(file);
-+        return nullptr;
-+    }
++    if (fread(data.get(), 1, fileSize, file) != fileSize) { fclose(file); return nullptr; }
      fclose(file);
      return data;
  }
