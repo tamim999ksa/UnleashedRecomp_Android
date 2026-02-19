@@ -63,7 +63,7 @@ index 34add40..d7f919a 100644
                      const size_t branchBase = branchDest - base;
                      const size_t branchBlock = fn.SearchBlock(branchDest);
 diff --git a/XenonRecomp/recompiler.cpp b/XenonRecomp/recompiler.cpp
-index fa91527..3c80080 100644
+index fa91527..88229fc 100644
 --- a/XenonRecomp/recompiler.cpp
 +++ b/XenonRecomp/recompiler.cpp
 @@ -12,6 +12,7 @@ static uint64_t ComputeMask(uint32_t mstart, uint32_t mstop)
@@ -124,12 +124,14 @@ index fa91527..3c80080 100644
              println(");\n");
 
 -            if (midAsmHook->second.jumpAddress != NULL)
-+            if (midAsmHook->second.jumpAddress != 0)
-                 labels.emplace(midAsmHook->second.jumpAddress);
+-                labels.emplace(midAsmHook->second.jumpAddress);
 -            if (midAsmHook->second.jumpAddressOnTrue != NULL)
-+            if (midAsmHook->second.jumpAddressOnTrue != 0)
-                 labels.emplace(midAsmHook->second.jumpAddressOnTrue);
+-                labels.emplace(midAsmHook->second.jumpAddressOnTrue);
 -            if (midAsmHook->second.jumpAddressOnFalse != NULL)
++            if (midAsmHook->second.jumpAddress != 0)
++                labels.emplace(midAsmHook->second.jumpAddress);
++            if (midAsmHook->second.jumpAddressOnTrue != 0)
++                labels.emplace(midAsmHook->second.jumpAddressOnTrue);
 +            if (midAsmHook->second.jumpAddressOnFalse != 0)
                  labels.emplace(midAsmHook->second.jumpAddressOnFalse);
          }
