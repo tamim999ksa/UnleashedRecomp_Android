@@ -880,6 +880,15 @@ PPC_FUNC(sub_830C6A00)
             return;
         }
 
+        // Tornado Defense bugs out when applying gameplay UI scaling.
+        // This seems consistent with base game behavior, because the UI
+        // is normally squashed, which was probably done to work around this.
+        if ((g_sceneModifier->flags & TORNADO_DEFENSE) != 0)
+        {
+            g_scenePositionX = 0.0f;
+            g_scenePositionY = 0.0f;
+        }
+
         if (g_aspectRatio > WIDE_ASPECT_RATIO && (g_sceneModifier->flags & (OFFSET_SCALE_LEFT | OFFSET_SCALE_RIGHT | CORNER_EXTRACT)) != 0)
         {
             auto r3 = ctx.r3;
@@ -1041,9 +1050,6 @@ static void Draw(PPCContext& ctx, uint8_t* base, PPCFunc* original, uint32_t str
                 else if ((modifier.flags & ALIGN_LEFT) == 0)
                     offsetX += 640.0f * (1.0f - g_aspectRatioGameplayScale) * g_aspectRatioScale;
 
-            if ((modifier.flags & TORNADO_DEFENSE) != 0)
-                offsetX += pivotX * scaleX;
-            else
                 offsetX += pivotX * g_aspectRatioScale;
             }
 
@@ -1078,10 +1084,7 @@ static void Draw(PPCContext& ctx, uint8_t* base, PPCFunc* original, uint32_t str
             else if ((modifier.flags & ALIGN_TOP) == 0)
                 offsetY += 360.0f * (1.0f - g_aspectRatioGameplayScale) * g_aspectRatioScale;
 
-            if ((modifier.flags & TORNADO_DEFENSE) != 0)
-                offsetY += pivotY * scaleY;
-            else
-                offsetY += pivotY * g_aspectRatioScale;
+            offsetY += pivotY * g_aspectRatioScale;
         }
     }
 
