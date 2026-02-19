@@ -25,7 +25,7 @@ index d015145..374ea11 100644
      return data;
  }
 diff --git a/XenosRecomp/shader_recompiler.cpp b/XenosRecomp/shader_recompiler.cpp
-index 698a418..c664aa2 100644
+index 698a418..02aef60 100644
 --- a/XenosRecomp/shader_recompiler.cpp
 +++ b/XenosRecomp/shader_recompiler.cpp
 @@ -1308,15 +1308,15 @@ void ShaderRecompiler::recompile(const uint8_t* shaderData, const std::string_vi
@@ -94,7 +94,7 @@ index 698a418..c664aa2 100644
 
                  println("\tint4 i{} = int4({}, {}, {}, {});",
 -                    (definition->registerIndex - 8992) / 4 + i, x, y, z, w);
-+                    (definition->registerIndex - 8992) / 4 + i);
++                    (definition->registerIndex - 8992) / 4 + i, s.v.x, s.v.y, s.v.z, s.v.w);
              }
              definitions += 2;
              definitions += definition->count;
