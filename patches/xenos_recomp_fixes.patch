@@ -11,10 +11,36 @@ index e505a5e..0574517 100644
      target_compile_options(XenosRecomp PRIVATE -Wno-switch -Wno-unused-variable -Wno-null-arithmetic -fms-extensions)
 
      include(CheckCXXSymbolExists)
+diff --git a/XenosRecomp/main.cpp b/XenosRecomp/main.cpp
+index d015145..a9c54c1 100644
+--- a/XenosRecomp/main.cpp
++++ b/XenosRecomp/main.cpp
+@@ -9,7 +9,11 @@ static std::unique_ptr<uint8_t[]> readAllBytes(const char* filePath, size_t& fil
+     fileSize = ftell(file);
+     fseek(file, 0, SEEK_SET);
+     auto data = std::make_unique<uint8_t[]>(fileSize);
+-    fread(data.get(), 1, fileSize, file);
++    if (fread(data.get(), 1, fileSize, file) != fileSize)
++    {
++        fclose(file);
++        return nullptr;
++    }
+     fclose(file);
+     return data;
+ }
 diff --git a/XenosRecomp/shader_recompiler.cpp b/XenosRecomp/shader_recompiler.cpp
-index 698a418..79c02f1 100644
+index 698a418..491f972 100644
 --- a/XenosRecomp/shader_recompiler.cpp
 +++ b/XenosRecomp/shader_recompiler.cpp
+@@ -1103,7 +1103,7 @@ void ShaderRecompiler::recompile(const uint8_t* shaderData, const std::string_vi
+     const auto shaderContainer = reinterpret_cast<const ShaderContainer*>(shaderData);
+
+     assert((shaderContainer->flags & 0xFFFFFF00) == 0x102A1100);
+-    assert(shaderContainer->constantTableOffset != NULL);
++    assert(shaderContainer->constantTableOffset != 0);
+
+     out += include;
+     out += '\n';
 @@ -1308,15 +1308,15 @@ void ShaderRecompiler::recompile(const uint8_t* shaderData, const std::string_vi
              {
                  VertexElement vertexElement;
@@ -58,32 +84,71 @@ index 698a418..79c02f1 100644
          }
 
      #ifdef UNLEASHED_RECOMP
+@@ -1371,7 +1371,7 @@ void ShaderRecompiler::recompile(const uint8_t* shaderData, const std::string_vi
+     }
+ #endif
+
+-    if (shaderContainer->definitionTableOffset != NULL)
++    if (shaderContainer->definitionTableOffset != 0)
+     {
+         auto definitionTable = reinterpret_cast<const DefinitionTable*>(shaderData + shaderContainer->definitionTableOffset);
+         auto definitions = definitionTable->definitions;
 @@ -1403,13 +1403,13 @@ void ShaderRecompiler::recompile(const uint8_t* shaderData, const std::string_vi
                          int8_t y;
                          int8_t z;
                          int8_t w;
 -                    };
-+                    } s;
-                 };
+-                };
++                    } v;
++                } s;
 
-                 value = definition->values[i].get();
+-                value = definition->values[i].get();
++                s.value = definition->values[i].get();
 
                  println("\tint4 i{} = int4({}, {}, {}, {});",
 -                    (definition->registerIndex - 8992) / 4 + i, x, y, z, w);
-+                    (definition->registerIndex - 8992) / 4 + i, s.x, s.y, s.z, s.w);
++                    (definition->registerIndex - 8992) / 4 + i, s.v.x, s.v.y, s.v.z, s.v.w);
              }
              definitions += 2;
              definitions += definition->count;
-@@ -1502,7 +1502,7 @@ void ShaderRecompiler::recompile(const uint8_t* shaderData, const std::string_vi
+@@ -1428,19 +1428,19 @@ void ShaderRecompiler::recompile(const uint8_t* shaderData, const std::string_vi
+         {
+             Interpolator interpolator;
+             uint32_t value;
+-        };
++        } u;
+
+         if (isPixelShader)
+         {
+-            value = reinterpret_cast<const PixelShader*>(shader)->interpolators[i];
+-            println("\tfloat4 r{} = i{}{};", uint32_t(interpolator.reg), USAGE_VARIABLES[uint32_t(interpolator.usage)], uint32_t(interpolator.usageIndex));
+-            printedRegisters[interpolator.reg] = true;
++            u.value = reinterpret_cast<const PixelShader*>(shader)->interpolators[i];
++            println("\tfloat4 r{} = i{}{};", uint32_t(u.interpolator.reg), USAGE_VARIABLES[uint32_t(u.interpolator.usage)], uint32_t(u.interpolator.usageIndex));
++            printedRegisters[u.interpolator.reg] = true;
+         }
+         else
+         {
+             auto vertexShader = reinterpret_cast<const VertexShader*>(shader);
+-            value = vertexShader->vertexElementsAndInterpolators[vertexShader->field18 + vertexShader->vertexElementCount + i];
+-            interpolators.emplace(i, fmt::format("o{}{}", USAGE_VARIABLES[uint32_t(interpolator.usage)], uint32_t(interpolator.usageIndex)));
++            u.value = vertexShader->vertexElementsAndInterpolators[vertexShader->field18 + vertexShader->vertexElementCount + i];
++            interpolators.emplace(i, fmt::format("o{}{}", USAGE_VARIABLES[uint32_t(u.interpolator.usage)], uint32_t(u.interpolator.usageIndex)));
+         }
+     }
+
+@@ -1502,8 +1502,8 @@ void ShaderRecompiler::recompile(const uint8_t* shaderData, const std::string_vi
              uint32_t code1;
              uint32_t code2;
              uint32_t code3;
 -        };
-+        } codes;
-     };
+-    };
++        } raw;
++    } u;
 
      auto controlFlowCode = code;
-@@ -1512,10 +1512,10 @@ void ShaderRecompiler::recompile(const uint8_t* shaderData, const std::string_vi
+     uint32_t instrAddress = 0;
+@@ -1512,12 +1512,12 @@ void ShaderRecompiler::recompile(const uint8_t* shaderData, const std::string_vi
 
      while (instrAddress < instrSize)
      {
@@ -91,14 +156,17 @@ index 698a418..79c02f1 100644
 -        code1 = controlFlowCode[1] & 0xFFFF;
 -        code2 = (controlFlowCode[1] >> 16) | (controlFlowCode[2] << 16);
 -        code3 = controlFlowCode[2] >> 16;
-+        codes.code0 = controlFlowCode[0];
-+        codes.code1 = controlFlowCode[1] & 0xFFFF;
-+        codes.code2 = (controlFlowCode[1] >> 16) | (controlFlowCode[2] << 16);
-+        codes.code3 = controlFlowCode[2] >> 16;
++        u.raw.code0 = controlFlowCode[0];
++        u.raw.code1 = controlFlowCode[1] & 0xFFFF;
++        u.raw.code2 = (controlFlowCode[1] >> 16) | (controlFlowCode[2] << 16);
++        u.raw.code3 = controlFlowCode[2] >> 16;
 
-         for (auto& cfInstr : controlFlow)
+-        for (auto& cfInstr : controlFlow)
++        for (auto& cfInstr : u.controlFlow)
          {
-@@ -1579,10 +1579,10 @@ void ShaderRecompiler::recompile(const uint8_t* shaderData, const std::string_vi
+             uint32_t address = 0;
+
+@@ -1579,12 +1579,12 @@ void ShaderRecompiler::recompile(const uint8_t* shaderData, const std::string_vi
 
      while (instrAddress < instrSize)
      {
@@ -106,27 +174,79 @@ index 698a418..79c02f1 100644
 -        code1 = controlFlowCode[1] & 0xFFFF;
 -        code2 = (controlFlowCode[1] >> 16) | (controlFlowCode[2] << 16);
 -        code3 = controlFlowCode[2] >> 16;
-+        codes.code0 = controlFlowCode[0];
-+        codes.code1 = controlFlowCode[1] & 0xFFFF;
-+        codes.code2 = (controlFlowCode[1] >> 16) | (controlFlowCode[2] << 16);
-+        codes.code3 = controlFlowCode[2] >> 16;
++        u.raw.code0 = controlFlowCode[0];
++        u.raw.code1 = controlFlowCode[1] & 0xFFFF;
++        u.raw.code2 = (controlFlowCode[1] >> 16) | (controlFlowCode[2] << 16);
++        u.raw.code3 = controlFlowCode[2] >> 16;
 
-         for (auto& cfInstr : controlFlow)
+-        for (auto& cfInstr : controlFlow)
++        for (auto& cfInstr : u.controlFlow)
          {
-@@ -1733,12 +1733,12 @@ void ShaderRecompiler::recompile(const uint8_t* shaderData, const std::string_vi
+             if (!simpleControlFlow)
+             {
+@@ -1733,23 +1733,23 @@ void ShaderRecompiler::recompile(const uint8_t* shaderData, const std::string_vi
                          uint32_t code0;
                          uint32_t code1;
                          uint32_t code2;
 -                    };
+-                };
 +                    } raw;
-                 };
++                } inst;
 
 -                code0 = instructionCode[0];
 -                code1 = instructionCode[1];
 -                code2 = instructionCode[2];
-+                raw.code0 = instructionCode[0];
-+                raw.code1 = instructionCode[1];
-+                raw.code2 = instructionCode[2];
++                inst.raw.code0 = instructionCode[0];
++                inst.raw.code1 = instructionCode[1];
++                inst.raw.code2 = instructionCode[2];
 
                  if ((sequence & 0x1) != 0)
                  {
+-                    if (vertexFetch.opcode == FetchOpcode::VertexFetch)
++                    if (inst.vertexFetch.opcode == FetchOpcode::VertexFetch)
+                     {
+-                        recompile(vertexFetch, address + i);
++                        recompile(inst.vertexFetch, address + i);
+                     }
+                     else
+                     {
+                     #ifdef UNLEASHED_RECOMP
+-                        if (textureFetch.constIndex == 10) // g_GISampler
++                        if (inst.textureFetch.constIndex == 10) // g_GISampler
+                         {
+                             specConstantsMask |= SPEC_CONSTANT_BICUBIC_GI_FILTER;
+
+@@ -1759,7 +1759,7 @@ void ShaderRecompiler::recompile(const uint8_t* shaderData, const std::string_vi
+                             out += '{';
+
+                             ++indentation;
+-                            recompile(textureFetch, true);
++                            recompile(inst.textureFetch, true);
+                             --indentation;
+
+                             indent();
+@@ -1770,7 +1770,7 @@ void ShaderRecompiler::recompile(const uint8_t* shaderData, const std::string_vi
+                             out += '{';
+
+                             ++indentation;
+-                            recompile(textureFetch, false);
++                            recompile(inst.textureFetch, false);
+                             --indentation;
+
+                             indent();
+@@ -1779,13 +1779,13 @@ void ShaderRecompiler::recompile(const uint8_t* shaderData, const std::string_vi
+                         else
+                     #endif
+                         {
+-                            recompile(textureFetch, false);
++                            recompile(inst.textureFetch, false);
+                         }
+                     }
+                 }
+                 else
+                 {
+-                    recompile(alu);
++                    recompile(inst.alu);
+                 }
+
+                 sequence >>= 2;

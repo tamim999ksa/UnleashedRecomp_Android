@@ -5,6 +5,10 @@
 // characters in the locale get added to the atlas.
 #define ENABLE_IM_FONT_ATLAS_SNAPSHOT
 
+// Define this if you want to generate the font atlas files when
+// ENABLE_IM_FONT_ATLAS_SNAPSHOT is undefined.
+// #define GENERATE_IM_FONT_ATLAS
+
 struct ImFontAtlasSnapshot
 {
     std::vector<uint8_t> data;
