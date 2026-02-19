@@ -19,7 +19,11 @@ static std::vector<uint8_t> readAllBytes(const char* filePath)
     fseek(file, 0, SEEK_SET);
 
     std::vector<uint8_t> data(fileSize);
-    fread(data.data(), 1, fileSize, file);
+    if (fread(data.data(), 1, fileSize, file) != fileSize)
+    {
+        fclose(file);
+        return {};
+    }
 
     fclose(file);
 
@@ -66,7 +70,7 @@ int main(int argc, char** argv)
 
         if ((oldFileData.size() % BC_STRIDE) != 0)
         {
-            fprintf(stderr, "%s is not aligned to %d bytes\n", oldFile.path().string().c_str(), BC_STRIDE);
+            fprintf(stderr, "%s is not aligned to %zu bytes\n", oldFile.path().string().c_str(), BC_STRIDE);
             continue;
         }
 
