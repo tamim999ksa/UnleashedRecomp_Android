@@ -62,6 +62,16 @@ index 34add40..d7f919a 100644
 
                      const size_t branchBase = branchDest - base;
                      const size_t branchBlock = fn.SearchBlock(branchDest);
+diff --git a/XenonRecomp/CMakeLists.txt b/XenonRecomp/CMakeLists.txt
+index f5db6d1..b1fc38c 100644
+--- a/XenonRecomp/CMakeLists.txt
++++ b/XenonRecomp/CMakeLists.txt
+@@ -1,4 +1,4 @@
+-cmake_minimum_required (VERSION 3.8)
++cmake_minimum_required (VERSION 3.10)
+
+ project("XenonRecomp")
+
 diff --git a/XenonRecomp/recompiler.cpp b/XenonRecomp/recompiler.cpp
 index fa91527..88229fc 100644
 --- a/XenonRecomp/recompiler.cpp
@@ -231,3 +241,15 @@ index 3e224b4..4b78abf 100644
              else if ((operand->flags & PPC_OPERAND_CR) == 0
                  || (dialect & PPC_OPCODE_PPC) == 0)
                  stream = stream + sprintf(stream, "%ld", value);
+diff --git a/thirdparty/xxHash/cmake_unofficial/CMakeLists.txt b/thirdparty/xxHash/cmake_unofficial/CMakeLists.txt
+index 5c3bc59..7c0f4ba 100644
+--- a/thirdparty/xxHash/cmake_unofficial/CMakeLists.txt
++++ b/thirdparty/xxHash/cmake_unofficial/CMakeLists.txt
+@@ -5,7 +5,7 @@
+ #
+ # For details, see <https://creativecommons.org/publicdomain/zero/1.0/>.
+
+-cmake_minimum_required (VERSION 3.5 FATAL_ERROR)
++cmake_minimum_required (VERSION 3.10 FATAL_ERROR)
+
+ set(XXHASH_DIR "${CMAKE_CURRENT_SOURCE_DIR}/..")
