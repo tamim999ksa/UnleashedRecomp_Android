@@ -12,7 +12,7 @@ mkdir -p "$OUTPUT_BIN_DIR"
 if [ -f "patches/xenon_recomp_fixes.patch" ]; then
     echo "Applying XenonRecomp fixes..."
     cd tools/XenonRecomp
-    if ! git apply ../../patches/xenon_recomp_fixes.patch; then
+    if ! git apply --ignore-whitespace ../../patches/xenon_recomp_fixes.patch; then
         echo "git apply failed, attempting to use patch..."
         patch -p1 < ../../patches/xenon_recomp_fixes.patch || echo "Warning: patch failed too."
     fi
@@ -23,7 +23,7 @@ fi
 if [ -f "patches/xenos_recomp_fixes.patch" ]; then
     echo "Applying XenosRecomp fixes..."
     cd tools/XenosRecomp
-    if ! git apply ../../patches/xenos_recomp_fixes.patch; then
+    if ! git apply --ignore-whitespace ../../patches/xenos_recomp_fixes.patch; then
         echo "git apply failed, attempting to use patch..."
         patch -p1 < ../../patches/xenos_recomp_fixes.patch || echo "Warning: patch failed too."
     fi
