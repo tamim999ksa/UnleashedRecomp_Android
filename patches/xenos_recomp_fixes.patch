@@ -24,3 +24,120 @@ index d015145..374ea11 100644
      fclose(file);
      return data;
  }
+diff --git a/XenosRecomp/shader_recompiler.cpp b/XenosRecomp/shader_recompiler.cpp
+index 698a418..91cd699 100644
+--- a/XenosRecomp/shader_recompiler.cpp
++++ b/XenosRecomp/shader_recompiler.cpp
+@@ -1502,8 +1502,8 @@ void ShaderRecompiler::recompile(const uint8_t* shaderData, const std::string_vi
+             uint32_t code1;
+             uint32_t code2;
+             uint32_t code3;
+-        };
+-    };
++        } raw;
++    } u;
+
+     auto controlFlowCode = code;
+     uint32_t instrAddress = 0;
+@@ -1512,12 +1512,12 @@ void ShaderRecompiler::recompile(const uint8_t* shaderData, const std::string_vi
+
+     while (instrAddress < instrSize)
+     {
+-        code0 = controlFlowCode[0];
+-        code1 = controlFlowCode[1] & 0xFFFF;
+-        code2 = (controlFlowCode[1] >> 16) | (controlFlowCode[2] << 16);
+-        code3 = controlFlowCode[2] >> 16;
++        u.raw.code0 = controlFlowCode[0];
++        u.raw.code1 = controlFlowCode[1] & 0xFFFF;
++        u.raw.code2 = (controlFlowCode[1] >> 16) | (controlFlowCode[2] << 16);
++        u.raw.code3 = controlFlowCode[2] >> 16;
+
+-        for (auto& cfInstr : controlFlow)
++        for (auto& cfInstr : u.controlFlow)
+         {
+             uint32_t address = 0;
+
+@@ -1579,12 +1579,12 @@ void ShaderRecompiler::recompile(const uint8_t* shaderData, const std::string_vi
+
+     while (instrAddress < instrSize)
+     {
+-        code0 = controlFlowCode[0];
+-        code1 = controlFlowCode[1] & 0xFFFF;
+-        code2 = (controlFlowCode[1] >> 16) | (controlFlowCode[2] << 16);
+-        code3 = controlFlowCode[2] >> 16;
++        u.raw.code0 = controlFlowCode[0];
++        u.raw.code1 = controlFlowCode[1] & 0xFFFF;
++        u.raw.code2 = (controlFlowCode[1] >> 16) | (controlFlowCode[2] << 16);
++        u.raw.code3 = controlFlowCode[2] >> 16;
+
+-        for (auto& cfInstr : controlFlow)
++        for (auto& cfInstr : u.controlFlow)
+         {
+             if (!simpleControlFlow)
+             {
+@@ -1733,23 +1733,23 @@ void ShaderRecompiler::recompile(const uint8_t* shaderData, const std::string_vi
+                         uint32_t code0;
+                         uint32_t code1;
+                         uint32_t code2;
+-                    };
+-                };
++                    } raw;
++                } inst;
+
+-                code0 = instructionCode[0];
+-                code1 = instructionCode[1];
+-                code2 = instructionCode[2];
++                inst.raw.code0 = instructionCode[0];
++                inst.raw.code1 = instructionCode[1];
++                inst.raw.code2 = instructionCode[2];
+
+                 if ((sequence & 0x1) != 0)
+                 {
+-                    if (vertexFetch.opcode == FetchOpcode::VertexFetch)
++                    if (inst.vertexFetch.opcode == FetchOpcode::VertexFetch)
+                     {
+-                        recompile(vertexFetch, address + i);
++                        recompile(inst.vertexFetch, address + i);
+                     }
+                     else
+                     {
+                     #ifdef UNLEASHED_RECOMP
+-                        if (textureFetch.constIndex == 10) // g_GISampler
++                        if (inst.textureFetch.constIndex == 10) // g_GISampler
+                         {
+                             specConstantsMask |= SPEC_CONSTANT_BICUBIC_GI_FILTER;
+
+@@ -1759,7 +1759,7 @@ void ShaderRecompiler::recompile(const uint8_t* shaderData, const std::string_vi
+                             out += '{';
+
+                             ++indentation;
+-                            recompile(textureFetch, true);
++                            recompile(inst.textureFetch, true);
+                             --indentation;
+
+                             indent();
+@@ -1770,7 +1770,7 @@ void ShaderRecompiler::recompile(const uint8_t* shaderData, const std::string_vi
+                             out += '{';
+
+                             ++indentation;
+-                            recompile(textureFetch, false);
++                            recompile(inst.textureFetch, false);
+                             --indentation;
+
+                             indent();
+@@ -1779,13 +1779,13 @@ void ShaderRecompiler::recompile(const uint8_t* shaderData, const std::string_vi
+                         else
+                     #endif
+                         {
+-                            recompile(textureFetch, false);
++                            recompile(inst.textureFetch, false);
+                         }
+                     }
+                 }
+                 else
+                 {
+-                    recompile(alu);
++                    recompile(inst.alu);
+                 }
+
+                 sequence >>= 2;
