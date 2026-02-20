@@ -63,7 +63,7 @@ index 34add40..d7f919a 100644
                      const size_t branchBase = branchDest - base;
                      const size_t branchBlock = fn.SearchBlock(branchDest);
 diff --git a/XenonRecomp/recompiler.cpp b/XenonRecomp/recompiler.cpp
-index fa91527..88229fc 100644
+index fa91527..3c80080 100644
 --- a/XenonRecomp/recompiler.cpp
 +++ b/XenonRecomp/recompiler.cpp
 @@ -12,6 +12,7 @@ static uint64_t ComputeMask(uint32_t mstart, uint32_t mstop)
@@ -124,14 +124,12 @@ index fa91527..88229fc 100644
              println(");\n");
 
 -            if (midAsmHook->second.jumpAddress != NULL)
--                labels.emplace(midAsmHook->second.jumpAddress);
--            if (midAsmHook->second.jumpAddressOnTrue != NULL)
--                labels.emplace(midAsmHook->second.jumpAddressOnTrue);
--            if (midAsmHook->second.jumpAddressOnFalse != NULL)
 +            if (midAsmHook->second.jumpAddress != 0)
-+                labels.emplace(midAsmHook->second.jumpAddress);
+                 labels.emplace(midAsmHook->second.jumpAddress);
+-            if (midAsmHook->second.jumpAddressOnTrue != NULL)
 +            if (midAsmHook->second.jumpAddressOnTrue != 0)
-+                labels.emplace(midAsmHook->second.jumpAddressOnTrue);
+                 labels.emplace(midAsmHook->second.jumpAddressOnTrue);
+-            if (midAsmHook->second.jumpAddressOnFalse != NULL)
 +            if (midAsmHook->second.jumpAddressOnFalse != 0)
                  labels.emplace(midAsmHook->second.jumpAddressOnFalse);
          }
@@ -231,3 +229,15 @@ index 3e224b4..4b78abf 100644
              else if ((operand->flags & PPC_OPERAND_CR) == 0
                  || (dialect & PPC_OPCODE_PPC) == 0)
                  stream = stream + sprintf(stream, "%ld", value);
+diff --git a/thirdparty/xxHash/cmake_unofficial/CMakeLists.txt b/thirdparty/xxHash/cmake_unofficial/CMakeLists.txt
+index 5c3bc59..7c0f4ba 100644
+--- a/thirdparty/xxHash/cmake_unofficial/CMakeLists.txt
++++ b/thirdparty/xxHash/cmake_unofficial/CMakeLists.txt
+@@ -5,7 +5,7 @@
+ #
+ # For details, see <https://creativecommons.org/publicdomain/zero/1.0/>.
+
+-cmake_minimum_required (VERSION 3.5 FATAL_ERROR)
++cmake_minimum_required (VERSION 3.10 FATAL_ERROR)
+
+ set(XXHASH_DIR "${CMAKE_CURRENT_SOURCE_DIR}/..")
