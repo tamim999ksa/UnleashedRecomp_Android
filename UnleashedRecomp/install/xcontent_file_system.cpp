@@ -306,7 +306,7 @@ XContentFileSystem::XContentFileSystem(const std::filesystem::path &contentPath)
         uint32_t entryCount = 0;
         uint32_t tableBlockIndex = parseUint24(descriptor.fileTableBlockNumberRaw);
         uint32_t tableBlockCount = descriptor.fileTableBlockCount;
-        std::map<uint32_t, std::string> directoryNames;
+        std::vector<std::string> directoryNames(0x10000);
         for (uint32_t i = 0; i < tableBlockCount; i++)
         {
             size_t offset = blockIndexToOffset(baseOffset, tableBlockIndex);
@@ -329,7 +329,11 @@ XContentFileSystem::XContentFileSystem(const std::filesystem::path &contentPath)
                 std::string fileName(directoryEntry.name, directoryEntry.flags.nameLength & 0x3F);
                 if (directoryEntry.flags.directory)
                 {
-                    directoryNames[entryCount++] = fileNameBase + fileName + "/";
+                    if (entryCount < 0x10000)
+                    {
+                        directoryNames[entryCount] = fileNameBase + fileName + "/";
+                    }
+                    entryCount++;
                     continue;
                 }
 
