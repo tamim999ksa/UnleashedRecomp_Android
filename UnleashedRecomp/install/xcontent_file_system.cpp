@@ -16,6 +16,9 @@
 #include <set>
 #include <stack>
 #include <utility>
+#include <cstring>
+#include <fstream>
+#include <xbox.h>
 
 enum class XContentPackageType
 {
