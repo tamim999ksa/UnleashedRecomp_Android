@@ -1,3 +1,13 @@
+diff --git a/XenonRecomp/CMakeLists.txt b/XenonRecomp/CMakeLists.txt
+index f5db6d1..b1fc38c 100644
+--- a/XenonRecomp/CMakeLists.txt
++++ b/XenonRecomp/CMakeLists.txt
+@@ -1,4 +1,4 @@
+-cmake_minimum_required (VERSION 3.8)
++cmake_minimum_required (VERSION 3.10)
+
+ project("XenonRecomp")
+
 diff --git a/XenonRecomp/recompiler.cpp b/XenonRecomp/recompiler.cpp
 index fa91527..2ccea2e 100644
 --- a/XenonRecomp/recompiler.cpp
@@ -89,3 +99,133 @@ index 81330a4..5fb35a3 100644
              {
                  fmt::println("{}: can't mix direct and conditional return/jump", midAsmHook.name);
              }
+diff --git a/XenonUtils/memory_mapped_file.cpp b/XenonUtils/memory_mapped_file.cpp
+index ba3c5d8..7ec52b7 100644
+--- a/XenonUtils/memory_mapped_file.cpp
++++ b/XenonUtils/memory_mapped_file.cpp
+@@ -61,6 +61,7 @@ bool MemoryMappedFile::open(const std::filesystem::path &path)
+         fprintf(stderr, "GetFileSizeEx failed with error %lu.\n", GetLastError());
+         CloseHandle(fileHandle);
+         fileHandle = nullptr;
++        fileHandle = nullptr;
+         return false;
+     }
+
+@@ -70,6 +71,7 @@ bool MemoryMappedFile::open(const std::filesystem::path &path)
+         fprintf(stderr, "CreateFileMappingW failed with error %lu.\n", GetLastError());
+         CloseHandle(fileHandle);
+         fileHandle = nullptr;
++        fileHandle = nullptr;
+         return false;
+     }
+
+@@ -78,7 +80,9 @@ bool MemoryMappedFile::open(const std::filesystem::path &path)
+     {
+         fprintf(stderr, "MapViewOfFile failed with error %lu.\n", GetLastError());
+         CloseHandle(fileMappingHandle);
++        fileMappingHandle = nullptr;
+         CloseHandle(fileHandle);
++        fileHandle = nullptr;
+         fileMappingHandle = nullptr;
+         fileHandle = nullptr;
+         return false;
+@@ -99,6 +103,7 @@ bool MemoryMappedFile::open(const std::filesystem::path &path)
+         fprintf(stderr, "lseek failed with error %s.\n", strerror(errno));
+         ::close(fileHandle);
+         fileHandle = -1;
++        fileHandle = -1;
+         return false;
+     }
+
+@@ -108,6 +113,7 @@ bool MemoryMappedFile::open(const std::filesystem::path &path)
+         fprintf(stderr, "mmap failed with error %s.\n", strerror(errno));
+         ::close(fileHandle);
+         fileHandle = -1;
++        fileHandle = -1;
+         return false;
+     }
+
+@@ -121,27 +127,34 @@ void MemoryMappedFile::close()
+     if (fileView != nullptr)
+     {
+         UnmapViewOfFile(fileView);
++        fileView = nullptr;
+     }
+
+     if (fileMappingHandle != nullptr)
+     {
+         CloseHandle(fileMappingHandle);
++        fileMappingHandle = nullptr;
+     }
+
+     if (fileHandle != nullptr)
+     {
+         CloseHandle(fileHandle);
++        fileHandle = nullptr;
+     }
++    fileSize.QuadPart = 0;
+ #else
+     if (fileView != MAP_FAILED)
+     {
+         munmap(fileView, fileSize);
++        fileView = MAP_FAILED;
+     }
+
+     if (fileHandle != -1)
+     {
+         ::close(fileHandle);
++        fileHandle = -1;
+     }
++    fileSize = 0;
+ #endif
+ }
+
+diff --git a/XenonUtils/xbox.h b/XenonUtils/xbox.h
+index 0361b0f..c8554ef 100644
+--- a/XenonUtils/xbox.h
++++ b/XenonUtils/xbox.h
+@@ -247,13 +247,13 @@ typedef struct _XXOVERLAPPED {
+         {
+             be<uint32_t> Error;
+             be<uint32_t> Length;
+-        };
++        } _ErrorLength;
+
+         struct
+         {
+             uint32_t InternalLow;
+             uint32_t InternalHigh;
+-        };
++        } _InternalLowHigh;
+     };
+     uint32_t InternalContext;
+     be<uint32_t> hEvent;
+diff --git a/XenonUtils/xdbf.h b/XenonUtils/xdbf.h
+index 347ac2c..b9e5b87 100644
+--- a/XenonUtils/xdbf.h
++++ b/XenonUtils/xdbf.h
+@@ -132,7 +132,7 @@ union XDBFTitleID
+     {
+         be<uint16_t> u16;
+         char u8[0x02];
+-    };
++    } AsU16;
+
+     be<uint32_t> u32;
+ };
+diff --git a/thirdparty/disasm/ppc-dis.c b/thirdparty/disasm/ppc-dis.c
+index 3e224b4..4b78abf 100644
+--- a/thirdparty/disasm/ppc-dis.c
++++ b/thirdparty/disasm/ppc-dis.c
+@@ -5765,9 +5765,9 @@ again:
+             else if ((operand->flags & PPC_OPERAND_VR) != 0)
+                 stream = stream + sprintf(stream, "v%ld", value);
+             else if ((operand->flags & PPC_OPERAND_RELATIVE) != 0)
+-                stream = stream + sprintf(stream, "0x%llx", memaddr + value);
++                stream = stream + sprintf(stream, "0x%llx", (unsigned long long)(memaddr + value));
+             else if ((operand->flags & PPC_OPERAND_ABSOLUTE) != 0)
+-                stream = stream + sprintf(stream, "0x%llx", (bfd_vma)value & 0xffffffff);
++                stream = stream + sprintf(stream, "0x%llx", (unsigned long long)((bfd_vma)value & 0xffffffff));
+             else if ((operand->flags & PPC_OPERAND_CR) == 0
+                 || (dialect & PPC_OPCODE_PPC) == 0)
+                 stream = stream + sprintf(stream, "%ld", value);

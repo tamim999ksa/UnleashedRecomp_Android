@@ -114,20 +114,19 @@ target_include_directories(benchmark_iso_parsing PRIVATE
 
 target_compile_features(benchmark_iso_parsing PRIVATE cxx_std_20)
 
-# test_achievement_manager
-add_executable(test_achievement_manager test_achievement_manager.cpp)
+# test_iso_file_system
+add_executable(test_iso_file_system test_iso_file_system.cpp
+    ${CMAKE_SOURCE_DIR}/UnleashedRecomp/install/iso_file_system.cpp
+    ${CMAKE_SOURCE_DIR}/tools/XenonRecomp/XenonUtils/memory_mapped_file.cpp
+)
 
-target_include_directories(test_achievement_manager PRIVATE
+target_include_directories(test_iso_file_system PRIVATE
     ${CMAKE_SOURCE_DIR}
     ${CMAKE_SOURCE_DIR}/UnleashedRecomp
+    ${CMAKE_SOURCE_DIR}/tools/XenonRecomp/XenonUtils
+    ${CMAKE_SOURCE_DIR}/thirdparty/unordered_dense/include
 )
 
-target_compile_features(test_achievement_manager PRIVATE cxx_std_20)
+target_compile_features(test_iso_file_system PRIVATE cxx_std_20)
 
-target_link_libraries(test_achievement_manager PRIVATE
-    fmt::fmt
-    tomlplusplus::tomlplusplus
-    SDL2::SDL2-static
-)
-
-add_test(NAME AchievementManagerTest COMMAND test_achievement_manager)
+add_test(NAME ISOFileSystemTest COMMAND test_iso_file_system)

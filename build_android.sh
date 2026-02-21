@@ -37,9 +37,9 @@ cd ../..
 # Apply XenonRecomp Patch
 echo "Applying XenonRecomp fixes..."
 cd tools/XenonRecomp
-if ! grep -q "if (NOT ANDROID)" CMakeLists.txt; then
+if ! grep -q "VERSION 3.10" CMakeLists.txt; then
     echo "Applying patch via git apply..."
-    if ! git apply ../../patches/xenon_recomp_fixes.patch; then
+    if ! git apply --ignore-whitespace ../../patches/xenon_recomp_fixes.patch; then
         echo "git apply failed, attempting to use patch..."
         patch -p1 < ../../patches/xenon_recomp_fixes.patch
     fi
@@ -53,7 +53,7 @@ echo "Applying XenosRecomp fixes..."
 cd tools/XenosRecomp
 if ! grep -q "MATCHES \"GNU|Clang\"" CMakeLists.txt; then
     echo "Applying patch via git apply..."
-    if ! git apply ../../patches/xenos_recomp_fixes.patch; then
+    if ! git apply --ignore-whitespace ../../patches/xenos_recomp_fixes.patch; then
         echo "git apply failed, attempting to use patch..."
         patch -p1 < ../../patches/xenos_recomp_fixes.patch
     fi
