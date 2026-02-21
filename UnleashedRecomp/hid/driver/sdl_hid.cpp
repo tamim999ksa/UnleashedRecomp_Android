@@ -10,6 +10,17 @@
 #define TRANSLATE_INPUT(S, X) SDL_GameControllerGetButton(controller, S) << FirstBitLow(X)
 #define VIBRATION_TIMEOUT_MS 5000
 
+namespace
+{
+    struct LEDColor
+    {
+        uint8_t r, g, b;
+    };
+
+    constexpr LEDColor LED_COLOR_NIGHT = { 22, 0, 101 };
+    constexpr LEDColor LED_COLOR_DAY = { 0, 37, 184 };
+}
+
 class Controller
 {
 public:
@@ -211,11 +222,8 @@ static void SetControllerInputDevice(Controller* controller)
 
 static void SetControllerTimeOfDayLED(Controller& controller, bool isNight)
 {
-    auto r = isNight ? 22 : 0;
-    auto g = isNight ? 0 : 37;
-    auto b = isNight ? 101 : 184;
-
-    controller.SetLED(r, g, b);
+    const auto& color = isNight ? LED_COLOR_NIGHT : LED_COLOR_DAY;
+    controller.SetLED(color.r, color.g, color.b);
 }
 
 int HID_OnSDLEvent(void*, SDL_Event* event)
