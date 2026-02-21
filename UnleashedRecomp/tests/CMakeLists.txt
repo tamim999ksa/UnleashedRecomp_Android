@@ -74,3 +74,42 @@ target_include_directories(test_os_process PRIVATE
 target_compile_features(test_os_process PRIVATE cxx_std_20)
 
 add_test(NAME OSProcessTest COMMAND test_os_process)
+# test_text_wrap
+add_executable(test_text_wrap test_text_wrap.cpp)
+
+target_sources(test_text_wrap PRIVATE
+    ${CMAKE_SOURCE_DIR}/UnleashedRecomp/ui/text_wrap_utils.cpp
+    ${CMAKE_SOURCE_DIR}/thirdparty/imgui/imgui.cpp
+    ${CMAKE_SOURCE_DIR}/thirdparty/imgui/imgui_draw.cpp
+    ${CMAKE_SOURCE_DIR}/thirdparty/imgui/imgui_tables.cpp
+    ${CMAKE_SOURCE_DIR}/thirdparty/imgui/imgui_widgets.cpp
+    ${CMAKE_SOURCE_DIR}/thirdparty/imgui/imgui_demo.cpp
+)
+
+target_include_directories(test_text_wrap PRIVATE
+    ${CMAKE_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/UnleashedRecomp
+    ${CMAKE_SOURCE_DIR}/thirdparty/imgui
+)
+
+target_compile_features(test_text_wrap PRIVATE cxx_std_20)
+
+# ImGui might need SDL if configured so? ImGui configuration is in imconfig.h which is in imgui folder.
+# Let's assume default config.
+
+add_test(NAME TextWrapTest COMMAND test_text_wrap)
+
+# benchmark_iso_parsing
+add_executable(benchmark_iso_parsing benchmark_iso_parsing.cpp
+    ${CMAKE_SOURCE_DIR}/UnleashedRecomp/install/iso_file_system.cpp
+    ${CMAKE_SOURCE_DIR}/tools/XenonRecomp/XenonUtils/memory_mapped_file.cpp
+)
+
+target_include_directories(benchmark_iso_parsing PRIVATE
+    ${CMAKE_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/UnleashedRecomp
+    ${CMAKE_SOURCE_DIR}/tools/XenonRecomp/XenonUtils
+    ${CMAKE_SOURCE_DIR}/thirdparty/unordered_dense/include
+)
+
+target_compile_features(benchmark_iso_parsing PRIVATE cxx_std_20)

@@ -12,7 +12,9 @@
 #include "iso_file_system.h"
 
 #include <cstring>
+#include <deque>
 #include <stack>
+#include <string_view>
 #include <unordered_set>
 #include <utility>
 #include <vector>
@@ -70,16 +72,20 @@ ISOFileSystem::ISOFileSystem(const std::filesystem::path &isoPath)
 
     struct IterationStep
     {
-        std::string fileNameBase;
+        std::string_view fileNameBase;
         size_t nodeOffset = 0;
         size_t entryOffset = 0;
 
         IterationStep() = default;
-        IterationStep(std::string fileNameBase, size_t nodeOffset, size_t entryOffset) : fileNameBase(std::move(fileNameBase)), nodeOffset(nodeOffset), entryOffset(entryOffset) { }
+        IterationStep(std::string_view fileNameBase, size_t nodeOffset, size_t entryOffset) : fileNameBase(fileNameBase), nodeOffset(nodeOffset), entryOffset(entryOffset) { }
     };
 
+    // Store directory paths to keep string_views valid
+    std::deque<std::string> pathCache;
+    pathCache.emplace_back("");
+
     std::stack<IterationStep> iterationStack;
-    iterationStack.emplace("", rootOffset, 0);
+    iterationStack.emplace(pathCache.back(), rootOffset, 0);
 
     std::unordered_set<size_t> visitedOffsets;
 
@@ -134,17 +140,22 @@ ISOFileSystem::ISOFileSystem(const std::filesystem::path &isoPath)
             iterationStack.emplace(step.fileNameBase, step.nodeOffset, nodeR * 4);
         }
 
-        std::string fileNameUTF8 = step.fileNameBase + fileName;
+        std::string fileNameUTF8;
+        fileNameUTF8.reserve(step.fileNameBase.length() + nameLength);
+        fileNameUTF8.append(step.fileNameBase);
+        fileNameUTF8.append(fileName, nameLength);
+
         if (attributes & FileAttributeDirectory)
         {
             if (length > 0)
             {
-                iterationStack.emplace(fileNameUTF8 + "/", gameOffset + sector * XeSectorSize, 0);
+                pathCache.emplace_back(std::move(fileNameUTF8)).push_back('/');
+                iterationStack.emplace(pathCache.back(), gameOffset + sector * XeSectorSize, 0);
             }
         }
         else
         {
-            fileMap[fileNameUTF8] = { gameOffset + sector * XeSectorSize, length};
+            fileMap.try_emplace(std::move(fileNameUTF8), gameOffset + sector * XeSectorSize, length);
         }
     }
 }
