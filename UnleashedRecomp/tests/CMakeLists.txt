@@ -41,6 +41,23 @@ target_compile_features(test_directory_file_system PRIVATE cxx_std_20)
 
 add_test(NAME DirectoryFileSystemTest COMMAND test_directory_file_system)
 
+# test_mutex
+add_executable(test_mutex test_mutex.cpp)
+
+target_include_directories(test_mutex PRIVATE
+    ${CMAKE_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/UnleashedRecomp
+)
+
+target_compile_features(test_mutex PRIVATE cxx_std_20)
+
+# On Linux, we need to link against pthreads implicitly, usually covered by compiler or standard lib
+# But if threads are used, sometimes we need to link against Threads::Threads.
+find_package(Threads REQUIRED)
+target_link_libraries(test_mutex PRIVATE Threads::Threads)
+
+add_test(NAME MutexTest COMMAND test_mutex)
+
 # test_os_process
 add_executable(test_os_process test_os_process.cpp)
 
