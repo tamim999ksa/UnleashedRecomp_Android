@@ -148,7 +148,7 @@ index 3e224b4..4b78abf 100644
              else if ((operand->flags & PPC_OPERAND_CR) == 0
                  || (dialect & PPC_OPCODE_PPC) == 0)
                  stream = stream + sprintf(stream, "%ld", value);
-diff --git a/cmake_unofficial/CMakeLists.txt b/cmake_unofficial/CMakeLists.txt
+diff --git a/thirdparty/xxHash/cmake_unofficial/CMakeLists.txt b/thirdparty/xxHash/cmake_unofficial/CMakeLists.txt
 index 5c3bc59..7c0f4ba 100644
 --- a/thirdparty/xxHash/cmake_unofficial/CMakeLists.txt
 +++ b/thirdparty/xxHash/cmake_unofficial/CMakeLists.txt
