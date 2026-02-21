@@ -37,6 +37,8 @@ cd ../..
 # Apply XenonRecomp Patch
 echo "Applying XenonRecomp fixes..."
 cd tools/XenonRecomp
+echo "Ensuring clean state for XenonRecomp..."
+git checkout . && git clean -fdx
 if ! grep -q "VERSION 3.10" CMakeLists.txt; then
     echo "Applying patch via git apply..."
     if ! git apply --ignore-whitespace ../../patches/xenon_recomp_fixes.patch; then
@@ -44,21 +46,24 @@ if ! grep -q "VERSION 3.10" CMakeLists.txt; then
         patch -p1 < ../../patches/xenon_recomp_fixes.patch
     fi
 else
-    echo "XenonRecomp fixes already applied."
+    echo "XenonRecomp fixes already applied (this shouldn't happen after reset)."
 fi
 cd ../..
 
 # Apply XenosRecomp Patch
 echo "Applying XenosRecomp fixes..."
 cd tools/XenosRecomp
-if ! grep -q "MATCHES \"GNU|Clang\"" CMakeLists.txt; then
+echo "Ensuring clean state for XenosRecomp..."
+git checkout . && git clean -fdx
+# Check for specific C++ fix in shader_recompiler.cpp to be sure
+if ! grep -q "inst.vertexFetch" XenosRecomp/shader_recompiler.cpp; then
     echo "Applying patch via git apply..."
     if ! git apply --ignore-whitespace ../../patches/xenos_recomp_fixes.patch; then
         echo "git apply failed, attempting to use patch..."
         patch -p1 < ../../patches/xenos_recomp_fixes.patch
     fi
 else
-    echo "XenosRecomp fixes already applied."
+    echo "XenosRecomp fixes already applied (this shouldn't happen after reset)."
 fi
 cd ../..
 
