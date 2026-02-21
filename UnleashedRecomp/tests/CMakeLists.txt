@@ -40,3 +40,20 @@ target_include_directories(test_directory_file_system PRIVATE
 target_compile_features(test_directory_file_system PRIVATE cxx_std_20)
 
 add_test(NAME DirectoryFileSystemTest COMMAND test_directory_file_system)
+
+# test_os_process
+add_executable(test_os_process test_os_process.cpp)
+
+# Compile process_android.cpp if on UNIX (Linux/Android/macOS)
+if(UNIX)
+    target_sources(test_os_process PRIVATE ${CMAKE_SOURCE_DIR}/UnleashedRecomp/os/android/process_android.cpp)
+endif()
+
+target_include_directories(test_os_process PRIVATE
+    ${CMAKE_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/UnleashedRecomp
+)
+
+target_compile_features(test_os_process PRIVATE cxx_std_20)
+
+add_test(NAME OSProcessTest COMMAND test_os_process)
