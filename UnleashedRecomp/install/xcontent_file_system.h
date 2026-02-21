@@ -13,6 +13,7 @@
 
 #include <filesystem>
 #include <map>
+#include <ankerl/unordered_dense.h>
 
 #include "virtual_file_system.h"
 
@@ -48,7 +49,7 @@ struct XContentFileSystem : VirtualFileSystem
     size_t svodMagicOffset = 0;
     std::vector<MemoryMappedFile> mappedFiles;
     uint64_t baseOffset = 0;
-    std::map<std::string, File> fileMap;
+    ankerl::unordered_dense::map<std::string, File> fileMap;
     std::string name;
 
     XContentFileSystem(const std::filesystem::path &contentPath);

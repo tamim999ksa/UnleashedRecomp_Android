@@ -157,15 +157,9 @@ index 3e224b4..4b78abf 100644
              else if ((operand->flags & PPC_OPERAND_CR) == 0
                  || (dialect & PPC_OPCODE_PPC) == 0)
                  stream = stream + sprintf(stream, "%ld", value);
-diff --git a/thirdparty/xxHash/cmake_unofficial/CMakeLists.txt b/thirdparty/xxHash/cmake_unofficial/CMakeLists.txt
-index 5c3bc59..7c0f4ba 100644
---- a/thirdparty/xxHash/cmake_unofficial/CMakeLists.txt
-+++ b/thirdparty/xxHash/cmake_unofficial/CMakeLists.txt
-@@ -5,7 +5,7 @@
- #
- # For details, see <https://creativecommons.org/publicdomain/zero/1.0/>.
-
--cmake_minimum_required (VERSION 3.5 FATAL_ERROR)
-+cmake_minimum_required (VERSION 3.10 FATAL_ERROR)
-
- set(XXHASH_DIR "${CMAKE_CURRENT_SOURCE_DIR}/..")
+diff --git a/thirdparty/xxHash b/thirdparty/xxHash
+--- a/thirdparty/xxHash
++++ b/thirdparty/xxHash
+@@ -1 +1 @@
+-Subproject commit 2bf8313b934633b2a5b7e8fd239645b85e10c852
++Subproject commit 2bf8313b934633b2a5b7e8fd239645b85e10c852-dirty
