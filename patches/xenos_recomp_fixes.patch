@@ -1,29 +1,3 @@
-diff --git a/XenosRecomp/CMakeLists.txt b/XenosRecomp/CMakeLists.txt
-index e505a5e..0574517 100644
---- a/XenosRecomp/CMakeLists.txt
-+++ b/XenosRecomp/CMakeLists.txt
-@@ -28,7 +28,7 @@ target_include_directories(XenosRecomp PRIVATE ${SMOLV_SOURCE_DIR})
-
- target_precompile_headers(XenosRecomp PRIVATE pch.h)
-
--if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang" OR CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
-+if (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang" OR CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
-     target_compile_options(XenosRecomp PRIVATE -Wno-switch -Wno-unused-variable -Wno-null-arithmetic -fms-extensions)
-
-     include(CheckCXXSymbolExists)
-diff --git a/XenosRecomp/main.cpp b/XenosRecomp/main.cpp
-index d015145..374ea11 100644
---- a/XenosRecomp/main.cpp
-+++ b/XenosRecomp/main.cpp
-@@ -9,7 +9,7 @@ static std::unique_ptr<uint8_t[]> readAllBytes(const char* filePath, size_t& fil
-     fileSize = ftell(file);
-     fseek(file, 0, SEEK_SET);
-     auto data = std::make_unique<uint8_t[]>(fileSize);
--    fread(data.get(), 1, fileSize, file);
-+    if (fread(data.get(), 1, fileSize, file) != fileSize) { fclose(file); return nullptr; }
-     fclose(file);
-     return data;
- }
 diff --git a/XenosRecomp/shader_recompiler.cpp b/XenosRecomp/shader_recompiler.cpp
 index 698a418..3103dfb 100644
 --- a/XenosRecomp/shader_recompiler.cpp
