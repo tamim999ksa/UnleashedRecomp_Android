@@ -73,3 +73,52 @@ index fa91527..cfe53b6 100644
          }
      }
 diff --git a/XenonRecomp/recompiler_config.cpp b/XenonRecomp/recompiler_config.cpp
+diff --git a/XenonUtils/xbox.h b/XenonUtils/xbox.h
+index 0361b0f..c8554ef 100644
+--- a/XenonUtils/xbox.h
++++ b/XenonUtils/xbox.h
+@@ -247,13 +247,13 @@ typedef struct _XXOVERLAPPED {
+         {
+             be<uint32_t> Error;
+             be<uint32_t> Length;
+-        };
++        } _ErrorLength;
+
+         struct
+         {
+             uint32_t InternalLow;
+             uint32_t InternalHigh;
+-        };
++        } _InternalLowHigh;
+     };
+     uint32_t InternalContext;
+     be<uint32_t> hEvent;
+diff --git a/XenonUtils/xdbf.h b/XenonUtils/xdbf.h
+index 347ac2c..b9e5b87 100644
+--- a/XenonUtils/xdbf.h
++++ b/XenonUtils/xdbf.h
+@@ -132,7 +132,7 @@ union XDBFTitleID
+     {
+         be<uint16_t> u16;
+         char u8[0x02];
+-    };
++    } AsU16;
+
+     be<uint32_t> u32;
+ };
+diff --git a/thirdparty/disasm/ppc-dis.c b/thirdparty/disasm/ppc-dis.c
+index 3e224b4..4b78abf 100644
+--- a/thirdparty/disasm/ppc-dis.c
++++ b/thirdparty/disasm/ppc-dis.c
+@@ -5765,9 +5765,9 @@ again:
+             else if ((operand->flags & PPC_OPERAND_VR) != 0)
+                 stream = stream + sprintf(stream, "v%ld", value);
+             else if ((operand->flags & PPC_OPERAND_RELATIVE) != 0)
+-                stream = stream + sprintf(stream, "0x%llx", memaddr + value);
++                stream = stream + sprintf(stream, "0x%llx", (unsigned long long)(memaddr + value));
+             else if ((operand->flags & PPC_OPERAND_ABSOLUTE) != 0)
+-                stream = stream + sprintf(stream, "0x%llx", (bfd_vma)value & 0xffffffff);
++                stream = stream + sprintf(stream, "0x%llx", (unsigned long long)((bfd_vma)value & 0xffffffff));
+             else if ((operand->flags & PPC_OPERAND_CR) == 0
+                 || (dialect & PPC_OPCODE_PPC) == 0)
+                 stream = stream + sprintf(stream, "%ld", value);
