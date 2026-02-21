@@ -157,9 +157,3 @@ index 3e224b4..4b78abf 100644
              else if ((operand->flags & PPC_OPERAND_CR) == 0
                  || (dialect & PPC_OPCODE_PPC) == 0)
                  stream = stream + sprintf(stream, "%ld", value);
-diff --git a/thirdparty/xxHash b/thirdparty/xxHash
---- a/thirdparty/xxHash
-+++ b/thirdparty/xxHash
-@@ -1 +1 @@
--Subproject commit 2bf8313b934633b2a5b7e8fd239645b85e10c852
-+Subproject commit 2bf8313b934633b2a5b7e8fd239645b85e10c852-dirty
