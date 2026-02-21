@@ -96,9 +96,13 @@ void KiSystemStartup()
     {
         if (file.is_directory())
         {
+#ifdef _WIN32
             std::u8string fileNameU8 = file.path().filename().u8string();
             std::u8string filePathU8 = file.path().u8string();
             XamRegisterContent(XamMakeContent(XCONTENTTYPE_DLC, (const char*)(fileNameU8.c_str())), (const char*)(filePathU8.c_str()));
+#else
+            XamRegisterContent(XamMakeContent(XCONTENTTYPE_DLC, file.path().filename().c_str()), file.path().c_str());
+#endif
         }
     }
 
