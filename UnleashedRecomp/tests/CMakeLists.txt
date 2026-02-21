@@ -82,3 +82,18 @@ target_compile_features(test_text_wrap PRIVATE cxx_std_20)
 # Let's assume default config.
 
 add_test(NAME TextWrapTest COMMAND test_text_wrap)
+
+# benchmark_iso_parsing
+add_executable(benchmark_iso_parsing benchmark_iso_parsing.cpp
+    ${CMAKE_SOURCE_DIR}/UnleashedRecomp/install/iso_file_system.cpp
+    ${CMAKE_SOURCE_DIR}/tools/XenonRecomp/XenonUtils/memory_mapped_file.cpp
+)
+
+target_include_directories(benchmark_iso_parsing PRIVATE
+    ${CMAKE_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/UnleashedRecomp
+    ${CMAKE_SOURCE_DIR}/tools/XenonRecomp/XenonUtils
+    ${CMAKE_SOURCE_DIR}/thirdparty/unordered_dense/include
+)
+
+target_compile_features(benchmark_iso_parsing PRIVATE cxx_std_20)
