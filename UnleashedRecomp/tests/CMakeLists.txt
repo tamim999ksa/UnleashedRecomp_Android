@@ -57,3 +57,18 @@ find_package(Threads REQUIRED)
 target_link_libraries(test_mutex PRIVATE Threads::Threads)
 
 add_test(NAME MutexTest COMMAND test_mutex)
+
+# benchmark_iso_parsing
+add_executable(benchmark_iso_parsing benchmark_iso_parsing.cpp
+    ${CMAKE_SOURCE_DIR}/UnleashedRecomp/install/iso_file_system.cpp
+    ${CMAKE_SOURCE_DIR}/tools/XenonRecomp/XenonUtils/memory_mapped_file.cpp
+)
+
+target_include_directories(benchmark_iso_parsing PRIVATE
+    ${CMAKE_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/UnleashedRecomp
+    ${CMAKE_SOURCE_DIR}/tools/XenonRecomp/XenonUtils
+    ${CMAKE_SOURCE_DIR}/thirdparty/unordered_dense/include
+)
+
+target_compile_features(benchmark_iso_parsing PRIVATE cxx_std_20)
