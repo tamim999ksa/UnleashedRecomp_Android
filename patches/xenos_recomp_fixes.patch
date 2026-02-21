@@ -2,7 +2,7 @@ diff --git a/XenosRecomp/CMakeLists.txt b/XenosRecomp/CMakeLists.txt
 index e505a5e..0574517 100644
 --- a/XenosRecomp/CMakeLists.txt
 +++ b/XenosRecomp/CMakeLists.txt
-@@ -28,7 +28,7 @@ target_include_directories(XenosRecomp PRIVATE ${SMOLV_SOURCE_DIR})
+@@ -28,7 +28,7 @@ target_include_directories(XenosRecomp PRIVATE )
 
  target_precompile_headers(XenosRecomp PRIVATE pch.h)
 
@@ -28,6 +28,71 @@ diff --git a/XenosRecomp/shader_recompiler.cpp b/XenosRecomp/shader_recompiler.c
 index 698a418..047b0d5 100644
 --- a/XenosRecomp/shader_recompiler.cpp
 +++ b/XenosRecomp/shader_recompiler.cpp
+@@ -1403,13 +1403,13 @@ void ShaderRecompiler::recompile(const uint8_t* shaderData, const std::string_vi
+                         int8_t y;
+                         int8_t z;
+                         int8_t w;
+-                    };
+-                };
++                    } raw;
++                } u;
+
+-                value = definition->values[i].get();
++                u.value = definition->values[i].get();
+
+                 println("\tint4 i{} = int4({}, {}, {}, {});",
+-                    (definition->registerIndex - 8992) / 4 + i, x, y, z, w);
++                    (definition->registerIndex - 8992) / 4 + i, u.raw.x, u.raw.y, u.raw.z, u.raw.w);
+             }
+             definitions += 2;
+             definitions += definition->count;
+@@ -1502,8 +1502,8 @@ void ShaderRecompiler::recompile(const uint8_t* shaderData, const std::string_vi
+             uint32_t code1;
+             uint32_t code2;
+             uint32_t code3;
+-        };
+-    };
++        } raw;
++    } u;
+
+     auto controlFlowCode = code;
+     uint32_t instrAddress = 0;
+@@ -1512,12 +1512,12 @@ void ShaderRecompiler::recompile(const uint8_t* shaderData, const std::string_vi
+
+     while (instrAddress < instrSize)
+     {
+-        code0 = controlFlowCode[0];
+-        code1 = controlFlowCode[1] & 0xFFFF;
+-        code2 = (controlFlowCode[1] >> 16) | (controlFlowCode[2] << 16);
+-        code3 = controlFlowCode[2] >> 16;
++        u.raw.code0 = controlFlowCode[0];
++        u.raw.code1 = controlFlowCode[1] & 0xFFFF;
++        u.raw.code2 = (controlFlowCode[1] >> 16) | (controlFlowCode[2] << 16);
++        u.raw.code3 = controlFlowCode[2] >> 16;
+
+-        for (auto& cfInstr : controlFlow)
++        for (auto& cfInstr : u.controlFlow)
+         {
+             uint32_t address = 0;
+
+@@ -1579,12 +1579,12 @@ void ShaderRecompiler::recompile(const uint8_t* shaderData, const std::string_vi
+
+     while (instrAddress < instrSize)
+     {
+-        code0 = controlFlowCode[0];
+-        code1 = controlFlowCode[1] & 0xFFFF;
+-        code2 = (controlFlowCode[1] >> 16) | (controlFlowCode[2] << 16);
+-        code3 = controlFlowCode[2] >> 16;
++        u.raw.code0 = controlFlowCode[0];
++        u.raw.code1 = controlFlowCode[1] & 0xFFFF;
++        u.raw.code2 = (controlFlowCode[1] >> 16) | (controlFlowCode[2] << 16);
++        u.raw.code3 = controlFlowCode[2] >> 16;
+
+-        for (auto& cfInstr : controlFlow)
++        for (auto& cfInstr : u.controlFlow)
+         {
+             if (!simpleControlFlow)
+             {
 @@ -1733,23 +1733,23 @@ void ShaderRecompiler::recompile(const uint8_t* shaderData, const std::string_vi
                          uint32_t code0;
                          uint32_t code1;
