@@ -37,8 +37,8 @@ cd ../..
 # Apply XenonRecomp Patch
 echo "Applying XenonRecomp fixes..."
 cd tools/XenonRecomp
-echo "Ensuring clean state for XenonRecomp..."
-git checkout . && git clean -fdx
+echo "Resetting XenonRecomp..."
+git reset --hard HEAD && git clean -fdx
 if ! grep -q "VERSION 3.10" CMakeLists.txt; then
     echo "Applying patch via git apply..."
     if ! git apply --ignore-whitespace ../../patches/xenon_recomp_fixes.patch; then
@@ -46,25 +46,37 @@ if ! grep -q "VERSION 3.10" CMakeLists.txt; then
         patch -p1 < ../../patches/xenon_recomp_fixes.patch
     fi
 else
-    echo "XenonRecomp fixes already applied (this shouldn't happen after reset)."
+    echo "XenonRecomp fixes already applied (should not happen after reset)."
 fi
 cd ../..
 
 # Apply XenosRecomp Patch
 echo "Applying XenosRecomp fixes..."
 cd tools/XenosRecomp
-echo "Ensuring clean state for XenosRecomp..."
-git checkout . && git clean -fdx
-# Check for specific C++ fix in shader_recompiler.cpp to be sure
-if ! grep -q "inst.vertexFetch" XenosRecomp/shader_recompiler.cpp; then
-    echo "Applying patch via git apply..."
-    if ! git apply --ignore-whitespace ../../patches/xenos_recomp_fixes.patch; then
-        echo "git apply failed, attempting to use patch..."
-        patch -p1 < ../../patches/xenos_recomp_fixes.patch
-    fi
+echo "Resetting XenosRecomp..."
+git reset --hard HEAD && git clean -fdx
+
+# Debug: Check content before
+echo "Checking XenosRecomp/shader_recompiler.cpp before patch..."
+if grep -q "inst.vertexFetch" XenosRecomp/shader_recompiler.cpp; then
+    echo "WARNING: File already seems patched before application!"
 else
-    echo "XenosRecomp fixes already applied (this shouldn't happen after reset)."
+    echo "File is clean (unpatched)."
 fi
+
+# Apply patch
+echo "Applying patch via git apply..."
+if ! git apply --ignore-whitespace ../../patches/xenos_recomp_fixes.patch; then
+    echo "git apply failed, attempting to use patch..."
+    patch -p1 < ../../patches/xenos_recomp_fixes.patch
+fi
+
+# Debug: Check content after
+echo "Checking XenosRecomp/shader_recompiler.cpp after patch..."
+# This command will fail the script if grep doesn't find the string
+grep -q "inst.vertexFetch" XenosRecomp/shader_recompiler.cpp
+echo "SUCCESS: File patched successfully."
+
 cd ../..
 
 # Apply SDL Android Patch
