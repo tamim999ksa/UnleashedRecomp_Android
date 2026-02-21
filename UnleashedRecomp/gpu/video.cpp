@@ -3270,6 +3270,22 @@ static bool PopulateBarriersForStretchRect(GuestSurface* renderTarget, GuestSurf
     return addedAny;
 }
 
+static uint32_t GetMsaaPipelineIndex(RenderSampleCount sampleCount)
+{
+    switch (sampleCount)
+    {
+    case RenderSampleCount::COUNT_2:
+        return 0;
+    case RenderSampleCount::COUNT_4:
+        return 1;
+    case RenderSampleCount::COUNT_8:
+        return 2;
+    default:
+        assert(false && "Unsupported MSAA sample count");
+        return 0;
+    }
+}
+
 static void ExecutePendingStretchRectCommands(GuestSurface* renderTarget, GuestSurface* depthStencil)
 {
     auto& commandList = g_commandLists[g_frame];
@@ -3305,23 +3321,7 @@ static void ExecutePendingStretchRectCommands(GuestSurface* renderTarget, GuestS
 
                     if (multiSampling)
                     {
-                        uint32_t pipelineIndex = 0;
-
-                        switch (surface->sampleCount)
-                        {
-                        case RenderSampleCount::COUNT_2:
-                            pipelineIndex = 0;
-                            break;
-                        case RenderSampleCount::COUNT_4:
-                            pipelineIndex = 1;
-                            break;
-                        case RenderSampleCount::COUNT_8:
-                            pipelineIndex = 2;
-                            break;
-                        default:
-                            assert(false && "Unsupported MSAA sample count");
-                            break;
-                        }
+                        uint32_t pipelineIndex = GetMsaaPipelineIndex(surface->sampleCount);
 
                         if (texture->format == RenderFormat::D32_FLOAT)
                         {
