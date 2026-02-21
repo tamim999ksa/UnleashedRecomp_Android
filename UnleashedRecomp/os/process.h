@@ -1,5 +1,9 @@
 #pragma once
 
+#include <filesystem>
+#include <vector>
+#include <string>
+
 namespace os::process
 {
     inline bool g_consoleVisible;
