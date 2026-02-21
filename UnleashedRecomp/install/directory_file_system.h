@@ -17,7 +17,7 @@ struct DirectoryFileSystem : VirtualFileSystem
 
     bool load(const std::string &path, uint8_t *fileData, size_t fileDataMaxByteCount) const override
     {
-        std::ifstream fileStream(directoryPath / std::filesystem::path(std::u8string_view((const char8_t *)(path.c_str()))), std::ios::binary);
+        std::ifstream fileStream(getFullPath(path), std::ios::binary);
         if (fileStream.is_open())
         {
             fileStream.read((char *)(fileData), fileDataMaxByteCount);
@@ -32,7 +32,7 @@ struct DirectoryFileSystem : VirtualFileSystem
     size_t getSize(const std::string &path) const override
     {
         std::error_code ec;
-        size_t fileSize = std::filesystem::file_size(directoryPath / std::filesystem::path(std::u8string_view((const char8_t *)(path.c_str()))), ec);
+        size_t fileSize = std::filesystem::file_size(getFullPath(path), ec);
         if (!ec)
         {
             return fileSize;
@@ -50,7 +50,7 @@ struct DirectoryFileSystem : VirtualFileSystem
             return false;
         }
 
-        return std::filesystem::exists(directoryPath / std::filesystem::path(std::u8string_view((const char8_t *)(path.c_str()))));
+        return std::filesystem::exists(getFullPath(path));
     }
 
     const std::string &getName() const override
@@ -68,5 +68,11 @@ struct DirectoryFileSystem : VirtualFileSystem
         {
             return nullptr;
         }
+    }
+
+private:
+    std::filesystem::path getFullPath(const std::string &path) const
+    {
+        return directoryPath / std::filesystem::path(std::u8string_view((const char8_t *)(path.c_str())));
     }
 };
