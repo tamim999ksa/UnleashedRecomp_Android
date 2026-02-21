@@ -73,113 +73,6 @@ index fa91527..2ccea2e 100644
          }
      }
 diff --git a/XenonRecomp/recompiler_config.cpp b/XenonRecomp/recompiler_config.cpp
-index 81330a4..5fb35a3 100644
---- a/XenonRecomp/recompiler_config.cpp
-+++ b/XenonRecomp/recompiler_config.cpp
-@@ -115,16 +115,16 @@ void RecompilerConfig::Load(const std::string_view& configFilePath)
-             midAsmHook.jumpAddressOnTrue = table["jump_address_on_true"].value_or(0u);
-             midAsmHook.jumpAddressOnFalse = table["jump_address_on_false"].value_or(0u);
-
--            if ((midAsmHook.ret && midAsmHook.jumpAddress != NULL) ||
--                (midAsmHook.returnOnTrue && midAsmHook.jumpAddressOnTrue != NULL) ||
--                (midAsmHook.returnOnFalse && midAsmHook.jumpAddressOnFalse != NULL))
-+            if ((midAsmHook.ret && midAsmHook.jumpAddress != 0) ||
-+                (midAsmHook.returnOnTrue && midAsmHook.jumpAddressOnTrue != 0) ||
-+                (midAsmHook.returnOnFalse && midAsmHook.jumpAddressOnFalse != 0))
-             {
-                 fmt::println("{}: can't return and jump at the same time", midAsmHook.name);
-             }
-
--            if ((midAsmHook.ret || midAsmHook.jumpAddress != NULL) &&
--                (midAsmHook.returnOnFalse != NULL || midAsmHook.returnOnTrue != NULL ||
--                    midAsmHook.jumpAddressOnFalse != NULL || midAsmHook.jumpAddressOnTrue != NULL))
-+            if ((midAsmHook.ret || midAsmHook.jumpAddress != 0) &&
-+                (midAsmHook.returnOnFalse != 0 || midAsmHook.returnOnTrue != 0 ||
-+                    midAsmHook.jumpAddressOnFalse != 0 || midAsmHook.jumpAddressOnTrue != 0))
-             {
-                 fmt::println("{}: can't mix direct and conditional return/jump", midAsmHook.name);
-             }
-diff --git a/XenonUtils/memory_mapped_file.cpp b/XenonUtils/memory_mapped_file.cpp
-index ba3c5d8..7ec52b7 100644
---- a/XenonUtils/memory_mapped_file.cpp
-+++ b/XenonUtils/memory_mapped_file.cpp
-@@ -61,6 +61,7 @@ bool MemoryMappedFile::open(const std::filesystem::path &path)
-         fprintf(stderr, "GetFileSizeEx failed with error %lu.\n", GetLastError());
-         CloseHandle(fileHandle);
-         fileHandle = nullptr;
-+        fileHandle = nullptr;
-         return false;
-     }
-
-@@ -70,6 +71,7 @@ bool MemoryMappedFile::open(const std::filesystem::path &path)
-         fprintf(stderr, "CreateFileMappingW failed with error %lu.\n", GetLastError());
-         CloseHandle(fileHandle);
-         fileHandle = nullptr;
-+        fileHandle = nullptr;
-         return false;
-     }
-
-@@ -78,7 +80,9 @@ bool MemoryMappedFile::open(const std::filesystem::path &path)
-     {
-         fprintf(stderr, "MapViewOfFile failed with error %lu.\n", GetLastError());
-         CloseHandle(fileMappingHandle);
-+        fileMappingHandle = nullptr;
-         CloseHandle(fileHandle);
-+        fileHandle = nullptr;
-         fileMappingHandle = nullptr;
-         fileHandle = nullptr;
-         return false;
-@@ -99,6 +103,7 @@ bool MemoryMappedFile::open(const std::filesystem::path &path)
-         fprintf(stderr, "lseek failed with error %s.\n", strerror(errno));
-         ::close(fileHandle);
-         fileHandle = -1;
-+        fileHandle = -1;
-         return false;
-     }
-
-@@ -108,6 +113,7 @@ bool MemoryMappedFile::open(const std::filesystem::path &path)
-         fprintf(stderr, "mmap failed with error %s.\n", strerror(errno));
-         ::close(fileHandle);
-         fileHandle = -1;
-+        fileHandle = -1;
-         return false;
-     }
-
-@@ -121,27 +127,34 @@ void MemoryMappedFile::close()
-     if (fileView != nullptr)
-     {
-         UnmapViewOfFile(fileView);
-+        fileView = nullptr;
-     }
-
-     if (fileMappingHandle != nullptr)
-     {
-         CloseHandle(fileMappingHandle);
-+        fileMappingHandle = nullptr;
-     }
-
-     if (fileHandle != nullptr)
-     {
-         CloseHandle(fileHandle);
-+        fileHandle = nullptr;
-     }
-+    fileSize.QuadPart = 0;
- #else
-     if (fileView != MAP_FAILED)
-     {
-         munmap(fileView, fileSize);
-+        fileView = MAP_FAILED;
-     }
-
-     if (fileHandle != -1)
-     {
-         ::close(fileHandle);
-+        fileHandle = -1;
-     }
-+    fileSize = 0;
- #endif
- }
-
 diff --git a/XenonUtils/xbox.h b/XenonUtils/xbox.h
 index 0361b0f..c8554ef 100644
 --- a/XenonUtils/xbox.h
@@ -229,3 +122,41 @@ index 3e224b4..4b78abf 100644
              else if ((operand->flags & PPC_OPERAND_CR) == 0
                  || (dialect & PPC_OPCODE_PPC) == 0)
                  stream = stream + sprintf(stream, "%ld", value);
+diff --git a/XenonUtils/memory_mapped_file.cpp b/XenonUtils/memory_mapped_file.cpp
+index ba3c5d8..9d29a18 100644
+--- a/XenonUtils/memory_mapped_file.cpp
++++ b/XenonUtils/memory_mapped_file.cpp
+@@ -121,27 +121,34 @@ void MemoryMappedFile::close()
+     if (fileView != nullptr)
+     {
+         UnmapViewOfFile(fileView);
++        fileView = nullptr;
+     }
+
+     if (fileMappingHandle != nullptr)
+     {
+         CloseHandle(fileMappingHandle);
++        fileMappingHandle = nullptr;
+     }
+
+     if (fileHandle != nullptr)
+     {
+         CloseHandle(fileHandle);
++        fileHandle = nullptr;
+     }
++    fileSize.QuadPart = 0;
+ #else
+     if (fileView != MAP_FAILED)
+     {
+         munmap(fileView, fileSize);
++        fileView = MAP_FAILED;
+     }
+
+     if (fileHandle != -1)
+     {
+         ::close(fileHandle);
++        fileHandle = -1;
+     }
++    fileSize = 0;
+ #endif
+ }
