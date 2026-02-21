@@ -70,15 +70,18 @@ uint32_t RtlAllocateHeap(uint32_t heapHandle, uint32_t flags, uint32_t size)
 uint32_t RtlReAllocateHeap(uint32_t heapHandle, uint32_t flags, uint32_t memoryPointer, uint32_t size)
 {
     void* ptr = g_userHeap.Alloc(size);
-    if ((flags & 0x8) != 0)
-        memset(ptr, 0, size);
 
+    size_t oldSize = 0;
     if (memoryPointer != 0)
     {
         void* oldPtr = g_memory.Translate(memoryPointer);
-        memcpy(ptr, oldPtr, std::min<size_t>(size, g_userHeap.Size(oldPtr)));
+        oldSize = g_userHeap.Size(oldPtr);
+        memcpy(ptr, oldPtr, std::min<size_t>(size, oldSize));
         g_userHeap.Free(oldPtr);
     }
+
+    if ((flags & 0x8) != 0 && size > oldSize)
+        memset((char*)ptr + oldSize, 0, size - oldSize);
 
     assert(ptr);
     return g_memory.MapVirtual(ptr);
