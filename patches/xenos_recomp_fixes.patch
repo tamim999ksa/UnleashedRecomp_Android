@@ -166,3 +166,5 @@ index 698a418..e283a94 100644
 -                    recompile(alu);
 +                    recompile(inst.alu);
                  }
+
+                 sequence >>= 2;
