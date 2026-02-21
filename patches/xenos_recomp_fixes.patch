@@ -25,7 +25,7 @@ index d015145..374ea11 100644
      return data;
  }
 diff --git a/XenosRecomp/shader_recompiler.cpp b/XenosRecomp/shader_recompiler.cpp
-index 698a418..a049716 100644
+index 698a418..047b0d5 100644
 --- a/XenosRecomp/shader_recompiler.cpp
 +++ b/XenosRecomp/shader_recompiler.cpp
 @@ -1403,13 +1403,13 @@ void ShaderRecompiler::recompile(const uint8_t* shaderData, const std::string_vi
@@ -99,18 +99,16 @@ index 698a418..a049716 100644
                          uint32_t code2;
 -                    };
 -                };
--
++                    } raw;
++                } inst;
+
 -                code0 = instructionCode[0];
 -                code1 = instructionCode[1];
 -                code2 = instructionCode[2];
--
-+                    } raw;
-+                } inst;
-+
 +                inst.raw.code0 = instructionCode[0];
 +                inst.raw.code1 = instructionCode[1];
 +                inst.raw.code2 = instructionCode[2];
-+
+
                  if ((sequence & 0x1) != 0)
                  {
 -                    if (vertexFetch.opcode == FetchOpcode::VertexFetch)
