@@ -2,7 +2,7 @@ diff --git a/XenosRecomp/CMakeLists.txt b/XenosRecomp/CMakeLists.txt
 index e505a5e..0574517 100644
 --- a/XenosRecomp/CMakeLists.txt
 +++ b/XenosRecomp/CMakeLists.txt
-@@ -28,7 +28,7 @@ target_include_directories(XenosRecomp PRIVATE ${SMOLV_SOURCE_DIR})
+@@ -28,7 +28,7 @@ target_include_directories(XenosRecomp PRIVATE )
 
  target_precompile_headers(XenosRecomp PRIVATE pch.h)
 

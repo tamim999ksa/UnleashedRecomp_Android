@@ -9,7 +9,7 @@ index f5db6d1..b1fc38c 100644
  project("XenonRecomp")
 
 diff --git a/XenonRecomp/recompiler.cpp b/XenonRecomp/recompiler.cpp
-index fa91527..cfe53b6 100644
+index fa91527..2ccea2e 100644
 --- a/XenonRecomp/recompiler.cpp
 +++ b/XenonRecomp/recompiler.cpp
 @@ -438,7 +438,7 @@ bool Recompiler::Recompile(
