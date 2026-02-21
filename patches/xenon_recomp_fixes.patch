@@ -9,7 +9,7 @@ index f5db6d1..b1fc38c 100644
  project("XenonRecomp")
 
 diff --git a/XenonRecomp/recompiler.cpp b/XenonRecomp/recompiler.cpp
-index fa91527..2ccea2e 100644
+index fa91527..cfe53b6 100644
 --- a/XenonRecomp/recompiler.cpp
 +++ b/XenonRecomp/recompiler.cpp
 @@ -438,7 +438,7 @@ bool Recompiler::Recompile(
@@ -72,6 +72,15 @@ index fa91527..2ccea2e 100644
                  labels.emplace(midAsmHook->second.jumpAddressOnFalse);
          }
      }
+@@ -2650,7 +2650,7 @@ void Recompiler::SaveCurrentOutData(const std::string_view& name)
+             {
+                 fseek(f, 0, SEEK_SET);
+                 temp.resize(fileSize);
+-                fread(temp.data(), 1, fileSize, f);
++                if (fread(temp.data(), 1, fileSize, f) != fileSize) {}
+
+                 shouldWrite = !XXH128_isEqual(XXH3_128bits(temp.data(), temp.size()), XXH3_128bits(out.data(), out.size()));
+             }
 diff --git a/XenonRecomp/recompiler_config.cpp b/XenonRecomp/recompiler_config.cpp
 index 81330a4..5fb35a3 100644
 --- a/XenonRecomp/recompiler_config.cpp
@@ -148,7 +157,7 @@ index 3e224b4..4b78abf 100644
              else if ((operand->flags & PPC_OPERAND_CR) == 0
                  || (dialect & PPC_OPCODE_PPC) == 0)
                  stream = stream + sprintf(stream, "%ld", value);
-diff --git a/cmake_unofficial/CMakeLists.txt b/cmake_unofficial/CMakeLists.txt
+diff --git a/thirdparty/xxHash/cmake_unofficial/CMakeLists.txt b/thirdparty/xxHash/cmake_unofficial/CMakeLists.txt
 index 5c3bc59..7c0f4ba 100644
 --- a/thirdparty/xxHash/cmake_unofficial/CMakeLists.txt
 +++ b/thirdparty/xxHash/cmake_unofficial/CMakeLists.txt
