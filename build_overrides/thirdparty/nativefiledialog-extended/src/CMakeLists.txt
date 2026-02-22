@@ -122,7 +122,10 @@ if(nfd_COMPILER STREQUAL COMPILER_CLANGCL)
 endif()
 
 if(nfd_COMPILER STREQUAL COMPILER_GNU)
-  target_compile_options(${TARGET_NAME} PRIVATE -nostdlib -fno-exceptions -fno-rtti)
+  if(NOT nfd_PLATFORM STREQUAL PLATFORM_ANDROID)
+    target_compile_options(${TARGET_NAME} PRIVATE -nostdlib)
+  endif()
+  target_compile_options(${TARGET_NAME} PRIVATE -fno-exceptions -fno-rtti)
 endif()
 
 set_target_properties(${TARGET_NAME} PROPERTIES
