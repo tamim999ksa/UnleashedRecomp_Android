@@ -383,13 +383,25 @@ jobs:
             find ./private -maxdepth 3
 
             echo "Searching for default.xex..."
-            find ./private -iname "default.xex" -exec cp {} ./UnleashedRecompLib/private/default.xex \;
+            if [ -f "./private/default.xex" ]; then
+                cp "./private/default.xex" "./UnleashedRecompLib/private/default.xex"
+            else
+                find ./private -iname "default.xex" -exec cp {} ./UnleashedRecompLib/private/default.xex \;
+            fi
 
             echo "Searching for default.xexp..."
-            find ./private -iname "default.xexp" -exec cp {} ./UnleashedRecompLib/private/default.xexp \;
+            if [ -f "./private/default.xexp" ]; then
+                cp "./private/default.xexp" "./UnleashedRecompLib/private/default.xexp"
+            else
+                find ./private -iname "default.xexp" -exec cp {} ./UnleashedRecompLib/private/default.xexp \;
+            fi
 
             echo "Searching for default_patched.xex..."
-            find ./private -iname "default_patched.xex" -exec cp {} ./UnleashedRecompLib/private/default_patched.xex \;
+            if [ -f "./private/default_patched.xex" ]; then
+                cp "./private/default_patched.xex" "./UnleashedRecompLib/private/default_patched.xex"
+            else
+                find ./private -iname "default_patched.xex" -exec cp {} ./UnleashedRecompLib/private/default_patched.xex \;
+            fi
 
             echo "Searching for shader.ar..."
             find ./private -iname "shader.ar" -exec cp {} ./UnleashedRecompLib/private/shader.ar \;
