@@ -32,4 +32,9 @@ struct ISOFileSystem : VirtualFileSystem
     bool empty() const;
 
     static std::unique_ptr<ISOFileSystem> create(const std::filesystem::path &isoPath);
+private:
+    static constexpr size_t XeSectorSize = 2048;
+    bool findRootOffset(uint32_t &gameOffset);
+    bool parseRootInformation(uint32_t gameOffset, uint32_t &rootSector, uint32_t &rootSize);
+    void parseDirectoryTree(uint32_t gameOffset, uint32_t rootSector, uint32_t rootSize);
 };
