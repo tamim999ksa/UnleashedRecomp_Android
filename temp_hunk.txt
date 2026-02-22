@@ -1,0 +1,40 @@
+            }
+
+            auto instructionCode = code + address * 3;
+
+            for (uint32_t i = 0; i < count; i++)
+            {
+                union
+                {
+                    VertexFetchInstruction vertexFetch;
+                    TextureFetchInstruction textureFetch;
+                    AluInstruction alu;
+                    struct
+                    {
+                        uint32_t code0;
+                        uint32_t code1;
+                        uint32_t code2;
+                    };
+                };
+
+                code0 = instructionCode[0];
+                code1 = instructionCode[1];
+                code2 = instructionCode[2];
+
+                if ((sequence & 0x1) != 0)
+                {
+                    if (vertexFetch.opcode == FetchOpcode::VertexFetch)
+                    {
+                        recompile(vertexFetch, address + i);
+                    }
+                    else
+                    {
+                    #ifdef UNLEASHED_RECOMP
+                        if (textureFetch.constIndex == 10) // g_GISampler
+                        {
+                            specConstantsMask |= SPEC_CONSTANT_BICUBIC_GI_FILTER;
+
+                            indent();
+                            out += "if (g_SpecConstants() & SPEC_CONSTANT_BICUBIC_GI_FILTER)";
+                            indent();
+                            out += '{';
