@@ -1255,9 +1255,29 @@ bool Recompiler::Recompile(
         break;
 
     case PPC_INST_MFOCRF:
-        // TODO: don't hardcode to cr6
-        println("\t{}.u64 = ({}.lt << 7) | ({}.gt << 6) | ({}.eq << 5) | ({}.so << 4);", r(insn.operands[0]), cr(6), cr(6), cr(6), cr(6));
+    {
+        const uint32_t fxm = insn.operands[1];
+        print("\t{}.u64 = ", r(insn.operands[0]));
+
+        bool first = true;
+        for (int i = 0; i < 8; i++)
+        {
+            if (fxm & (0x80 >> i))
+            {
+                if (!first)
+                    print(" | ");
+
+                const uint32_t shift = (7 - i) * 4;
+                print("(({}.lt << {}) | ({}.gt << {}) | ({}.eq << {}) | ({}.so << {}))",
+                    cr(i), shift + 3, cr(i), shift + 2, cr(i), shift + 1, cr(i), shift);
+                first = false;
+            }
+        }
+        if (first)
+            print("0");
+        println(";");
         break;
+    }
 
     case PPC_INST_MFTB:
         println("\t{}.u64 = __rdtsc();", r(insn.operands[0]));
