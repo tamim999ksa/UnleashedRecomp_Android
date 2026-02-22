@@ -2,8 +2,8 @@
 
 #include "SWA.inl"
 #include "PadState.h"
-#include <Hedgehog/Base/Thread/hhSynchronizedPtr.h>
-#include <Hedgehog/Base/Thread/hhSynchronizedObject.h>
+#include "Hedgehog/Base/Thread/hhSynchronizedPtr.h"
+#include "Hedgehog/Base/Thread/hhSynchronizedObject.h"
 
 namespace SWA
 {
