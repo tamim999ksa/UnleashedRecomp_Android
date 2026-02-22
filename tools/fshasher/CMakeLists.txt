@@ -1,5 +1,4 @@
 project("fshasher")
 
 add_executable(fshasher "fshasher.cpp")
-
-target_link_libraries(fshasher PRIVATE xxHash::xxhash)
+target_include_directories(fshasher PRIVATE "${CMAKE_SOURCE_DIR}/thirdparty/picosha2")

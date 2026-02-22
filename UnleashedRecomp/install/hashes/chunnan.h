@@ -3,8 +3,10 @@
 #pragma once
 
 #include <utility>
+#include <array>
+#include <cstdint>
 
-extern const uint64_t ChunnanHashes[];
+extern const std::array<uint8_t, 32> ChunnanHashes[];
 extern const std::pair<const char *, uint32_t> ChunnanFiles[];
 extern const size_t ChunnanFilesSize;
 

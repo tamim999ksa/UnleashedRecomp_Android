@@ -3,8 +3,10 @@
 #pragma once
 
 #include <utility>
+#include <array>
+#include <cstdint>
 
-extern const uint64_t EmpireCityAdabatHashes[];
+extern const std::array<uint8_t, 32> EmpireCityAdabatHashes[];
 extern const std::pair<const char *, uint32_t> EmpireCityAdabatFiles[];
 extern const size_t EmpireCityAdabatFilesSize;
 

@@ -3,8 +3,10 @@
 #pragma once
 
 #include <utility>
+#include <array>
+#include <cstdint>
 
-extern const uint64_t GameHashes[];
+extern const std::array<uint8_t, 32> GameHashes[];
 extern const std::pair<const char *, uint32_t> GameFiles[];
 extern const size_t GameFilesSize;
 

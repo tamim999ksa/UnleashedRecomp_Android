@@ -3,8 +3,10 @@
 #pragma once
 
 #include <utility>
+#include <array>
+#include <cstdint>
 
-extern const uint64_t HoloskaHashes[];
+extern const std::array<uint8_t, 32> HoloskaHashes[];
 extern const std::pair<const char *, uint32_t> HoloskaFiles[];
 extern const size_t HoloskaFilesSize;
 

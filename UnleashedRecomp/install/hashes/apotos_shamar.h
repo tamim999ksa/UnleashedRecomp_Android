@@ -3,8 +3,10 @@
 #pragma once
 
 #include <utility>
+#include <array>
+#include <cstdint>
 
-extern const uint64_t ApotosShamarHashes[];
+extern const std::array<uint8_t, 32> ApotosShamarHashes[];
 extern const std::pair<const char *, uint32_t> ApotosShamarFiles[];
 extern const size_t ApotosShamarFilesSize;
 
