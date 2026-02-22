@@ -1,3 +1,4 @@
+#include <shared_mutex>
 #include <user/config.h>
 #include <api/SWA.h>
 #include <app.h>
@@ -77,7 +78,7 @@ namespace Chao::CSD
     };
 }
 
-static Mutex g_pathMutex;
+static std::shared_mutex g_pathMutex;
 static ankerl::unordered_dense::map<const void*, XXH64_hash_t> g_paths;
 
 static XXH64_hash_t HashStr(const std::string_view& value)
@@ -161,7 +162,7 @@ static void TraverseSceneNodeImpl(Chao::CSD::SceneNode* sceneNode, std::string& 
 
 static void TraverseSceneNode(Chao::CSD::SceneNode* sceneNode, std::string path)
 {
-    std::lock_guard lock(g_pathMutex);
+    std::unique_lock lock(g_pathMutex);
     TraverseSceneNodeImpl(sceneNode, path);
 }
 
@@ -182,7 +183,7 @@ PPC_FUNC(sub_825E2E60)
     {
         uint32_t fileSize = PPC_LOAD_U32(ctx.r4.u32 + 0x14);
 
-        std::lock_guard lock(g_pathMutex);
+        std::unique_lock lock(g_pathMutex);
         const uint8_t* key = base + ctx.r4.u32;
 
         uintptr_t keyAddr = reinterpret_cast<uintptr_t>(key);
@@ -816,7 +817,7 @@ static std::optional<CsdModifier> FindModifier(uint32_t data)
 {
     XXH64_hash_t path;
     {
-        std::lock_guard lock(g_pathMutex);
+        std::shared_lock lock(g_pathMutex);
 
         auto findResult = g_paths.find(g_memory.Translate(data));
         if (findResult == g_paths.end())
