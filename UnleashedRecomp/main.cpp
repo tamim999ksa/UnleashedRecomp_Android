@@ -121,10 +121,83 @@ uint32_t LdrLoadModule(const std::filesystem::path &path)
         return 0;
     }
 
+    if (loadResult.size() < sizeof(Xex2Header))
+    {
+        SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, GameWindow::GetTitle(), "Invalid XEX file: File too small.", GameWindow::s_pWindow);
+        return 0;
+    }
+
     auto* header = reinterpret_cast<const Xex2Header*>(loadResult.data());
+
+    if (header->magic != 0x58455832) // "XEX2"
+    {
+        SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, GameWindow::GetTitle(), "Invalid XEX file: Incorrect magic.", GameWindow::s_pWindow);
+        return 0;
+    }
+
+    if (header->headerSize > loadResult.size())
+    {
+        SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, GameWindow::GetTitle(), "Invalid XEX file: Header size too large.", GameWindow::s_pWindow);
+        return 0;
+    }
+
+    // Verify headers array bounds
+    uint64_t headersArraySize = (uint64_t)header->headerCount * sizeof(Xex2OptHeader);
+    if ((uint64_t)sizeof(Xex2Header) + headersArraySize > loadResult.size())
+    {
+         SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, GameWindow::GetTitle(), "Invalid XEX file: Headers array out of bounds.", GameWindow::s_pWindow);
+         return 0;
+    }
+
+    if (header->securityOffset >= loadResult.size() ||
+        (uint64_t)header->securityOffset + sizeof(Xex2SecurityInfo) > loadResult.size())
+    {
+        SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, GameWindow::GetTitle(), "Invalid XEX file: Security info out of bounds.", GameWindow::s_pWindow);
+        return 0;
+    }
+
     auto* security = reinterpret_cast<const Xex2SecurityInfo*>(loadResult.data() + header->securityOffset);
-    const auto* fileFormatInfo = reinterpret_cast<const Xex2OptFileFormatInfo*>(getOptHeaderPtr(loadResult.data(), XEX_HEADER_FILE_FORMAT_INFO));
-    auto entry = *reinterpret_cast<const uint32_t*>(getOptHeaderPtr(loadResult.data(), XEX_HEADER_ENTRY_POINT));
+
+    const void* fileFormatInfoPtr = getOptHeaderPtr(loadResult.data(), XEX_HEADER_FILE_FORMAT_INFO);
+    if (!fileFormatInfoPtr)
+    {
+         SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, GameWindow::GetTitle(), "Invalid XEX file: Missing File Format Info.", GameWindow::s_pWindow);
+         return 0;
+    }
+
+    // Verify fileFormatInfoPtr is within bounds
+    if ((const uint8_t*)fileFormatInfoPtr < loadResult.data() ||
+        (const uint8_t*)fileFormatInfoPtr + sizeof(Xex2OptFileFormatInfo) > loadResult.data() + loadResult.size())
+    {
+         SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, GameWindow::GetTitle(), "Invalid XEX file: File Format Info pointer out of bounds.", GameWindow::s_pWindow);
+         return 0;
+    }
+
+    const auto* fileFormatInfo = reinterpret_cast<const Xex2OptFileFormatInfo*>(fileFormatInfoPtr);
+
+    // Verify infoSize fits in file
+    if ((const uint8_t*)fileFormatInfo + fileFormatInfo->infoSize > loadResult.data() + loadResult.size())
+    {
+         SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, GameWindow::GetTitle(), "Invalid XEX file: File Format Info size out of bounds.", GameWindow::s_pWindow);
+         return 0;
+    }
+
+    const void* entryPtr = getOptHeaderPtr(loadResult.data(), XEX_HEADER_ENTRY_POINT);
+    if (!entryPtr)
+    {
+         SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, GameWindow::GetTitle(), "Invalid XEX file: Missing Entry Point.", GameWindow::s_pWindow);
+         return 0;
+    }
+
+    if ((const uint8_t*)entryPtr < loadResult.data() ||
+        (const uint8_t*)entryPtr + sizeof(uint32_t) > loadResult.data() + loadResult.size())
+    {
+         SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, GameWindow::GetTitle(), "Invalid XEX file: Entry Point out of bounds.", GameWindow::s_pWindow);
+         return 0;
+    }
+
+    uint32_t entry;
+    memcpy(&entry, entryPtr, sizeof(entry));
     ByteSwapInplace(entry);
 
     auto srcData = loadResult.data() + header->headerSize;
@@ -163,6 +236,12 @@ uint32_t LdrLoadModule(const std::filesystem::path &path)
                     SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, GameWindow::GetTitle(), Localise("System_MemoryAllocationFailed").c_str(), GameWindow::s_pWindow);
                     std::_Exit(1);
                 }
+            }
+
+            if (srcData + blocks[i].dataSize > loadResult.data() + loadResult.size())
+            {
+                SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, GameWindow::GetTitle(), "Invalid XEX file: Compressed block source data out of bounds.", GameWindow::s_pWindow);
+                return 0;
             }
 
             memcpy(currentDest, srcData, blocks[i].dataSize);
