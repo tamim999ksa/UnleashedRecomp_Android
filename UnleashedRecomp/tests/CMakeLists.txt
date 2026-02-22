@@ -143,3 +143,14 @@ target_include_directories(test_xex_security PRIVATE
 target_compile_features(test_xex_security PRIVATE cxx_std_20)
 
 add_test(NAME XexSecurityTest COMMAND test_xex_security)
+
+# benchmark_buffer_upload
+add_executable(benchmark_buffer_upload benchmark_buffer_upload.cpp)
+
+target_include_directories(benchmark_buffer_upload PRIVATE
+    ${CMAKE_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/UnleashedRecomp
+    ${CMAKE_SOURCE_DIR}/tools/XenonRecomp/XenonUtils
+)
+
+target_compile_features(benchmark_buffer_upload PRIVATE cxx_std_20)
