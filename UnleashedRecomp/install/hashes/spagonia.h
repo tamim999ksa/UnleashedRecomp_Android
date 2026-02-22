@@ -3,8 +3,10 @@
 #pragma once
 
 #include <utility>
+#include <array>
+#include <cstdint>
 
-extern const uint64_t SpagoniaHashes[];
+extern const std::array<uint8_t, 32> SpagoniaHashes[];
 extern const std::pair<const char *, uint32_t> SpagoniaFiles[];
 extern const size_t SpagoniaFilesSize;
 

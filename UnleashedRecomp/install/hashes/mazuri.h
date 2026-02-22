@@ -3,8 +3,10 @@
 #pragma once
 
 #include <utility>
+#include <array>
+#include <cstdint>
 
-extern const uint64_t MazuriHashes[];
+extern const std::array<uint8_t, 32> MazuriHashes[];
 extern const std::pair<const char *, uint32_t> MazuriFiles[];
 extern const size_t MazuriFilesSize;
 

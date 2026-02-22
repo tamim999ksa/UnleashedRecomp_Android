@@ -1,6 +1,6 @@
 #include "installer.h"
 
-#include <xxh3.h>
+#include <picosha2.h>
 
 #include "directory_file_system.h"
 #include "iso_file_system.h"
@@ -79,6 +79,7 @@ struct FileBuffer {
             m_capacity = size;
         }
         m_size = size;
+    void resize(size_t size) { ensure(size); }
     }
 
     uint8_t* data() { return m_data.get(); }
@@ -86,7 +87,7 @@ struct FileBuffer {
 };
 }
 
-static bool checkFile(const FilePair &pair, const uint64_t *fileHashes, const std::filesystem::path &targetDirectory, FileBuffer &fileData, Journal &journal, const std::function<bool()> &progressCallback, bool checkSizeOnly) {
+static bool checkFile(const FilePair &pair, const FileHash *fileHashes, const std::filesystem::path &targetDirectory, FileBuffer &fileData, Journal &journal, const std::function<bool()> &progressCallback, bool checkSizeOnly) {
     const std::string fileName(pair.first);
     const uint32_t hashCount = pair.second;
     const std::filesystem::path filePath = targetDirectory / fileName;
@@ -135,7 +136,8 @@ static bool checkFile(const FilePair &pair, const uint64_t *fileHashes, const st
             return false;
         }
 
-        uint64_t fileHash = XXH3_64bits(fileData.data(), fileSize);
+        FileHash fileHash;
+        picosha2::hash256(fileData.data(), fileData.data() + fileSize, fileHash.begin(), fileHash.end());
         bool fileHashFound = false;
         for (uint32_t i = 0; i < hashCount && !fileHashFound; i++)
         {
@@ -162,7 +164,7 @@ static bool checkFile(const FilePair &pair, const uint64_t *fileHashes, const st
     return true;
 }
 
-static bool copyFile(const FilePair &pair, const uint64_t *fileHashes, VirtualFileSystem &sourceVfs, const std::filesystem::path &targetDirectory, bool skipHashChecks, FileBuffer &fileData, Journal &journal, const std::function<bool()> &progressCallback) {
+static bool copyFile(const FilePair &pair, const FileHash *fileHashes, VirtualFileSystem &sourceVfs, const std::filesystem::path &targetDirectory, bool skipHashChecks, FileBuffer &fileData, Journal &journal, const std::function<bool()> &progressCallback) {
     const std::string filename(pair.first);
     const uint32_t hashCount = pair.second;
     if (!sourceVfs.exists(filename))
@@ -431,7 +433,7 @@ bool Installer::checkInstallIntegrity(const std::filesystem::path &baseDirectory
     return true;
 }
 
-bool Installer::computeTotalSize(std::span<const FilePair> filePairs, const uint64_t *fileHashes, VirtualFileSystem &sourceVfs, Journal &journal, uint64_t &totalSize)
+bool Installer::computeTotalSize(std::span<const FilePair> filePairs, const FileHash *fileHashes, VirtualFileSystem &sourceVfs, Journal &journal, uint64_t &totalSize)
 {
     for (FilePair pair : filePairs)
     {
@@ -449,7 +451,7 @@ bool Installer::computeTotalSize(std::span<const FilePair> filePairs, const uint
     return true;
 }
 
-bool Installer::checkFiles(std::span<const FilePair> filePairs, const uint64_t *fileHashes, const std::filesystem::path &targetDirectory, Journal &journal, const std::function<bool()> &progressCallback, bool checkSizeOnly)
+bool Installer::checkFiles(std::span<const FilePair> filePairs, const FileHash *fileHashes, const std::filesystem::path &targetDirectory, Journal &journal, const std::function<bool()> &progressCallback, bool checkSizeOnly)
 {
     FilePair validationPair = {};
     uint32_t validationHashIndex = 0;
@@ -470,7 +472,7 @@ bool Installer::checkFiles(std::span<const FilePair> filePairs, const uint64_t *
     return true;
 }
 
-bool Installer::copyFiles(std::span<const FilePair> filePairs, const uint64_t *fileHashes, VirtualFileSystem &sourceVfs, const std::filesystem::path &targetDirectory, const std::string &validationFile, bool skipHashChecks, Journal &journal, const std::function<bool()> &progressCallback)
+bool Installer::copyFiles(std::span<const FilePair> filePairs, const FileHash *fileHashes, VirtualFileSystem &sourceVfs, const std::filesystem::path &targetDirectory, const std::string &validationFile, bool skipHashChecks, Journal &journal, const std::function<bool()> &progressCallback)
 {
     std::error_code ec;
     if (!std::filesystem::exists(targetDirectory) && !std::filesystem::create_directories(targetDirectory, ec))

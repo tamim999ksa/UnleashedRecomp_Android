@@ -3,8 +3,10 @@
 #pragma once
 
 #include <utility>
+#include <array>
+#include <cstdint>
 
-extern const uint64_t UpdateHashes[];
+extern const std::array<uint8_t, 32> UpdateHashes[];
 extern const std::pair<const char *, uint32_t> UpdateFiles[];
 extern const size_t UpdateFilesSize;
 
