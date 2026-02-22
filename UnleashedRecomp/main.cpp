@@ -126,6 +126,13 @@ uint32_t LdrLoadModule(const std::filesystem::path &path)
 
     auto srcData = loadResult.data() + header->headerSize;
     auto destData = reinterpret_cast<uint8_t*>(g_memory.Translate(security->loadAddress));
+    auto loadAddress = security->loadAddress;
+
+    if ((uint64_t)loadAddress + security->imageSize > PPC_MEMORY_SIZE)
+    {
+        SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, GameWindow::GetTitle(), Localise("System_MemoryAllocationFailed").c_str(), GameWindow::s_pWindow);
+        std::_Exit(1);
+    }
 
     if (fileFormatInfo->compressionType == XEX_COMPRESSION_NONE)
     {
@@ -133,18 +140,44 @@ uint32_t LdrLoadModule(const std::filesystem::path &path)
     }
     else if (fileFormatInfo->compressionType == XEX_COMPRESSION_BASIC)
     {
+        if (fileFormatInfo->infoSize < sizeof(Xex2FileBasicCompressionInfo))
+        {
+            SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, GameWindow::GetTitle(), Localise("System_MemoryAllocationFailed").c_str(), GameWindow::s_pWindow);
+            std::_Exit(1);
+        }
+
         auto* blocks = reinterpret_cast<const Xex2FileBasicCompressionBlock*>(fileFormatInfo + 1);
         const size_t numBlocks = (fileFormatInfo->infoSize / sizeof(Xex2FileBasicCompressionInfo)) - 1;
 
+        auto* currentDest = destData;
+
         for (size_t i = 0; i < numBlocks; i++)
         {
-            memcpy(destData, srcData, blocks[i].dataSize);
+            if (blocks[i].dataSize > 0)
+            {
+                if (!g_memory.IsInMemoryRange(currentDest) || !g_memory.IsInMemoryRange(currentDest + blocks[i].dataSize - 1))
+                {
+                    SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, GameWindow::GetTitle(), Localise("System_MemoryAllocationFailed").c_str(), GameWindow::s_pWindow);
+                    std::_Exit(1);
+                }
+            }
+
+            memcpy(currentDest, srcData, blocks[i].dataSize);
 
             srcData += blocks[i].dataSize;
-            destData += blocks[i].dataSize;
+            currentDest += blocks[i].dataSize;
 
-            memset(destData, 0, blocks[i].zeroSize);
-            destData += blocks[i].zeroSize;
+            if (blocks[i].zeroSize > 0)
+            {
+                if (!g_memory.IsInMemoryRange(currentDest) || !g_memory.IsInMemoryRange(currentDest + blocks[i].zeroSize - 1))
+                {
+                    SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, GameWindow::GetTitle(), Localise("System_MemoryAllocationFailed").c_str(), GameWindow::s_pWindow);
+                    std::_Exit(1);
+                }
+            }
+
+            memset(currentDest, 0, blocks[i].zeroSize);
+            currentDest += blocks[i].zeroSize;
         }
     }
     else
