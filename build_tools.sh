@@ -8,26 +8,12 @@ cd "$(dirname "$0")"
 OUTPUT_BIN_DIR="$(pwd)/build_tools/bin"
 mkdir -p "$OUTPUT_BIN_DIR"
 
-# Apply XenonRecomp patch
-if [ -f "patches/xenon_recomp_fixes.patch" ]; then
-    echo "Applying XenonRecomp fixes..."
-    cd tools/XenonRecomp
-    if ! git apply --ignore-whitespace ../../patches/xenon_recomp_fixes.patch; then
-        echo "git apply failed, attempting to use patch..."
-        patch -p1 < ../../patches/xenon_recomp_fixes.patch || echo "Warning: patch failed too."
-    fi
-    cd ../..
-fi
-
-# Apply XenosRecomp patch
-if [ -f "patches/xenos_recomp_fixes.patch" ]; then
-    echo "Applying XenosRecomp fixes..."
-    cd tools/XenosRecomp
-    if ! git apply --ignore-whitespace ../../patches/xenos_recomp_fixes.patch; then
-        echo "git apply failed, attempting to use patch..."
-        patch -p1 < ../../patches/xenos_recomp_fixes.patch || echo "Warning: patch failed too."
-    fi
-    cd ../..
+# Apply all patches
+if [ -f "./apply_patches.sh" ]; then
+    ./apply_patches.sh
+else
+    echo "Error: apply_patches.sh not found!"
+    false
 fi
 
 echo "=== Building GCC compatible tools ==="
@@ -53,7 +39,7 @@ copy_tool() {
         echo "Copied $tool_name to $OUTPUT_BIN_DIR"
     else
         echo "Error: Could not find executable for $tool_name"
-        exit 1
+        false
     fi
 }
 
