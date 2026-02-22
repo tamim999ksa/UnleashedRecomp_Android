@@ -274,7 +274,7 @@ int main(int argc, char *argv[])
         }
         else
         {
-            snprintf(resultText, sizeof(resultText), Localise("IntegrityCheck_Failed").c_str(), journal.lastErrorMessage.c_str());
+            snprintf(resultText, sizeof(resultText), "%s", fmt::format(fmt::runtime(Localise("IntegrityCheck_Failed")), journal.lastErrorMessage).c_str());
             LOGN_ERROR(resultText);
             messageBoxStyle = SDL_MESSAGEBOX_ERROR;
         }
