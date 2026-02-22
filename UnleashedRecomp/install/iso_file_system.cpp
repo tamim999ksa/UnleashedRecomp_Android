@@ -29,10 +29,95 @@ ISOFileSystem::ISOFileSystem(const std::filesystem::path &isoPath)
 
     name = (const char *)(isoPath.filename().u8string().data());
 
-    // Find root sector.
-    const uint8_t *mappedFileData = mappedFile.data();
     uint32_t gameOffset = 0;
-    const size_t XeSectorSize = 2048;
+    if (!findRootOffset(gameOffset))
+    {
+        mappedFile.close();
+        return;
+    }
+
+    uint32_t rootSector = 0;
+    uint32_t rootSize = 0;
+    if (!parseRootInformation(gameOffset, rootSector, rootSize))
+    {
+        mappedFile.close();
+        return;
+    }
+
+    parseDirectoryTree(gameOffset, rootSector, rootSize);
+}
+
+bool ISOFileSystem::load(const std::string &path, uint8_t *fileData, size_t fileDataMaxByteCount) const
+{
+    auto it = fileMap.find(path);
+    if (it != fileMap.end())
+    {
+        if (fileDataMaxByteCount < std::get<1>(it->second))
+        {
+            return false;
+        }
+
+        size_t offset = std::get<0>(it->second);
+        size_t length = std::get<1>(it->second);
+        if ((offset + length < offset) || ((offset + length) > mappedFile.size()))
+        {
+            return false;
+        }
+
+        const uint8_t *mappedFileData = mappedFile.data();
+        memcpy(fileData, &mappedFileData[offset], length);
+        return true;
+    }
+    else
+    {
+        return false;
+    }
+}
+
+size_t ISOFileSystem::getSize(const std::string &path) const
+{
+    auto it = fileMap.find(path);
+    if (it != fileMap.end())
+    {
+        return std::get<1>(it->second);
+    }
+    else
+    {
+        return 0;
+    }
+}
+
+bool ISOFileSystem::exists(const std::string &path) const
+{
+    return fileMap.find(path) != fileMap.end();
+}
+
+const std::string &ISOFileSystem::getName() const
+{
+    return name;
+}
+
+bool ISOFileSystem::empty() const
+{
+    return !mappedFile.isOpen();
+}
+
+std::unique_ptr<ISOFileSystem> ISOFileSystem::create(const std::filesystem::path &isoPath) {
+    std::unique_ptr<ISOFileSystem> isoFs = std::make_unique<ISOFileSystem>(isoPath);
+    if (!isoFs->empty())
+    {
+        return isoFs;
+    }
+    else
+    {
+        return nullptr;
+    }
+}
+
+bool ISOFileSystem::findRootOffset(uint32_t &gameOffset)
+{
+    const uint8_t *mappedFileData = mappedFile.data();
+    gameOffset = 0;
     static const size_t PossibleOffsets[] = { 0x00000000, 0x0000FB20, 0x00020600, 0x02080000, 0x0FD90000, };
     bool magicFound = false;
     const char RefMagic[] = "MICROSOFT*XBOX*MEDIA";
@@ -50,26 +135,33 @@ ISOFileSystem::ISOFileSystem(const std::filesystem::path &isoPath)
             magicFound = true;
         }
     }
+    return magicFound;
+}
 
+bool ISOFileSystem::parseRootInformation(uint32_t gameOffset, uint32_t &rootSector, uint32_t &rootSize)
+{
     size_t rootInfoOffset = gameOffset + (32 * XeSectorSize) + 20;
-    if (!magicFound || (rootInfoOffset + 8) > mappedFile.size())
+    if ((rootInfoOffset + 8) > mappedFile.size())
     {
-        mappedFile.close();
-        return;
+        return false;
     }
 
-    // Parse root information.
-    uint32_t rootSector = *(uint32_t *)(&mappedFileData[rootInfoOffset + 0]);
-    uint32_t rootSize = *(uint32_t *)(&mappedFileData[rootInfoOffset + 4]);
-    size_t rootOffset = gameOffset + (rootSector * XeSectorSize);
+    const uint8_t *mappedFileData = mappedFile.data();
+    rootSector = *(uint32_t *)(&mappedFileData[rootInfoOffset + 0]);
+    rootSize = *(uint32_t *)(&mappedFileData[rootInfoOffset + 4]);
+
     const uint32_t MinRootSize = 13;
     const uint32_t MaxRootSize = 32 * 1024 * 1024;
     if ((rootSize < MinRootSize) || (rootSize > MaxRootSize))
     {
-        mappedFile.close();
-        return;
+        return false;
     }
 
+    return true;
+}
+
+void ISOFileSystem::parseDirectoryTree(uint32_t gameOffset, uint32_t rootSector, uint32_t rootSize)
+{
     struct IterationStep
     {
         std::string_view fileNameBase;
@@ -80,7 +172,8 @@ ISOFileSystem::ISOFileSystem(const std::filesystem::path &isoPath)
         IterationStep(std::string_view fileNameBase, size_t nodeOffset, size_t entryOffset) : fileNameBase(fileNameBase), nodeOffset(nodeOffset), entryOffset(entryOffset) { }
     };
 
-    // Store directory paths to keep string_views valid
+    size_t rootOffset = gameOffset + (rootSector * XeSectorSize);
+
     std::deque<std::string> pathCache;
     pathCache.emplace_back("");
 
@@ -88,6 +181,7 @@ ISOFileSystem::ISOFileSystem(const std::filesystem::path &isoPath)
     iterationStack.emplace(pathCache.back(), rootOffset, 0);
 
     std::unordered_set<size_t> visitedOffsets;
+    const uint8_t *mappedFileData = mappedFile.data();
 
     IterationStep step;
     uint16_t nodeL, nodeR;
@@ -157,72 +251,5 @@ ISOFileSystem::ISOFileSystem(const std::filesystem::path &isoPath)
         {
             fileMap.try_emplace(std::move(fileNameUTF8), gameOffset + sector * XeSectorSize, length);
         }
-    }
-}
-
-bool ISOFileSystem::load(const std::string &path, uint8_t *fileData, size_t fileDataMaxByteCount) const
-{
-    auto it = fileMap.find(path);
-    if (it != fileMap.end())
-    {
-        if (fileDataMaxByteCount < std::get<1>(it->second))
-        {
-            return false;
-        }
-
-        size_t offset = std::get<0>(it->second);
-        size_t length = std::get<1>(it->second);
-        if ((offset + length < offset) || ((offset + length) > mappedFile.size()))
-        {
-            return false;
-        }
-
-        const uint8_t *mappedFileData = mappedFile.data();
-        memcpy(fileData, &mappedFileData[offset], length);
-        return true;
-    }
-    else
-    {
-        return false;
-    }
-}
-
-size_t ISOFileSystem::getSize(const std::string &path) const
-{
-    auto it = fileMap.find(path);
-    if (it != fileMap.end())
-    {
-        return std::get<1>(it->second);
-    }
-    else
-    {
-        return 0;
-    }
-}
-
-bool ISOFileSystem::exists(const std::string &path) const
-{
-    return fileMap.find(path) != fileMap.end();
-}
-
-const std::string &ISOFileSystem::getName() const
-{
-    return name;
-}
-
-bool ISOFileSystem::empty() const 
-{
-    return !mappedFile.isOpen();
-}
-
-std::unique_ptr<ISOFileSystem> ISOFileSystem::create(const std::filesystem::path &isoPath) {
-    std::unique_ptr<ISOFileSystem> isoFs = std::make_unique<ISOFileSystem>(isoPath);
-    if (!isoFs->empty())
-    {
-        return isoFs;
-    }
-    else
-    {
-        return nullptr;
     }
 }
