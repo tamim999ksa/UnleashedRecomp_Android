@@ -130,3 +130,16 @@ target_include_directories(test_iso_file_system PRIVATE
 target_compile_features(test_iso_file_system PRIVATE cxx_std_20)
 
 add_test(NAME ISOFileSystemTest COMMAND test_iso_file_system)
+
+# test_xex_security
+add_executable(test_xex_security test_xex_security.cpp)
+
+target_include_directories(test_xex_security PRIVATE
+    ${CMAKE_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/UnleashedRecomp
+    ${CMAKE_SOURCE_DIR}/UnleashedRecomp/tests/mock
+)
+
+target_compile_features(test_xex_security PRIVATE cxx_std_20)
+
+add_test(NAME XexSecurityTest COMMAND test_xex_security)
