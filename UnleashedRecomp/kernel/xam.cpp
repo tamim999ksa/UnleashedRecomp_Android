@@ -1,3 +1,4 @@
+#include "os/logger.h"
 #include <stdafx.h>
 #include "xam.h"
 #include "xdm.h"
@@ -223,25 +224,22 @@ uint32_t XamShowMessageBoxUI(uint32_t dwUserIndex, be<uint16_t>* wszTitle, be<ui
             ByteSwapInplace(text[i]);
     }
 
-    wprintf(L"[XamShowMessageBoxUI] !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
-    wprintf(L"[XamShowMessageBoxUI] If you are encountering this message and the game has ceased functioning,\n");
-    wprintf(L"[XamShowMessageBoxUI] please create an issue at https://github.com/hedge-dev/UnleashedRecomp/issues.\n");
-    wprintf(L"[XamShowMessageBoxUI] !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
-    wprintf(L"[XamShowMessageBoxUI] %ls\n", texts[0].c_str());
-    wprintf(L"[XamShowMessageBoxUI] %ls\n", texts[1].c_str());
-    wprintf(L"[XamShowMessageBoxUI] ");
-
+    std::string buttonsStr;
     for (size_t i = 0; i < cButtons; i++)
     {
-        wprintf(L"%ls", texts[2 + i].c_str());
-
-        if (i != cButtons - 1)
-            wprintf(L" | ");
+        if (i > 0) buttonsStr += " | ";
+        buttonsStr += (const char*)std::filesystem::path(texts[2 + i]).u8string().c_str();
     }
 
-    wprintf(L"\n");
-    wprintf(L"[XamShowMessageBoxUI] Defaulted to button: %d\n", pResult->get());
-    wprintf(L"[XamShowMessageBoxUI] !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
+    LOG_ERROR("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+    LOG_ERROR("If you are encountering this message and the game has ceased functioning,");
+    LOG_ERROR("please create an issue at https://github.com/hedge-dev/UnleashedRecomp/issues.");
+    LOG_ERROR("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+    LOGF_ERROR("{}", (const char*)std::filesystem::path(texts[0]).u8string().c_str());
+    LOGF_ERROR("{}", (const char*)std::filesystem::path(texts[1]).u8string().c_str());
+    LOGF_ERROR("{}", buttonsStr);
+    LOGF_ERROR("Defaulted to button: {}", pResult->get());
+    LOG_ERROR("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
 #endif
 
     if (pOverlapped)
