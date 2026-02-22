@@ -1,5 +1,6 @@
 #include "video.h"
 
+#include "video_utils.h"
 using namespace plume;
 
 #ifdef __ANDROID__
@@ -2088,12 +2089,7 @@ static void UnlockBuffer(GuestBuffer* buffer, bool useCopyQueue)
         {
             auto src = reinterpret_cast<const T*>(buffer->mappedMemory);
 
-            for (size_t i = 0; i < buffer->dataSize; i += sizeof(T))
-            {
-                *dest = ByteSwap(*src);
-                ++dest;
-                ++src;
-            }
+            CopyAndSwap(dest, src, buffer->dataSize / sizeof(T));
         };
 
     if (useCopyQueue && g_capabilities.gpuUploadHeap)
