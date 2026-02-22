@@ -1,6 +1,5 @@
 #pragma once
 
-#include <atomic>
 #include <xbox.h>
 
 enum class ResourceType
@@ -28,26 +27,22 @@ struct GuestResource
 
     void AddRef()
     {
-        std::atomic_ref atomicRef(refCount.value);
-
-        uint32_t originalValue, incrementedValue;
+        uint32_t originalValue = refCount.value;
+        uint32_t incrementedValue;
         do
         {
-            originalValue = refCount.value;
             incrementedValue = ByteSwap(ByteSwap(originalValue) + 1);
-        } while (!atomicRef.compare_exchange_weak(originalValue, incrementedValue));
+        } while (!__atomic_compare_exchange_n(&refCount.value, &originalValue, incrementedValue, true, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST));
     }
 
     void Release()
     {
-        std::atomic_ref atomicRef(refCount.value);
-
-        uint32_t originalValue, decrementedValue;
+        uint32_t originalValue = refCount.value;
+        uint32_t decrementedValue;
         do
         {
-            originalValue = refCount.value;
             decrementedValue = ByteSwap(ByteSwap(originalValue) - 1);
-        } while (!atomicRef.compare_exchange_weak(originalValue, decrementedValue));
+        } while (!__atomic_compare_exchange_n(&refCount.value, &originalValue, decrementedValue, true, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST));
 
         // Normally we are supposed to release here, so only use this
         // function when you know you won't be the one destructing it.

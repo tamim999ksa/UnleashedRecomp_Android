@@ -1,7 +1,3 @@
-#include <cstring>
-#include <cstdint>
-#include <atomic>
-
 namespace Hedgehog::Base
 {
     inline SStringHolder* SStringHolder::GetHolder(const char* in_pStr)
@@ -9,47 +5,36 @@ namespace Hedgehog::Base
         return (SStringHolder*)((size_t)in_pStr - sizeof(RefCount));
     }
 
-    inline SStringHolder* SStringHolder::Make(const char* in_pStr, size_t length)
+    inline SStringHolder* SStringHolder::Make(const char* in_pStr)
     {
-        constexpr uint32_t overhead = sizeof(RefCount) + 1;
-
-        if (length > (uint32_t)-1 - overhead)
-            return nullptr;
-
-        auto pHolder = (SStringHolder*)__HH_ALLOC(overhead + (uint32_t)length);
-
-        if (pHolder)
-        {
-            pHolder->RefCount = 1;
-            std::memcpy(pHolder->aStr, in_pStr, length);
-            pHolder->aStr[length] = '\0';
-        }
-
+        auto pHolder = (SStringHolder*)__HH_ALLOC(sizeof(RefCount) + strlen(in_pStr) + 1);
+        pHolder->RefCount = 1;
+        strcpy(pHolder->aStr, in_pStr);
         return pHolder;
     }
 
     inline void SStringHolder::AddRef()
     {
-        std::atomic_ref refCount(RefCount.value);
-
-        be<uint32_t> original, incremented;
+        uint32_t originalValue = RefCount.value;
+        be<uint32_t> original;
+        be<uint32_t> incremented;
         do
         {
-            original = RefCount;
+            original.value = originalValue;
             incremented = original + 1;
-        } while (!refCount.compare_exchange_weak(original.value, incremented.value));
+        } while (!__atomic_compare_exchange_n(&RefCount.value, &originalValue, incremented.value, true, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST));
     }
 
     inline void SStringHolder::Release()
     {
-        std::atomic_ref refCount(RefCount.value);
-
-        be<uint32_t> original, decremented;
+        uint32_t originalValue = RefCount.value;
+        be<uint32_t> original;
+        be<uint32_t> decremented;
         do
         {
-            original = RefCount;
+            original.value = originalValue;
             decremented = original - 1;
-        } while (!refCount.compare_exchange_weak(original.value, decremented.value));
+        } while (!__atomic_compare_exchange_n(&RefCount.value, &originalValue, decremented.value, true, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST));
 
         if (decremented == 0)
             __HH_FREE(this);
