@@ -728,12 +728,12 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
     {
         "IntegrityCheck_Failed",
         {
-            { ELanguage::English,  "Installation check has failed.\n\nError: %s\n\nThe game will now close. Try reinstalling the game by using the --install launch argument." },
-            { ELanguage::Japanese, "インストールチェックに失敗しました\n\nエラー：%s\n\nゲームは終了します、--install 起動引数を使用してゲームを再インストールしてください" },
-            { ELanguage::German,  "Die Installationsprüfung ist fehlgeschlagen.\n\nFehler: %s\n\nDas Spiel wird nun geschlossen. Versuche das Spiel durch Verwendung der Startoption --install neu zu installieren." },
-            { ELanguage::French,  "La vérification de l'installation a échoué.\n\nErreur : %s\n\nL'application va maintenant se fermer. Essayez de réinstaller le jeu en utilisant l'argument de lancement --install." },
-            { ELanguage::Spanish,  "La verificación de la instalación ha fallado.\n\nError: %s\n\nEl juego se cerrará ahora. Intenta reinstalar el juego utilizando el argumento de lanzamiento --install." },
-            { ELanguage::Italian,  "La verifica dei file d'installazione non è andata a buon fine.\n\nErrore: %s\n\nIl gioco si chiuderà. Prova a reinstallare il gioco utilizzando l'argomento di avvio --install." }
+            { ELanguage::English,  "Installation check has failed.\n\nError: {}\n\nThe game will now close. Try reinstalling the game by using the --install launch argument." },
+            { ELanguage::Japanese, "インストールチェックに失敗しました\n\nエラー：{}\n\nゲームは終了します、--install 起動引数を使用してゲームを再インストールしてください" },
+            { ELanguage::German,  "Die Installationsprüfung ist fehlgeschlagen.\n\nFehler: {}\n\nDas Spiel wird nun geschlossen. Versuche das Spiel durch Verwendung der Startoption --install neu zu installieren." },
+            { ELanguage::French,  "La vérification de l'installation a échoué.\n\nErreur : {}\n\nL'application va maintenant se fermer. Essayez de réinstaller le jeu en utilisant l'argument de lancement --install." },
+            { ELanguage::Spanish,  "La verificación de la instalación ha fallado.\n\nError: {}\n\nEl juego se cerrará ahora. Intenta reinstalar el juego utilizando el argumento de lanzamiento --install." },
+            { ELanguage::Italian,  "La verifica dei file d'installazione non è andata a buon fine.\n\nErrore: {}\n\nIl gioco si chiuderà. Prova a reinstallare il gioco utilizzando l'argomento di avvio --install." }
         }
     },
     {
