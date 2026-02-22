@@ -117,22 +117,9 @@ jobs:
              fi
           fi
 
-          # 2. Try Google Drive (Primary default)
+          # 2. Try CDN (Primary default)
           if [ "$download_success" = false ]; then
-             echo "Attempting primary download (Google Drive)..."
-             for i in {1..3}; do
-               if gdown 1QfU4ewEbJoFPYYcaPdmT9Ma1WhR-5jck -O game_data.iso; then
-                 download_success=true
-                 break
-               fi
-               echo "gdown failed, retrying in 15s..."
-               sleep 15
-             done
-          fi
-
-          # 3. Try CDN (Secondary default)
-          if [ "$download_success" = false ]; then
-             echo "Attempting secondary download (CDN)..."
+             echo "Attempting primary download (CDN)..."
              if curl -L -o game_data.7z "https://cdn.atserver.us/Games/Windows/Sonic%20Unleashed/BASE%20ROM%20%5BADVANCED%5D.7z"; then
                 download_success=true
              fi
@@ -141,6 +128,19 @@ jobs:
           if [ "$download_success" = false ]; then
              echo "Failed to download Game Data."
              exit 1
+          fi
+
+          # 3. Try Google Drive (Secondary default)
+          if [ "$download_success" = false ]; then
+             echo "Attempting secondary download (Google Drive)..."
+             for i in {1..3}; do
+               if gdown 1QfU4ewEbJoFPYYcaPdmT9Ma1WhR-5jck -O game_data.iso; then
+                 download_success=true
+                 break
+               fi
+               echo "gdown failed, retrying in 15s..."
+               sleep 15
+             done
           fi
 
           # --- DLC ---
@@ -157,22 +157,9 @@ jobs:
              fi
           fi
 
-          # 2. Try Google Drive
-          if [ "$download_success" = false ]; then
-             echo "Attempting primary download (Google Drive)..."
-             for i in {1..3}; do
-               if gdown 1qnthOSI-rO-M09yN8OigABqRDeTTVSbB -O dlc_data.rar; then
-                 download_success=true
-                 break
-               fi
-               echo "gdown failed, retrying in 15s..."
-               sleep 15
-             done
-          fi
-
           # 3. Try CDN
           if [ "$download_success" = false ]; then
-             echo "Attempting secondary download (CDN)..."
+             echo "Attempting primary download (CDN)..."
              if curl -L -o dlc_data.7z "https://cdn.atserver.us/Games/Windows/Sonic%20Unleashed/DLC%20%5BADVANCED%5D.7z"; then
                 download_success=true
              fi
@@ -181,6 +168,19 @@ jobs:
           if [ "$download_success" = false ]; then
              echo "Failed to download DLC Data."
              exit 1
+          fi
+
+          # 2. Try Google Drive
+          if [ "$download_success" = false ]; then
+             echo "Attempting secondary download (Google Drive)..."
+             for i in {1..3}; do
+               if gdown 1qnthOSI-rO-M09yN8OigABqRDeTTVSbB -O dlc_data.rar; then
+                 download_success=true
+                 break
+               fi
+               echo "gdown failed, retrying in 15s..."
+               sleep 15
+             done
           fi
 
           # --- Title Update ---
@@ -197,22 +197,9 @@ jobs:
              fi
           fi
 
-          # 2. Try Google Drive
-          if [ "$download_success" = false ]; then
-             echo "Attempting primary download (Google Drive)..."
-             for i in {1..3}; do
-               if gdown 1eYsQCzGOtcxxdCSwd7a0WHVbZELrSEEF -O title_update.rar; then
-                 download_success=true
-                 break
-               fi
-               echo "gdown failed, retrying in 15s..."
-               sleep 15
-             done
-          fi
-
           # 3. Try CDN
           if [ "$download_success" = false ]; then
-             echo "Attempting secondary download (CDN)..."
+             echo "Attempting primary download (CDN)..."
              if curl -L -o title_update.7z "https://cdn.atserver.us/Games/Windows/Sonic%20Unleashed/UPDATE%20%5BADVANCED%5D.7z"; then
                 download_success=true
              fi
@@ -221,6 +208,19 @@ jobs:
           if [ "$download_success" = false ]; then
              echo "Failed to download Title Update."
              exit 1
+          fi
+
+          # 2. Try Google Drive
+          if [ "$download_success" = false ]; then
+             echo "Attempting secondary download (Google Drive)..."
+             for i in {1..3}; do
+               if gdown 1eYsQCzGOtcxxdCSwd7a0WHVbZELrSEEF -O title_update.rar; then
+                 download_success=true
+                 break
+               fi
+               echo "gdown failed, retrying in 15s..."
+               sleep 15
+             done
           fi
 
           # Process Game Data
