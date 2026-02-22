@@ -107,6 +107,9 @@ void KiSystemStartup()
     }
 
     XAudioInitializeSystem();
+
+    PreloadContext preloadContext;
+    preloadContext.PreloadExecutable();
 }
 
 uint32_t LdrLoadModule(const std::filesystem::path &path)
@@ -211,7 +214,41 @@ void init()
 }
 #endif
 
-int main(int argc, char *argv[])
+struct CommandLineOptions
+{
+    bool ForceInstaller = false;
+    bool ForceDLCInstaller = false;
+    bool UseDefaultWorkingDirectory = false;
+    bool ForceInstallationCheck = false;
+    bool GraphicsApiRetry = false;
+    const char* SdlVideoDriver = nullptr;
+};
+
+CommandLineOptions ParseCommandLineArguments(int argc, char* argv[])
+{
+    CommandLineOptions options;
+
+    for (int i = 1; i < argc; i++)
+    {
+        options.ForceInstaller = options.ForceInstaller || (strcmp(argv[i], "--install") == 0);
+        options.ForceDLCInstaller = options.ForceDLCInstaller || (strcmp(argv[i], "--install-dlc") == 0);
+        options.UseDefaultWorkingDirectory = options.UseDefaultWorkingDirectory || (strcmp(argv[i], "--use-cwd") == 0);
+        options.ForceInstallationCheck = options.ForceInstallationCheck || (strcmp(argv[i], "--install-check") == 0);
+        options.GraphicsApiRetry = options.GraphicsApiRetry || (strcmp(argv[i], "--graphics-api-retry") == 0);
+
+        if (strcmp(argv[i], "--sdl-video-driver") == 0)
+        {
+            if ((i + 1) < argc)
+                options.SdlVideoDriver = argv[++i];
+            else
+                LOGN_WARNING("No argument was specified for --sdl-video-driver. Option will be ignored.");
+        }
+    }
+
+    return options;
+}
+
+void InitializeSystem()
 {
 #ifdef __ANDROID__
     SDL_setenv("SDL_AUDIO_DRIVER", "aaudio", 1);
@@ -226,44 +263,21 @@ int main(int argc, char *argv[])
         LOGN_WARNING("OS does not support registry.");
 
     os::logger::Init();
+}
 
-    PreloadContext preloadContext;
-    preloadContext.PreloadExecutable();
-
-    bool forceInstaller = false;
-    bool forceDLCInstaller = false;
-    bool useDefaultWorkingDirectory = false;
-    bool forceInstallationCheck = false;
-    bool graphicsApiRetry = false;
-    const char *sdlVideoDriver = nullptr;
-
-    for (uint32_t i = 1; i < argc; i++)
-    {
-        forceInstaller = forceInstaller || (strcmp(argv[i], "--install") == 0);
-        forceDLCInstaller = forceDLCInstaller || (strcmp(argv[i], "--install-dlc") == 0);
-        useDefaultWorkingDirectory = useDefaultWorkingDirectory || (strcmp(argv[i], "--use-cwd") == 0);
-        forceInstallationCheck = forceInstallationCheck || (strcmp(argv[i], "--install-check") == 0);
-        graphicsApiRetry = graphicsApiRetry || (strcmp(argv[i], "--graphics-api-retry") == 0);
-
-        if (strcmp(argv[i], "--sdl-video-driver") == 0)
-        {
-            if ((i + 1) < argc)
-                sdlVideoDriver = argv[++i];
-            else
-                LOGN_WARNING("No argument was specified for --sdl-video-driver. Option will be ignored.");
-        }
-    }
-
-    if (!useDefaultWorkingDirectory)
+void SetWorkingDirectory(const CommandLineOptions& options)
+{
+    if (!options.UseDefaultWorkingDirectory)
     {
         // Set the current working directory to the executable's path.
         std::error_code ec;
         std::filesystem::current_path(os::process::GetExecutableRoot(), ec);
     }
+}
 
-    Config::Load();
-
-    if (forceInstallationCheck)
+void PerformInstallationIntegrityCheck(const CommandLineOptions& options)
+{
+    if (options.ForceInstallationCheck)
     {
         // Create the console to show progress to the user, otherwise it will seem as if the game didn't boot at all.
         os::process::ShowConsole();
@@ -315,7 +329,10 @@ int main(int argc, char *argv[])
         SDL_ShowSimpleMessageBox(messageBoxStyle, GameWindow::GetTitle(), resultText, GameWindow::s_pWindow);
         std::_Exit(int(journal.lastResult));
     }
+}
 
+void CheckForUpdates()
+{
     // Check the time since the last time an update was checked. Store the new time if the difference is more than six hours.
     constexpr double TimeBetweenUpdateChecksInSeconds = 6 * 60 * 60;
     time_t timeNow = std::time(nullptr);
@@ -327,6 +344,51 @@ int main(int argc, char *argv[])
         Config::LastChecked = timeNow;
         Config::Save();
     }
+}
+
+void InitializeVideoBackend(const CommandLineOptions& options)
+{
+    if (!Video::CreateHostDevice(options.SdlVideoDriver, options.GraphicsApiRetry))
+    {
+        SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, GameWindow::GetTitle(), Localise("Video_BackendError").c_str(), GameWindow::s_pWindow);
+        std::_Exit(1);
+    }
+}
+
+bool RunInstallerIfNeeded(const CommandLineOptions& options, std::filesystem::path& modulePath)
+{
+    bool isGameInstalled = Installer::checkGameInstall(GetGamePath(), modulePath);
+    bool runInstallerWizard = options.ForceInstaller || options.ForceDLCInstaller || !isGameInstalled;
+
+    if (runInstallerWizard)
+    {
+        InitializeVideoBackend(options);
+
+        if (!InstallerWizard::Run(GetGamePath(), isGameInstalled && options.ForceDLCInstaller))
+        {
+            std::_Exit(0);
+        }
+    }
+
+    return runInstallerWizard;
+}
+
+int main(int argc, char *argv[])
+{
+    InitializeSystem();
+
+    PreloadContext preloadContext;
+    preloadContext.PreloadExecutable();
+
+    CommandLineOptions options = ParseCommandLineArguments(argc, argv);
+
+    SetWorkingDirectory(options);
+
+    Config::Load();
+
+    PerformInstallationIntegrityCheck(options);
+
+    CheckForUpdates();
 
     if (Config::ShowConsole)
         os::process::ShowConsole();
@@ -334,21 +396,7 @@ int main(int argc, char *argv[])
     HostStartup();
 
     std::filesystem::path modulePath;
-    bool isGameInstalled = Installer::checkGameInstall(GetGamePath(), modulePath);
-    bool runInstallerWizard = forceInstaller || forceDLCInstaller || !isGameInstalled;
-    if (runInstallerWizard)
-    {
-        if (!Video::CreateHostDevice(sdlVideoDriver, graphicsApiRetry))
-        {
-            SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, GameWindow::GetTitle(), Localise("Video_BackendError").c_str(), GameWindow::s_pWindow);
-            std::_Exit(1);
-        }
-
-        if (!InstallerWizard::Run(GetGamePath(), isGameInstalled && forceDLCInstaller))
-        {
-            std::_Exit(0);
-        }
-    }
+    bool installerRan = RunInstallerIfNeeded(options, modulePath);
 
     ModLoader::Init();
 
@@ -359,13 +407,9 @@ int main(int argc, char *argv[])
 
     uint32_t entry = LdrLoadModule(modulePath);
 
-    if (!runInstallerWizard)
+    if (!installerRan)
     {
-        if (!Video::CreateHostDevice(sdlVideoDriver, graphicsApiRetry))
-        {
-            SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, GameWindow::GetTitle(), Localise("Video_BackendError").c_str(), GameWindow::s_pWindow);
-            std::_Exit(1);
-        }
+        InitializeVideoBackend(options);
     }
 
     Video::StartPipelinePrecompilation();
