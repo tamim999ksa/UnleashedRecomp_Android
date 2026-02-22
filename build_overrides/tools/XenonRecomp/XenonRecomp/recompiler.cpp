@@ -1,6 +1,32 @@
 #include "pch.h"
 #include "recompiler.h"
 #include <xex_patcher.h>
+#include <array>
+
+namespace
+{
+    template<size_t N>
+    struct RegisterNames
+    {
+        std::array<std::string, N> local;
+        std::array<std::string, N> ctx;
+
+        RegisterNames(const char* prefix)
+        {
+            for (size_t i = 0; i < N; ++i)
+            {
+                local[i] = fmt::format("{}{}", prefix, i);
+                ctx[i] = fmt::format("ctx.{}{}", prefix, i);
+            }
+        }
+    };
+
+    const RegisterNames<32> r_names("r");
+    const RegisterNames<32> f_names("f");
+    const RegisterNames<128> v_names("v");
+    const RegisterNames<8> cr_names("cr");
+}
+
 
 static uint64_t ComputeMask(uint32_t mstart, uint32_t mstop)
 {
@@ -265,48 +291,47 @@ bool Recompiler::Recompile(
 {
     println("\t// {} {}", insn.opcode->name, insn.op_str);
 
-    // TODO: we could cache these formats in an array
-    auto r = [&](size_t index)
+    auto r = [&](size_t index) -> std::string_view
         {
             if ((config.nonArgumentRegistersAsLocalVariables && (index == 0 || index == 2 || index == 11 || index == 12)) ||
                 (config.nonVolatileRegistersAsLocalVariables && index >= 14))
             {
                 localVariables.r[index] = true;
-                return fmt::format("r{}", index);
+                return r_names.local[index];
             }
-            return fmt::format("ctx.r{}", index);
+            return r_names.ctx[index];
         };
 
-    auto f = [&](size_t index)
+    auto f = [&](size_t index) -> std::string_view
         {
             if ((config.nonArgumentRegistersAsLocalVariables && index == 0) ||
                 (config.nonVolatileRegistersAsLocalVariables && index >= 14))
             {
                 localVariables.f[index] = true;
-                return fmt::format("f{}", index);
+                return f_names.local[index];
             }
-            return fmt::format("ctx.f{}", index);
+            return f_names.ctx[index];
         };
 
-    auto v = [&](size_t index)
+    auto v = [&](size_t index) -> std::string_view
         {
             if ((config.nonArgumentRegistersAsLocalVariables && (index >= 32 && index <= 63)) ||
                 (config.nonVolatileRegistersAsLocalVariables && ((index >= 14 && index <= 31) || (index >= 64 && index <= 127))))
             {
                 localVariables.v[index] = true;
-                return fmt::format("v{}", index);
+                return v_names.local[index];
             }
-            return fmt::format("ctx.v{}", index);
+            return v_names.ctx[index];
         };
 
-    auto cr = [&](size_t index)
+    auto cr = [&](size_t index) -> std::string_view
         {
             if (config.crRegistersAsLocalVariables)
             {
                 localVariables.cr[index] = true;
-                return fmt::format("cr{}", index);
+                return cr_names.local[index];
             }
-            return fmt::format("ctx.cr{}", index);
+            return cr_names.ctx[index];
         };
 
     auto ctr = [&]()
