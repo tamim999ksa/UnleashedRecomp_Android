@@ -346,6 +346,14 @@ jobs:
                        done
                    fi
 
+                   # Special case: Ensure default.xex comes from the ISO/Game Data if present
+                   # This is required because default.xexp (if present in ISO) expects the ISO version of default.xex,
+                   # but the standard merge logic below prioritizes the Title Update version in "private".
+                   if [ -f "temp_iso/default.xex" ]; then
+                       echo "Overwriting private/default.xex with version from ISO/Game Data..."
+                       mv -f "temp_iso/default.xex" "private/default.xex"
+                   fi
+
                    # 3. Merge remaining content into private
                    # -n (no-clobber) ensures we don't overwrite existing files (prioritizing DLC/TU)
                    if [ -d "temp_iso" ] && [ "$(ls -A temp_iso)" ]; then
