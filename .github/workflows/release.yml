@@ -46,7 +46,7 @@ jobs:
         uses: android-actions/setup-android@v3
 
       - name: Install Android NDK
-        run: yes | sdkmanager "ndk;25.2.9519653"
+        run: yes | sdkmanager "ndk;25.2.9519653" "cmdline-tools;latest" "platforms;android-33" "build-tools;33.0.0"
 
       - name: Cache vcpkg
         uses: actions/cache@v4
@@ -407,14 +407,18 @@ jobs:
             if [ -f "./private/default.xex" ]; then
                 cp "./private/default.xex" "./UnleashedRecompLib/private/default.xex"
             else
-                find ./private -iname "default.xex" -exec cp {} ./UnleashedRecompLib/private/default.xex \;
+                find ./private -iname "default.xex" -not -path "*/Content/*" -not -path "*/000B0000/*" -exec cp {} ./UnleashedRecompLib/private/default.xex \; -quit || true
+                if [ ! -f "./UnleashedRecompLib/private/default.xex" ]; then
+                     echo "Warning: Base game default.xex not found in standard paths. Searching all..."
+                     find ./private -iname "default.xex" -exec cp {} ./UnleashedRecompLib/private/default.xex \; -quit || true
+                fi
             fi
 
             echo "Searching for default.xexp..."
             if [ -f "./private/default.xexp" ]; then
                 cp "./private/default.xexp" "./UnleashedRecompLib/private/default.xexp"
             else
-                find ./private -iname "default.xexp" -exec cp {} ./UnleashedRecompLib/private/default.xexp \;
+                find ./private -iname "default.xexp" -exec cp {} ./UnleashedRecompLib/private/default.xexp \; -quit || true
             fi
 
             echo "Searching for default_patched.xex..."
@@ -425,7 +429,7 @@ jobs:
             fi
 
             echo "Searching for shader.ar..."
-            find ./private -iname "shader.ar" -exec cp {} ./UnleashedRecompLib/private/shader.ar \;
+            find ./private -iname "shader.ar" -exec cp {} ./UnleashedRecompLib/private/shader.ar \; -quit || true
           else
             echo "Private directory is empty or does not exist."
           fi
