@@ -1,4 +1,8 @@
 #include "app.h"
+#ifdef _WIN32
+#include <Windows.h>
+#include <timeapi.h>
+#endif
 #include <cstdlib>
 #include <api/SWA.h>
 #include <gpu/video.h>
@@ -21,6 +25,9 @@ void App::Restart(std::vector<std::string> restartArgs)
 void App::Exit()
 {
     Config::Save();
+#ifdef _WIN32
+    timeEndPeriod(1);
+#endif
     std::exit(0);
 }
 
