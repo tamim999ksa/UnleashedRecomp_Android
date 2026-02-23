@@ -252,13 +252,22 @@ jobs:
              echo "Checking if title_update.rar is a standard archive..."
              if 7z l title_update.rar > /dev/null 2>&1; then
                  echo "Extracting title_update.rar with 7z..."
-                 7z x title_update.rar -oprivate -y
+                 7z x title_update.rar -oprivate -y -x!default.xex
              else
                  echo "Not a standard archive, attempting STFS extraction..."
-                 if ! python3 tools/extract_stfs.py title_update.rar private; then
+                 mkdir -p temp_stfs
+                 if ! python3 tools/extract_stfs.py title_update.rar temp_stfs; then
                      echo "Error: STFS extraction failed!"
                      exit 1
                  fi
+                 if [ -f "temp_stfs/default.xex" ]; then
+                     echo "Removing default.xex from Title Update"
+                     rm "temp_stfs/default.xex"
+                 fi
+                 if [ "$(ls -A temp_stfs)" ]; then
+                     cp -r temp_stfs/* private/ || true
+                 fi
+                 rm -rf temp_stfs
              fi
           elif [ -f title_update.7z ]; then
              echo "Extracting Title Update 7z..."
@@ -266,12 +275,24 @@ jobs:
              7z x title_update.7z -otemp_tu -y
              find temp_tu -type f | while read f; do
                 echo "Processing extracted file: $f"
-                if python3 tools/extract_stfs.py "$f" private; then
+                mkdir -p temp_stfs_loop
+                if python3 tools/extract_stfs.py "$f" temp_stfs_loop; then
                    echo "Successfully extracted STFS package."
+                   if [ -f "temp_stfs_loop/default.xex" ]; then
+                       rm "temp_stfs_loop/default.xex"
+                   fi
+                   if [ "$(ls -A temp_stfs_loop)" ]; then
+                       cp -r temp_stfs_loop/* private/ || true
+                   fi
                 else
                    echo "Not an STFS package, moving to private..."
-                   mv "$f" private/
+                   if [ "$(basename "$f")" == "default.xex" ]; then
+                       echo "Skipping Title Update default.xex to preserve Game Data version."
+                   else
+                       mv "$f" private/
+                   fi
                 fi
+                rm -rf temp_stfs_loop
              done
              rm -rf temp_tu
           else
