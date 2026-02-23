@@ -1,4 +1,5 @@
 #include "app.h"
+#include <cstdlib>
 #include <api/SWA.h>
 #include <gpu/video.h>
 #include <install/installer.h>
@@ -20,12 +21,7 @@ void App::Restart(std::vector<std::string> restartArgs)
 void App::Exit()
 {
     Config::Save();
-
-#ifdef _WIN32
-    timeEndPeriod(1);
-#endif
-
-    std::_Exit(0);
+    std::exit(0);
 }
 
 // SWA::CApplication::CApplication
