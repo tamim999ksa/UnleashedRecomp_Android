@@ -37,6 +37,9 @@ using namespace plume;
 #include <ui/options_menu.h>
 #include <ui/game_window.h>
 #include <ui/black_bar.h>
+#ifdef __ANDROID__
+#include <ui/touch_controls.h>
+#endif
 #include <patches/aspect_ratio_patches.h>
 #include <user/config.h>
 #include <sdl_listener.h>
@@ -1353,6 +1356,9 @@ static void CreateImGuiBackend()
     MessageWindow::Init();
     OptionsMenu::Init();
     InstallerWizard::Init();
+    #ifdef __ANDROID__
+    TouchControls::Init();
+#endif
 
     ImGui_ImplSDL2_InitForOther(GameWindow::s_pWindow);
 
@@ -2456,6 +2462,9 @@ static void DrawImGui()
     ButtonGuide::Draw();
     Fader::Draw();
     BlackBar::Draw();
+    #ifdef __ANDROID__
+    TouchControls::Draw();
+#endif
 
     assert(ImGui::GetBackgroundDrawList()->_ClipRectStack.Size == 1 && "Some clip rects were not removed from the stack!");
 

@@ -6,6 +6,11 @@
 #include <ui/game_window.h>
 #include <kernel/xdm.h>
 #include <app.h>
+#include <cstdlib>
+
+#ifdef __ANDROID__
+#include <ui/touch_controls.h>
+#endif
 
 #define TRANSLATE_INPUT(S, X) SDL_GameControllerGetButton(controller, S) << FirstBitLow(X)
 #define VIBRATION_TIMEOUT_MS 5000
@@ -296,6 +301,13 @@ int HID_OnSDLEvent(void*, SDL_Event* event)
         case SDL_MOUSEBUTTONDOWN:
         case SDL_MOUSEBUTTONUP:
         {
+            if (event->type == SDL_MOUSEMOTION && event->motion.which == SDL_TOUCH_MOUSEID)
+                break;
+            if (event->type == SDL_MOUSEBUTTONDOWN && event->button.which == SDL_TOUCH_MOUSEID)
+                break;
+            if (event->type == SDL_MOUSEBUTTONUP && event->button.which == SDL_TOUCH_MOUSEID)
+                break;
+
             if (!GameWindow::IsFullscreen() || GameWindow::s_isFullscreenCursorVisible)
                 SDL_ShowCursor(SDL_ENABLE);
 
@@ -360,10 +372,32 @@ uint32_t hid::GetState(uint32_t dwUserIndex, XAMINPUT_STATE* pState)
 
     pState->dwPacketNumber = packet++;
 
+    if (g_activeController)
+        pState->Gamepad = g_activeController->state;
+
+#ifdef __ANDROID__
+    if (TouchControls::IsActive())
+    {
+        const auto& touchState = TouchControls::GetState();
+        pState->Gamepad.wButtons |= touchState.wButtons;
+
+        auto maxAbs = [](int16_t a, int16_t b) { return abs(a) > abs(b) ? a : b; };
+        auto maxU8 = [](uint8_t a, uint8_t b) { return a > b ? a : b; };
+
+        pState->Gamepad.sThumbLX = maxAbs(pState->Gamepad.sThumbLX, touchState.sThumbLX);
+        pState->Gamepad.sThumbLY = maxAbs(pState->Gamepad.sThumbLY, touchState.sThumbLY);
+        pState->Gamepad.sThumbRX = maxAbs(pState->Gamepad.sThumbRX, touchState.sThumbRX);
+        pState->Gamepad.sThumbRY = maxAbs(pState->Gamepad.sThumbRY, touchState.sThumbRY);
+        pState->Gamepad.bLeftTrigger = maxU8(pState->Gamepad.bLeftTrigger, touchState.bLeftTrigger);
+        pState->Gamepad.bRightTrigger = maxU8(pState->Gamepad.bRightTrigger, touchState.bRightTrigger);
+    }
+
+    if (!g_activeController && !TouchControls::IsActive())
+        return ERROR_DEVICE_NOT_CONNECTED;
+#else
     if (!g_activeController)
         return ERROR_DEVICE_NOT_CONNECTED;
-
-    pState->Gamepad = g_activeController->state;
+#endif
 
     return ERROR_SUCCESS;
 }
