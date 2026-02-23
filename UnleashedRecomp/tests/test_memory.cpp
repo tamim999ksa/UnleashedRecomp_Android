@@ -5,6 +5,7 @@
 #include <vector>
 #include <iostream>
 #include <cstdlib>
+#include <cstring>
 
 // Define dependencies for Memory struct
 #define PPC_MEMORY_SIZE 0x10000 // 64KB for testing
@@ -80,4 +81,41 @@ TEST_CASE("Memory::FunctionLookup") {
 
     // Check another offset is null (assuming initialized to 0)
     CHECK(g_memory.FindFunction(funcOffset + sizeof(void*)) == nullptr);
+}
+
+void AnotherDummyFunc(void*) {}
+
+TEST_CASE("Memory::FunctionLookup_ErrorHandling") {
+    // Clear memory to ensure clean state
+    std::memset(g_memory.base, 0, PPC_MEMORY_SIZE);
+
+    SUBCASE("Lookup unmapped function") {
+        CHECK(g_memory.FindFunction(0x200) == nullptr);
+    }
+
+    SUBCASE("Insert null function clears entry") {
+        g_memory.InsertFunction(0x200, DummyFunc);
+        CHECK(g_memory.FindFunction(0x200) == DummyFunc);
+        g_memory.InsertFunction(0x200, nullptr);
+        CHECK(g_memory.FindFunction(0x200) == nullptr);
+    }
+
+    SUBCASE("Overwrite existing function") {
+        g_memory.InsertFunction(0x300, DummyFunc);
+        CHECK(g_memory.FindFunction(0x300) == DummyFunc);
+
+        g_memory.InsertFunction(0x300, AnotherDummyFunc);
+        CHECK(g_memory.FindFunction(0x300) == AnotherDummyFunc);
+    }
+
+    SUBCASE("Boundary conditions") {
+        // Offset 0
+        g_memory.InsertFunction(0, DummyFunc);
+        CHECK(g_memory.FindFunction(0) == DummyFunc);
+
+        // Max offset (PPC_MEMORY_SIZE - pointer size)
+        uint32_t maxOffset = PPC_MEMORY_SIZE - sizeof(PPCFunc*);
+        g_memory.InsertFunction(maxOffset, DummyFunc);
+        CHECK(g_memory.FindFunction(maxOffset) == DummyFunc);
+    }
 }
