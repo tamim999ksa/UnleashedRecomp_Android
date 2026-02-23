@@ -158,6 +158,10 @@ if (NOT ANDROID)
     list(APPEND UNLEASHED_RECOMP_UI_CXX_SOURCES "ui/installer_wizard.cpp")
 endif()
 
+if (ANDROID)
+    list(APPEND UNLEASHED_RECOMP_UI_CXX_SOURCES "ui/touch_controls.cpp")
+endif()
+
 
 set(UNLEASHED_RECOMP_INSTALL_CXX_SOURCES
     "install/installer.cpp"

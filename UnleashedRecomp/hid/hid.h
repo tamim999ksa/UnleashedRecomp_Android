@@ -8,7 +8,8 @@ namespace hid
         Keyboard,
         Mouse,
         Xbox,
-        PlayStation
+        PlayStation,
+        Touch
     };
 
     enum class EInputDeviceExplicit
