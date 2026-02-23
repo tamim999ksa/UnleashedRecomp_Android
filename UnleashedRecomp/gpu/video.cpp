@@ -1,3 +1,5 @@
+#include <algorithm>
+#include <cstring>
 #include "video.h"
 
 #include "video_utils.h"
@@ -5678,6 +5680,46 @@ static void TextureLoaderThread()
 }
 
 static std::vector<std::unique_ptr<std::thread>> g_textureLoaderThreads = []()
+
+// Minimal KTX Header for ASTC support
+struct KtxHeader
+{
+    uint8_t identifier[12];
+    uint32_t endianness;
+    uint32_t glType;
+    uint32_t glTypeSize;
+    uint32_t glFormat;
+    uint32_t glInternalFormat;
+    uint32_t glBaseInternalFormat;
+    uint32_t pixelWidth;
+    uint32_t pixelHeight;
+    uint32_t pixelDepth;
+    uint32_t numberOfArrayElements;
+    uint32_t numberOfFaces;
+    uint32_t numberOfMipmapLevels;
+    uint32_t bytesOfKeyValueData;
+};
+
+static RenderFormat KTXFormatToRenderFormat(uint32_t glInternalFormat)
+{
+    switch (glInternalFormat)
+    {
+        case 0x93B0: return RenderFormat::ASTC_4x4_UNORM;
+        case 0x93B1: return RenderFormat::ASTC_5x5_UNORM;
+        case 0x93B2: return RenderFormat::ASTC_6x6_UNORM;
+        case 0x93B3: return RenderFormat::ASTC_8x8_UNORM;
+        case 0x93B4: return RenderFormat::ASTC_10x10_UNORM;
+        case 0x93B5: return RenderFormat::ASTC_12x12_UNORM;
+        case 0x93D0: return RenderFormat::ASTC_4x4_SRGB;
+        case 0x93D1: return RenderFormat::ASTC_5x5_SRGB;
+        case 0x93D2: return RenderFormat::ASTC_6x6_SRGB;
+        case 0x93D3: return RenderFormat::ASTC_8x8_SRGB;
+        case 0x93D4: return RenderFormat::ASTC_10x10_SRGB;
+        case 0x93D5: return RenderFormat::ASTC_12x12_SRGB;
+        default: return RenderFormat::UNKNOWN;
+    }
+}
+
 {
     std::vector<std::unique_ptr<std::thread>> threads(2);
     for (auto& thread : threads)
@@ -5687,6 +5729,71 @@ static std::vector<std::unique_ptr<std::thread>> g_textureLoaderThreads = []()
 
 static bool LoadTexture(GuestTexture& texture, const uint8_t* data, size_t dataSize, RenderComponentMapping componentMapping, bool forceCubeMap = false)
 {
+    const uint8_t ktxIdentifier[12] = { 0xAB, 0x4B, 0x54, 0x58, 0x20, 0x31, 0x31, 0xBB, 0x0D, 0x0A, 0x1A, 0x0A };
+    if (dataSize > sizeof(KtxHeader) && memcmp(data, ktxIdentifier, 12) == 0)
+    {
+        const KtxHeader* header = (const KtxHeader*)data;
+        RenderFormat format = KTXFormatToRenderFormat(header->glInternalFormat);
+        if (format != RenderFormat::UNKNOWN)
+        {
+            RenderTextureDesc desc;
+            desc.dimension = header->pixelDepth > 0 ? RenderTextureDimension::TEXTURE_3D : RenderTextureDimension::TEXTURE_2D;
+            desc.width = header->pixelWidth;
+            desc.height = header->pixelHeight;
+            desc.depth = header->pixelDepth > 0 ? header->pixelDepth : 1;
+            desc.mipLevels = header->numberOfMipmapLevels;
+            desc.arraySize = header->numberOfArrayElements > 0 ? header->numberOfArrayElements : 1;
+            desc.format = format;
+            desc.flags = header->numberOfFaces == 6 ? RenderTextureFlag::CUBE : RenderTextureFlag::NONE;
+            if (forceCubeMap)
+            {
+                desc.arraySize = 6;
+                desc.flags = RenderTextureFlag::CUBE;
+            }
+            texture.textureHolder = g_device->createTexture(desc);
+            texture.texture = texture.textureHolder.get();
+            texture.layout = RenderTextureLayout::COPY_DEST;
+            RenderTextureViewDesc viewDesc;
+            viewDesc.format = desc.format;
+            viewDesc.dimension = header->numberOfFaces == 6 ? RenderTextureViewDimension::TEXTURE_CUBE : RenderTextureViewDimension::TEXTURE_2D;
+            viewDesc.mipLevels = desc.mipLevels;
+            viewDesc.componentMapping = componentMapping;
+            if (forceCubeMap)
+                viewDesc.dimension = RenderTextureViewDimension::TEXTURE_CUBE;
+            texture.textureView = texture.texture->createTextureView(viewDesc);
+            texture.descriptorIndex = g_textureDescriptorAllocator.allocate();
+            g_textureDescriptorSet->setTexture(texture.descriptorIndex, texture.texture, RenderTextureLayout::SHADER_READ, texture.textureView.get());
+            texture.width = desc.width;
+            texture.height = desc.height;
+            texture.viewDimension = viewDesc.dimension;
+            uint32_t offset = sizeof(KtxHeader) + header->bytesOfKeyValueData;
+            for (uint32_t level = 0; level < desc.mipLevels; level++)
+            {
+                if (offset + 4 > dataSize) break;
+                uint32_t imageSize = *(uint32_t*)(data + offset);
+                offset += 4;
+                if (offset + imageSize > dataSize) break;
+                uint32_t width = std::max(1u, desc.width >> level);
+                uint32_t height = std::max(1u, desc.height >> level);
+                uint32_t blockWidth = RenderFormatBlockWidth(format);
+                uint32_t blocksX = (width + blockWidth - 1) / blockWidth;
+                uint32_t rowPitch = blocksX * 16;
+                auto uploadBuffer = g_device->createBuffer(RenderBufferDesc::UploadBuffer(imageSize));
+                memcpy(uploadBuffer->map(), data + offset, imageSize);
+                uploadBuffer->unmap();
+                ExecuteCopyCommandList([&]
+                {
+                    g_copyCommandList->barriers(RenderBarrierStage::COPY, RenderTextureBarrier(texture.texture, RenderTextureLayout::COPY_DEST));
+                    g_copyCommandList->copyTextureRegion(
+                        RenderTextureCopyLocation::Subresource(texture.texture, level),
+                        RenderTextureCopyLocation::PlacedFootprint(uploadBuffer.get(), format, width, height, 1, rowPitch, 0));
+                });
+                offset += imageSize;
+                offset = (offset + 3) & ~3;
+            }
+            return true;
+        }
+    }
     ddspp::Descriptor ddsDesc;
     if (ddspp::decode_header((unsigned char *)(data), ddsDesc) != ddspp::Error)
     {
