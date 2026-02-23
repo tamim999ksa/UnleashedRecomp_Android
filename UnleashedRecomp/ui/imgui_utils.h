@@ -5,6 +5,7 @@
 
 #include <functional>
 #include "string_utils.h"
+#include "ruby_utils.h"
 
 #define PIXELS_TO_UV_COORDS(textureWidth, textureHeight, x, y, width, height) \
     std::make_tuple(ImVec2((float)x / (float)textureWidth, (float)y / (float)textureHeight), \
@@ -66,8 +67,6 @@ void DrawTextWithMarqueeShadow(const ImFont* font, float fontSize, const ImVec2&
 void DrawTextWithOutline(const ImFont* font, float fontSize, const ImVec2& pos, ImU32 color, const char* text, float outlineSize, ImU32 outlineColor, uint32_t shaderModifier = IMGUI_SHADER_MODIFIER_NONE);
 void DrawTextWithShadow(const ImFont* font, float fontSize, const ImVec2& pos, ImU32 colour, const char* text, float offset = 2.0f, float radius = 1.0f, ImU32 shadowColour = IM_COL32(0, 0, 0, 255));
 float CalcWidestTextSize(const ImFont* font, float fontSize, std::span<std::string> strs);
-std::pair<std::string, std::map<std::string, std::string>> RemoveRubyAnnotations(const char* input);
-std::string ReAddRubyAnnotations(const std::string_view& wrappedText, const std::map<std::string, std::string>& rubyMap);
 std::vector<std::string> Split(const char* strStart, const ImFont* font, float fontSize, float maxWidth);
 Paragraph CalculateAnnotatedParagraph(const std::vector<std::string>& lines);
 std::vector<std::string> RemoveAnnotationFromParagraph(const std::vector<std::string>& lines);

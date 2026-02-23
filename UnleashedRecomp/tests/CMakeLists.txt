@@ -168,3 +168,17 @@ target_compile_features(test_string_utils PRIVATE cxx_std_20)
 target_sources(test_string_utils PRIVATE ${CMAKE_SOURCE_DIR}/UnleashedRecomp/ui/string_utils.cpp)
 
 add_test(NAME StringUtilsTest COMMAND test_string_utils)
+
+# test_ruby_utils
+add_executable(test_ruby_utils test_ruby_utils.cpp)
+
+target_include_directories(test_ruby_utils PRIVATE
+    ${CMAKE_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/UnleashedRecomp
+)
+
+target_compile_features(test_ruby_utils PRIVATE cxx_std_20)
+
+target_sources(test_ruby_utils PRIVATE ${CMAKE_SOURCE_DIR}/UnleashedRecomp/ui/ruby_utils.cpp)
+
+add_test(NAME RubyUtilsTest COMMAND test_ruby_utils)
