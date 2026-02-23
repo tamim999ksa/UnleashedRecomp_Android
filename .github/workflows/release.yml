@@ -36,6 +36,14 @@ jobs:
           sudo apt-get install -y 7zip
           pip install --upgrade gdown
 
+      - name: Create Swap File
+        run: |
+          sudo fallocate -l 4G /swapfile
+          sudo chmod 600 /swapfile
+          sudo mkswap /swapfile
+          sudo swapon /swapfile
+          sudo swapon --show
+
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
@@ -452,6 +460,8 @@ jobs:
 
       - name: Build Release APK
         working-directory: ./android
+        env:
+          CMAKE_BUILD_PARALLEL_LEVEL: 2
         run: ./gradlew assembleRelease
 
       - name: Upload Release Asset
