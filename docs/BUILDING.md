@@ -14,10 +14,12 @@ If you skipped the `--recurse-submodules` argument during cloning, you can run `
 
 Copy the following files from the game and place them inside `./UnleashedRecompLib/private/`:
 - `default.xex`
-- `default.xexp`
+- `default.xexp` (Optional if `default_patched.xex` is provided)
+- `default_patched.xex` (Optional, pre-patched executable)
 - `shader.ar`
 
 These files are located in the game's root directory, apart from `default.xexp`, which must be obtained via the title update package.
+If you have a pre-patched executable (e.g. from a previous build), you can rename it to `default_patched.xex` and place it here to skip the patching step.
 
 > [!TIP]
 > It is recommended that you install the game using [an existing Unleashed Recompiled release](https://github.com/hedge-dev/UnleashedRecomp/releases/latest) to acquire these files, otherwise you'll need to rely on third-party tools to extract them.
