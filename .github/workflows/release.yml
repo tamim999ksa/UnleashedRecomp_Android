@@ -36,11 +36,17 @@ jobs:
           sudo apt-get install -y 7zip
           pip install --upgrade gdown
 
+      - name: Free Disk Space
+        run: |
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /opt/ghc
+          sudo rm -rf "/usr/local/share/boost"
+
       - name: Create Swap File
         run: |
           sudo swapoff -a || true
           sudo rm -f /swapfile
-          sudo fallocate -l 8G /swapfile
+          sudo fallocate -l 12G /swapfile
           sudo chmod 600 /swapfile
           sudo mkswap /swapfile
           sudo swapon /swapfile
