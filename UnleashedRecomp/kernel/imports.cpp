@@ -1604,16 +1604,8 @@ void KeInitializeSemaphore(XKSEMAPHORE* semaphore, uint32_t count, uint32_t limi
     auto* object = QueryKernelObject<Semaphore>(semaphore->Header);
 }
 
-void XMAReleaseContext()
-{
-    LOG_UTILITY("!!! STUB !!!");
-}
-
-void XMACreateContext()
-{
-    LOG_UTILITY("!!! STUB !!!");
-}
-
+extern uint32_t XMAReleaseContext(uint32_t pContext);
+extern uint32_t XMACreateContext(uint32_t dwSize, uint32_t pContextData, uint32_t pContext);
 
 GUEST_FUNCTION_HOOK(__imp__XGetVideoMode, VdQueryVideoMode); // XGetVideoMode
 GUEST_FUNCTION_HOOK(__imp__XNotifyGetNext, XNotifyGetNext);

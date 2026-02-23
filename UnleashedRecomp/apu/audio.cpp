@@ -48,3 +48,68 @@ uint32_t XAudioSubmitRenderDriverFrame(uint32_t driver, void* samples)
     XAudioSubmitFrame(samples);
     return 0;
 }
+
+// XMA Hijack for OGG support
+static std::unordered_map<uint32_t, Mix_Chunk*> g_xmaContexts;
+static std::mutex g_xmaMutex;
+
+uint32_t XMACreateContext(uint32_t dwSize, uint32_t pContextDataPtr, uint32_t pContextPtr)
+{
+    uint32_t inputBufferAddr = 0;
+    uint32_t inputBufferSize = 0;
+
+    void* contextDataHost = g_memory.Translate(pContextDataPtr);
+    if (contextDataHost)
+    {
+        inputBufferAddr = ByteSwap(*(uint32_t*)contextDataHost);
+        inputBufferSize = ByteSwap(*((uint32_t*)contextDataHost + 1));
+    }
+
+    if (inputBufferAddr)
+    {
+        void* bufferHost = g_memory.Translate(inputBufferAddr);
+        if (bufferHost)
+        {
+             if (memcmp(bufferHost, "OggS", 4) == 0)
+             {
+                 SDL_RWops* rw = SDL_RWFromConstMem(bufferHost, inputBufferSize);
+                 Mix_Chunk* chunk = Mix_LoadWAV_RW(rw, 1);
+
+                 if (chunk)
+                 {
+                     std::lock_guard<std::mutex> lock(g_xmaMutex);
+                     static uint32_t s_handleCounter = 0x1000;
+                     uint32_t handle = ++s_handleCounter;
+
+                     g_xmaContexts[handle] = chunk;
+
+                     if (pContextPtr)
+                        *(be<uint32_t>*)g_memory.Translate(pContextPtr) = handle;
+
+                     // Play immediately as fallback since we lack EnableContext hook
+                     Mix_PlayChannel(-1, chunk, 0);
+
+                     return 0;
+                 }
+             }
+        }
+    }
+
+    // Fallback: Return a dummy handle so game doesn't crash
+    if (pContextPtr)
+        *(be<uint32_t>*)g_memory.Translate(pContextPtr) = 0xDEADBEEF;
+
+    return 0;
+}
+
+uint32_t XMAReleaseContext(uint32_t pContext)
+{
+     std::lock_guard<std::mutex> lock(g_xmaMutex);
+     auto it = g_xmaContexts.find(pContext);
+     if (it != g_xmaContexts.end())
+     {
+         Mix_FreeChunk(it->second);
+         g_xmaContexts.erase(it);
+     }
+     return 0;
+}
