@@ -252,7 +252,7 @@ jobs:
              echo "Checking if title_update.rar is a standard archive..."
              if 7z l title_update.rar > /dev/null 2>&1; then
                  echo "Extracting title_update.rar with 7z..."
-                 7z x title_update.rar -oprivate -y -x!default.xex
+                 7z x title_update.rar -oprivate -y -x!default.xex -x!default.xexp
              else
                  echo "Not a standard archive, attempting STFS extraction..."
                  mkdir -p temp_stfs
@@ -263,6 +263,10 @@ jobs:
                  if [ -f "temp_stfs/default.xex" ]; then
                      echo "Removing default.xex from Title Update"
                      rm "temp_stfs/default.xex"
+                 fi
+                 if [ -f "temp_stfs/default.xexp" ]; then
+                     echo "Removing default.xexp from Title Update"
+                     rm "temp_stfs/default.xexp"
                  fi
                  if [ "$(ls -A temp_stfs)" ]; then
                      cp -r temp_stfs/* private/ || true
@@ -281,13 +285,16 @@ jobs:
                    if [ -f "temp_stfs_loop/default.xex" ]; then
                        rm "temp_stfs_loop/default.xex"
                    fi
+                   if [ -f "temp_stfs_loop/default.xexp" ]; then
+                       rm "temp_stfs_loop/default.xexp"
+                   fi
                    if [ "$(ls -A temp_stfs_loop)" ]; then
                        cp -r temp_stfs_loop/* private/ || true
                    fi
                 else
                    echo "Not an STFS package, moving to private..."
-                   if [ "$(basename "$f")" == "default.xex" ]; then
-                       echo "Skipping Title Update default.xex to preserve Game Data version."
+                   if [ "$(basename "$f")" == "default.xex" ] || [ "$(basename "$f")" == "default.xexp" ]; then
+                       echo "Skipping Title Update default.xex/default.xexp to preserve Game Data version."
                    else
                        mv "$f" private/
                    fi
