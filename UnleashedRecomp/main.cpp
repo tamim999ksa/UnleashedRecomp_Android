@@ -1,4 +1,8 @@
 #include <stdafx.h>
+#ifdef _WIN32
+#include <Windows.h>
+#include <timeapi.h>
+#endif
 #ifdef __ANDROID__
 #include <os/android/perf_android.h>
 #endif
@@ -50,7 +54,7 @@ void KiSystemStartup()
     if (g_memory.base == nullptr)
     {
         SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, GameWindow::GetTitle(), Localise("System_MemoryAllocationFailed").c_str(), GameWindow::s_pWindow);
-        std::_Exit(1);
+        std::exit(1);
     }
 
     g_userHeap.Init();
@@ -207,7 +211,7 @@ uint32_t LdrLoadModule(const std::filesystem::path &path)
     if ((uint64_t)loadAddress + security->imageSize > PPC_MEMORY_SIZE)
     {
         SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, GameWindow::GetTitle(), Localise("System_MemoryAllocationFailed").c_str(), GameWindow::s_pWindow);
-        std::_Exit(1);
+        std::exit(1);
     }
 
     if (fileFormatInfo->compressionType == XEX_COMPRESSION_NONE)
@@ -219,7 +223,7 @@ uint32_t LdrLoadModule(const std::filesystem::path &path)
         if (fileFormatInfo->infoSize < sizeof(Xex2FileBasicCompressionInfo))
         {
             SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, GameWindow::GetTitle(), Localise("System_MemoryAllocationFailed").c_str(), GameWindow::s_pWindow);
-            std::_Exit(1);
+            std::exit(1);
         }
 
         auto* blocks = reinterpret_cast<const Xex2FileBasicCompressionBlock*>(fileFormatInfo + 1);
@@ -234,7 +238,7 @@ uint32_t LdrLoadModule(const std::filesystem::path &path)
                 if (!g_memory.IsInMemoryRange(currentDest) || !g_memory.IsInMemoryRange(currentDest + blocks[i].dataSize - 1))
                 {
                     SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, GameWindow::GetTitle(), Localise("System_MemoryAllocationFailed").c_str(), GameWindow::s_pWindow);
-                    std::_Exit(1);
+                    std::exit(1);
                 }
             }
 
@@ -254,7 +258,7 @@ uint32_t LdrLoadModule(const std::filesystem::path &path)
                 if (!g_memory.IsInMemoryRange(currentDest) || !g_memory.IsInMemoryRange(currentDest + blocks[i].zeroSize - 1))
                 {
                     SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, GameWindow::GetTitle(), Localise("System_MemoryAllocationFailed").c_str(), GameWindow::s_pWindow);
-                    std::_Exit(1);
+                    std::exit(1);
                 }
             }
 
@@ -288,7 +292,7 @@ void init()
     {
         printf("[*] CPU does not support the AVX instruction set.\n");
 
-        std::_Exit(1);
+        std::exit(1);
     }
 }
 #endif
@@ -329,6 +333,9 @@ CommandLineOptions ParseCommandLineArguments(int argc, char* argv[])
 
 void InitializeSystem()
 {
+#ifdef _WIN32
+    timeBeginPeriod(1);
+#endif
 #ifdef __ANDROID__
     SDL_setenv("SDL_AUDIO_DRIVER", "aaudio", 1);
     SDL_setenv("SDL_VIDEODRIVER", "android", 1);
@@ -406,7 +413,7 @@ void PerformInstallationIntegrityCheck(const CommandLineOptions& options)
         }
 
         SDL_ShowSimpleMessageBox(messageBoxStyle, GameWindow::GetTitle(), resultText, GameWindow::s_pWindow);
-        std::_Exit(int(journal.lastResult));
+        std::exit(int(journal.lastResult));
     }
 }
 
@@ -430,7 +437,7 @@ void InitializeVideoBackend(const CommandLineOptions& options)
     if (!Video::CreateHostDevice(options.SdlVideoDriver, options.GraphicsApiRetry))
     {
         SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, GameWindow::GetTitle(), Localise("Video_BackendError").c_str(), GameWindow::s_pWindow);
-        std::_Exit(1);
+        std::exit(1);
     }
 }
 
@@ -445,7 +452,7 @@ bool RunInstallerIfNeeded(const CommandLineOptions& options, std::filesystem::pa
 
         if (!InstallerWizard::Run(GetGamePath(), isGameInstalled && options.ForceDLCInstaller))
         {
-            std::_Exit(0);
+            std::exit(0);
         }
     }
 
