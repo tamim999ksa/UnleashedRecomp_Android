@@ -154,3 +154,17 @@ target_include_directories(benchmark_buffer_upload PRIVATE
 )
 
 target_compile_features(benchmark_buffer_upload PRIVATE cxx_std_20)
+
+# test_string_utils
+add_executable(test_string_utils test_string_utils.cpp)
+
+target_include_directories(test_string_utils PRIVATE
+    ${CMAKE_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/UnleashedRecomp
+)
+
+target_compile_features(test_string_utils PRIVATE cxx_std_20)
+
+target_sources(test_string_utils PRIVATE ${CMAKE_SOURCE_DIR}/UnleashedRecomp/ui/string_utils.cpp)
+
+add_test(NAME StringUtilsTest COMMAND test_string_utils)
