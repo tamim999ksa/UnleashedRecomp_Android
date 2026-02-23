@@ -2698,17 +2698,31 @@ void Recompiler::SaveCurrentOutData(const std::string_view& name)
         FILE* f = fopen(filePath.c_str(), "rb");
         if (f)
         {
-            static std::vector<uint8_t> temp;
-
             fseek(f, 0, SEEK_END);
             long fileSize = ftell(f);
             if (fileSize == out.size())
             {
                 fseek(f, 0, SEEK_SET);
-                temp.resize(fileSize);
-                if (fread(temp.data(), 1, fileSize, f) == fileSize)
 
-                shouldWrite = !XXH128_isEqual(XXH3_128bits(temp.data(), temp.size()), XXH3_128bits(out.data(), out.size()));
+                XXH3_state_t* state = XXH3_createState();
+                if (state)
+                {
+                    XXH3_128bits_reset(state);
+
+                    std::vector<uint8_t> buffer(64 * 1024);
+                    size_t bytesRead = 0;
+                    while ((bytesRead = fread(buffer.data(), 1, buffer.size(), f)) > 0)
+                    {
+                        XXH3_128bits_update(state, buffer.data(), bytesRead);
+                    }
+
+                    XXH128_hash_t fileHash = XXH3_128bits_digest(state);
+                    XXH128_hash_t outHash = XXH3_128bits(out.data(), out.size());
+
+                    shouldWrite = !XXH128_isEqual(fileHash, outHash);
+
+                    XXH3_freeState(state);
+                }
             }
             fclose(f);
         }
@@ -2716,10 +2730,14 @@ void Recompiler::SaveCurrentOutData(const std::string_view& name)
         if (shouldWrite)
         {
             f = fopen(filePath.c_str(), "wb");
-            fwrite(out.data(), 1, out.size(), f);
-            fclose(f);
+            if (f)
+            {
+                fwrite(out.data(), 1, out.size(), f);
+                fclose(f);
+            }
         }
 
         out.clear();
+        out.shrink_to_fit();
     }
 }
