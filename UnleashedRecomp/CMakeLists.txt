@@ -179,6 +179,7 @@ set(UNLEASHED_RECOMP_UI_CXX_SOURCES
     "ui/fader.cpp"
     "ui/game_window.cpp"
     "ui/imgui_utils.cpp"
+    "ui/string_utils.cpp"
     "ui/installer_wizard.cpp"
     "ui/message_window.cpp"
     "ui/options_menu.cpp"
