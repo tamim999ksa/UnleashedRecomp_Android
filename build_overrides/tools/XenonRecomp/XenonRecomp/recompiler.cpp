@@ -1,6 +1,32 @@
 #include "pch.h"
 #include "recompiler.h"
 #include <xex_patcher.h>
+#include <array>
+
+namespace
+{
+    template<size_t N>
+    struct RegisterNames
+    {
+        std::array<std::string, N> local;
+        std::array<std::string, N> ctx;
+
+        RegisterNames(const char* prefix)
+        {
+            for (size_t i = 0; i < N; ++i)
+            {
+                local[i] = fmt::format("{}{}", prefix, i);
+                ctx[i] = fmt::format("ctx.{}{}", prefix, i);
+            }
+        }
+    };
+
+    const RegisterNames<32> r_names("r");
+    const RegisterNames<32> f_names("f");
+    const RegisterNames<128> v_names("v");
+    const RegisterNames<8> cr_names("cr");
+}
+
 
 static uint64_t ComputeMask(uint32_t mstart, uint32_t mstop)
 {
@@ -45,7 +71,7 @@ bool Recompiler::LoadConfig(const std::string_view& configFilePath)
                 }
                 else
                 {
-                    fmt::print("ERROR: Unable to apply the patch file, ");
+                    fmt::print("WARNING: Unable to apply the patch file, ");
 
                     switch (result)
                     {
@@ -78,7 +104,18 @@ bool Recompiler::LoadConfig(const std::string_view& configFilePath)
                         break;
                     }
 
-                    return false;
+
+                    // return false; // Proceed with original file
+                    if (!config.patchedFilePath.empty())
+                    {
+                        std::ofstream stream(config.directoryPath + config.patchedFilePath, std::ios::binary);
+                        if (stream.good())
+                        {
+                            stream.write(reinterpret_cast<const char*>(file.data()), file.size());
+                            stream.close();
+                        }
+                    }
+
                 }
             }
             else
@@ -254,59 +291,58 @@ void Recompiler::Analyse()
     std::sort(functions.begin(), functions.end(), [](auto& lhs, auto& rhs) { return lhs.base < rhs.base; });
 }
 
-bool Recompiler::Recompile(
-    const Function& fn,
-    uint32_t base,
-    const ppc_insn& insn,
-    const uint32_t* data,
-    std::unordered_map<uint32_t, RecompilerSwitchTable>::iterator& switchTable,
-    RecompilerLocalVariables& localVariables,
-    CSRState& csrState)
+bool Recompiler::Recompile(const RecompileArgs& args)
 {
+    const auto& fn = args.fn;
+    auto base = args.base;
+    const auto& insn = args.insn;
+    const auto* data = args.data;
+    auto& switchTable = args.switchTable;
+    auto& localVariables = args.localVariables;
+    auto& csrState = args.csrState;
     println("\t// {} {}", insn.opcode->name, insn.op_str);
 
-    // TODO: we could cache these formats in an array
-    auto r = [&](size_t index)
+    auto r = [&](size_t index) -> std::string_view
         {
             if ((config.nonArgumentRegistersAsLocalVariables && (index == 0 || index == 2 || index == 11 || index == 12)) ||
                 (config.nonVolatileRegistersAsLocalVariables && index >= 14))
             {
                 localVariables.r[index] = true;
-                return fmt::format("r{}", index);
+                return r_names.local[index];
             }
-            return fmt::format("ctx.r{}", index);
+            return r_names.ctx[index];
         };
 
-    auto f = [&](size_t index)
+    auto f = [&](size_t index) -> std::string_view
         {
             if ((config.nonArgumentRegistersAsLocalVariables && index == 0) ||
                 (config.nonVolatileRegistersAsLocalVariables && index >= 14))
             {
                 localVariables.f[index] = true;
-                return fmt::format("f{}", index);
+                return f_names.local[index];
             }
-            return fmt::format("ctx.f{}", index);
+            return f_names.ctx[index];
         };
 
-    auto v = [&](size_t index)
+    auto v = [&](size_t index) -> std::string_view
         {
             if ((config.nonArgumentRegistersAsLocalVariables && (index >= 32 && index <= 63)) ||
                 (config.nonVolatileRegistersAsLocalVariables && ((index >= 14 && index <= 31) || (index >= 64 && index <= 127))))
             {
                 localVariables.v[index] = true;
-                return fmt::format("v{}", index);
+                return v_names.local[index];
             }
-            return fmt::format("ctx.v{}", index);
+            return v_names.ctx[index];
         };
 
-    auto cr = [&](size_t index)
+    auto cr = [&](size_t index) -> std::string_view
         {
             if (config.crRegistersAsLocalVariables)
             {
                 localVariables.cr[index] = true;
-                return fmt::format("cr{}", index);
+                return cr_names.local[index];
             }
-            return fmt::format("ctx.cr{}", index);
+            return cr_names.ctx[index];
         };
 
     auto ctr = [&]()
@@ -438,7 +474,7 @@ bool Recompiler::Recompile(
     auto printMidAsmHook = [&]()
         {
             bool returnsBool = midAsmHook->second.returnOnFalse || midAsmHook->second.returnOnTrue ||
-                midAsmHook->second.jumpAddressOnFalse != NULL || midAsmHook->second.jumpAddressOnTrue != NULL;
+                midAsmHook->second.jumpAddressOnFalse != 0 || midAsmHook->second.jumpAddressOnTrue != 0;
 
             print("\t");
             if (returnsBool)
@@ -489,7 +525,7 @@ bool Recompiler::Recompile(
 
                 if (midAsmHook->second.returnOnTrue)
                     println("\t\treturn;");
-                else if (midAsmHook->second.jumpAddressOnTrue != NULL)
+                else if (midAsmHook->second.jumpAddressOnTrue != 0)
                     println("\t\tgoto loc_{:X};", midAsmHook->second.jumpAddressOnTrue);
 
                 println("\t}}");
@@ -498,7 +534,7 @@ bool Recompiler::Recompile(
 
                 if (midAsmHook->second.returnOnFalse)
                     println("\t\treturn;");
-                else if (midAsmHook->second.jumpAddressOnFalse != NULL)
+                else if (midAsmHook->second.jumpAddressOnFalse != 0)
                     println("\t\tgoto loc_{:X};", midAsmHook->second.jumpAddressOnFalse);
 
                 println("\t}}");
@@ -509,7 +545,7 @@ bool Recompiler::Recompile(
 
                 if (midAsmHook->second.ret)
                     println("\treturn;");
-                else if (midAsmHook->second.jumpAddress != NULL)
+                else if (midAsmHook->second.jumpAddress != 0)
                     println("\tgoto loc_{:X};", midAsmHook->second.jumpAddress);
             }
         };
@@ -1255,9 +1291,29 @@ bool Recompiler::Recompile(
         break;
 
     case PPC_INST_MFOCRF:
-        // TODO: don't hardcode to cr6
-        println("\t{}.u64 = ({}.lt << 7) | ({}.gt << 6) | ({}.eq << 5) | ({}.so << 4);", r(insn.operands[0]), cr(6), cr(6), cr(6), cr(6));
+    {
+        const uint32_t fxm = insn.operands[1];
+        print("\t{}.u64 = ", r(insn.operands[0]));
+
+        bool first = true;
+        for (int i = 0; i < 8; i++)
+        {
+            if (fxm & (0x80 >> i))
+            {
+                if (!first)
+                    print(" | ");
+
+                const uint32_t shift = (7 - i) * 4;
+                print("(({}.lt << {}) | ({}.gt << {}) | ({}.eq << {}) | ({}.so << {}))",
+                    cr(i), shift + 3, cr(i), shift + 2, cr(i), shift + 1, cr(i), shift);
+                first = false;
+            }
+        }
+        if (first)
+            print("0");
+        println(";");
         break;
+    }
 
     case PPC_INST_MFTB:
         println("\t{}.u64 = __rdtsc();", r(insn.operands[0]));
@@ -2081,10 +2137,10 @@ bool Recompiler::Recompile(
 
     case PPC_INST_VRSQRTEFP:
     case PPC_INST_VRSQRTEFP128:
-        // TODO: see if we can use rsqrt safely
+        // Note: rsqrt provides an estimate with ~12 bits of precision, which matches the PowerPC vrsqrtefp specification (1/4096).
         // TODO: we can detect if the input is from a dot product and apply logic only on one value
         printSetFlushMode(true);
-        println("\tsimde_mm_store_ps({}.f32, simde_mm_div_ps(simde_mm_set1_ps(1), simde_mm_sqrt_ps(simde_mm_load_ps({}.f32))));", v(insn.operands[0]), v(insn.operands[1]));
+        println("\tsimde_mm_store_ps({}.f32, simde_mm_rsqrt_ps(simde_mm_load_ps({}.f32)));", v(insn.operands[0]), v(insn.operands[1]));
         break;
 
     case PPC_INST_VSEL:
@@ -2314,7 +2370,7 @@ bool Recompiler::Recompile(const Function& fn)
         if (midAsmHook != config.midAsmHooks.end())
         {
             if (midAsmHook->second.returnOnFalse || midAsmHook->second.returnOnTrue ||
-                midAsmHook->second.jumpAddressOnFalse != NULL || midAsmHook->second.jumpAddressOnTrue != NULL)
+                midAsmHook->second.jumpAddressOnFalse != 0 || midAsmHook->second.jumpAddressOnTrue != 0)
             {
                 print("extern bool ");
             }
@@ -2361,11 +2417,11 @@ bool Recompiler::Recompile(const Function& fn)
 
             println(");\n");
 
-            if (midAsmHook->second.jumpAddress != NULL)
+            if (midAsmHook->second.jumpAddress != 0)
                 labels.emplace(midAsmHook->second.jumpAddress);
-            if (midAsmHook->second.jumpAddressOnTrue != NULL)
+            if (midAsmHook->second.jumpAddressOnTrue != 0)
                 labels.emplace(midAsmHook->second.jumpAddressOnTrue);
-            if (midAsmHook->second.jumpAddressOnFalse != NULL)
+            if (midAsmHook->second.jumpAddressOnFalse != 0)
                 labels.emplace(midAsmHook->second.jumpAddressOnFalse);
         }
     }
@@ -2427,7 +2483,7 @@ bool Recompiler::Recompile(const Function& fn)
             if (insn.opcode->id == PPC_INST_BCTR && (*(data - 1) == 0x07008038 || *(data - 1) == 0x00000060) && switchTable == config.switchTables.end())
                 fmt::println("Found a switch jump table at {:X} with no switch table entry present", base);
 
-            if (!Recompile(fn, base, insn, data, switchTable, localVariables, csrState))
+            if (!Recompile({ fn, static_cast<uint32_t>(base), insn, data, switchTable, localVariables, csrState }))
             {
                 fmt::println("Unrecognized instruction at 0x{:X}: {}", base, insn.opcode->name);
                 allRecompiled = false;
