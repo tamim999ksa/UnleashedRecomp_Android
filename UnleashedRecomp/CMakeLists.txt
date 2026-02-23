@@ -147,6 +147,7 @@ set(UNLEASHED_RECOMP_UI_CXX_SOURCES
     "ui/game_window.cpp"
     "ui/imgui_utils.cpp"
     "ui/string_utils.cpp"
+    "ui/ruby_utils.cpp"
     "ui/message_window.cpp"
     "ui/options_menu.cpp"
     "ui/options_menu_thumbnails.cpp"
