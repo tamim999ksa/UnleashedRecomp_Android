@@ -29,7 +29,7 @@ set(UNLEASHED_RECOMP_PPC_RECOMPILED_SOURCES
     "${CMAKE_CURRENT_SOURCE_DIR}/ppc/ppc_recomp_shared.h"
 )
 
-foreach(i RANGE 0 3399)
+foreach(i RANGE 0 16999)
     list(APPEND UNLEASHED_RECOMP_PPC_RECOMPILED_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/ppc/ppc_recomp.${i}.cpp")
 endforeach()
 

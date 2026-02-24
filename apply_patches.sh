@@ -8,27 +8,33 @@ echo "=== Applying overrides ==="
 
 # Reset submodules to clean state first
 # XenonRecomp
-if [ -d "tools/XenonRecomp/.git" ]; then
+if [ -e "tools/XenonRecomp/.git" ]; then
     echo "Resetting XenonRecomp..."
-    cd tools/XenonRecomp && git reset --hard HEAD && git clean -fdx && cd ../..
+    cd tools/XenonRecomp && git reset --hard HEAD && git clean -fdx && git submodule update --init --recursive && cd ../..
 fi
 
 # XenosRecomp
-if [ -d "tools/XenosRecomp/.git" ]; then
+if [ -e "tools/XenosRecomp/.git" ]; then
     echo "Resetting XenosRecomp..."
-    cd tools/XenosRecomp && git reset --hard HEAD && git clean -fdx && cd ../..
+    cd tools/XenosRecomp && git reset --hard HEAD && git clean -fdx && git submodule update --init --recursive && cd ../..
 fi
 
 # nativefiledialog-extended
-if [ -d "thirdparty/nativefiledialog-extended/.git" ]; then
+if [ -e "thirdparty/nativefiledialog-extended/.git" ]; then
     echo "Resetting nativefiledialog-extended..."
-    cd thirdparty/nativefiledialog-extended && git reset --hard HEAD && git clean -fdx && cd ../..
+    cd thirdparty/nativefiledialog-extended && git reset --hard HEAD && git clean -fdx && git submodule update --init --recursive && cd ../..
 fi
 
 # SDL
-if [ -d "thirdparty/SDL/.git" ]; then
+if [ -e "thirdparty/SDL/.git" ]; then
     echo "Resetting SDL..."
-    cd thirdparty/SDL && git reset --hard HEAD && git clean -fdx && cd ../..
+    cd thirdparty/SDL && git reset --hard HEAD && git clean -fdx && git submodule update --init --recursive && cd ../..
+fi
+
+# UnleashedRecomp/api
+if [ -e "UnleashedRecomp/api/.git" ]; then
+    echo "Resetting UnleashedRecomp/api..."
+    cd UnleashedRecomp/api && git reset --hard HEAD && git clean -fdx && git submodule update --init --recursive && cd ../..
 fi
 
 # Copy overrides

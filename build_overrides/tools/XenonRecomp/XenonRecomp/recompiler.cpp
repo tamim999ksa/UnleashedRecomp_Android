@@ -2658,8 +2658,8 @@ void Recompiler::Recompile(const std::filesystem::path& headerFilePath)
         SaveCurrentOutData("ppc_func_mapping.cpp");
     }
 
-    const size_t batchSize = 5;
-    // Pad to 17000 functions to ensure stable file count for CMake (17000 / 5 = 3400 files)
+    const size_t batchSize = 1;
+    // Pad to 17000 functions to ensure stable file count for CMake (17000 / 1 = 17000 files)
     const size_t targetFuncCount = 17000;
     const size_t loopEnd = std::max(functions.size(), targetFuncCount);
 
