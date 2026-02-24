@@ -182,3 +182,15 @@ target_compile_features(test_ruby_utils PRIVATE cxx_std_20)
 target_sources(test_ruby_utils PRIVATE ${CMAKE_SOURCE_DIR}/UnleashedRecomp/ui/ruby_utils.cpp)
 
 add_test(NAME RubyUtilsTest COMMAND test_ruby_utils)
+
+# test_string_holder
+add_executable(test_string_holder test_string_holder.cpp)
+
+target_include_directories(test_string_holder PRIVATE
+    ${CMAKE_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/UnleashedRecomp
+)
+
+target_compile_features(test_string_holder PRIVATE cxx_std_20)
+
+add_test(NAME StringHolderTest COMMAND test_string_holder)

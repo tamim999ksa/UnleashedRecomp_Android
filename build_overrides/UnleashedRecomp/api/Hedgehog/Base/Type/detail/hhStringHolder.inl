@@ -7,7 +7,14 @@ namespace Hedgehog::Base
 
     inline SStringHolder* SStringHolder::Make(const char* in_pStr)
     {
-        auto pHolder = (SStringHolder*)__HH_ALLOC(sizeof(RefCount) + strlen(in_pStr) + 1);
+        const size_t len = strlen(in_pStr);
+        if (len > 0xFFFFFFFF - (sizeof(RefCount) + 1))
+            return nullptr;
+
+        auto pHolder = (SStringHolder*)__HH_ALLOC((uint32_t)(sizeof(RefCount) + len + 1));
+        if (!pHolder)
+            return nullptr;
+
         pHolder->RefCount = 1;
         strcpy(pHolder->aStr, in_pStr);
         return pHolder;
