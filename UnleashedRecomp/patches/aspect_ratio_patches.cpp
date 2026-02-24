@@ -160,7 +160,7 @@ static void TraverseSceneNodeImpl(Chao::CSD::SceneNode* sceneNode, std::string& 
     path.pop_back();
 }
 
-static void TraverseSceneNode(Chao::CSD::SceneNode* sceneNode, std::string path)
+static void TraverseSceneNode(Chao::CSD::SceneNode* sceneNode, std::string& path)
 {
     std::unique_lock lock(g_pathMutex);
     TraverseSceneNodeImpl(sceneNode, path);
