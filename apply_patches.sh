@@ -1,41 +1,50 @@
 #!/bin/bash
 set -e
+set -x  # Enable debug logging
 
 # Make sure we are in the project root
 cd "$(dirname "$0")"
 
 echo "=== Applying overrides ==="
 
+# Function to reset and update submodule
+reset_submodule() {
+    local SUBMODULE_PATH="$1"
+    local SUBMODULE_NAME="$2"
+
+    if [ -e "$SUBMODULE_PATH/.git" ]; then
+        echo "Resetting $SUBMODULE_NAME..."
+        pushd "$SUBMODULE_PATH" > /dev/null
+        git reset --hard HEAD
+        git clean -fdx
+        # Explicitly sync to handle URL changes
+        git submodule sync --recursive
+        git submodule update --init --recursive --force
+        popd > /dev/null
+    fi
+}
+
 # Reset submodules to clean state first
-# XenonRecomp
+reset_submodule "tools/XenonRecomp" "XenonRecomp"
+
+# Explicit check for XenonRecomp critical dependency (fmt)
 if [ -e "tools/XenonRecomp/.git" ]; then
-    echo "Resetting XenonRecomp..."
-    cd tools/XenonRecomp && git reset --hard HEAD && git clean -fdx && git submodule update --init --recursive && cd ../..
+    if [ ! -f "tools/XenonRecomp/thirdparty/fmt/CMakeLists.txt" ]; then
+        echo "Warning: fmt submodule in XenonRecomp seems missing. Retrying update..."
+        pushd "tools/XenonRecomp" > /dev/null
+        git submodule update --init --recursive --force
+        popd > /dev/null
+        if [ ! -f "tools/XenonRecomp/thirdparty/fmt/CMakeLists.txt" ]; then
+            echo "Error: Failed to restore fmt submodule!"
+            false
+        fi
+    fi
 fi
 
-# XenosRecomp
-if [ -e "tools/XenosRecomp/.git" ]; then
-    echo "Resetting XenosRecomp..."
-    cd tools/XenosRecomp && git reset --hard HEAD && git clean -fdx && git submodule update --init --recursive && cd ../..
-fi
-
-# nativefiledialog-extended
-if [ -e "thirdparty/nativefiledialog-extended/.git" ]; then
-    echo "Resetting nativefiledialog-extended..."
-    cd thirdparty/nativefiledialog-extended && git reset --hard HEAD && git clean -fdx && git submodule update --init --recursive && cd ../..
-fi
-
-# SDL
-if [ -e "thirdparty/SDL/.git" ]; then
-    echo "Resetting SDL..."
-    cd thirdparty/SDL && git reset --hard HEAD && git clean -fdx && git submodule update --init --recursive && cd ../..
-fi
-
-# UnleashedRecomp/api
-if [ -e "UnleashedRecomp/api/.git" ]; then
-    echo "Resetting UnleashedRecomp/api..."
-    cd UnleashedRecomp/api && git reset --hard HEAD && git clean -fdx && git submodule update --init --recursive && cd ../..
-fi
+reset_submodule "tools/XenosRecomp" "XenosRecomp"
+reset_submodule "thirdparty/nativefiledialog-extended" "nativefiledialog-extended"
+reset_submodule "thirdparty/SDL" "SDL"
+reset_submodule "UnleashedRecomp/api" "UnleashedRecomp/api"
 
 # Copy overrides
 if [ -d "build_overrides" ]; then
