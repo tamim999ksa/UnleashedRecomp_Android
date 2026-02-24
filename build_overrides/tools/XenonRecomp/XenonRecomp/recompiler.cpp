@@ -71,7 +71,7 @@ bool Recompiler::LoadConfig(const std::string_view& configFilePath)
                 }
                 else
                 {
-                    fmt::print("WARNING: Unable to apply the patch file, ");
+                    fmt::print("ERROR: Unable to apply the patch file, ");
 
                     switch (result)
                     {
@@ -105,7 +105,7 @@ bool Recompiler::LoadConfig(const std::string_view& configFilePath)
                     }
 
 
-                    // return false; // Proceed with original file
+                    return false;
                     if (!config.patchedFilePath.empty())
                     {
                         std::ofstream stream(config.directoryPath + config.patchedFilePath, std::ios::binary);
