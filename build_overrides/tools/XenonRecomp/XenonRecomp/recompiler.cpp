@@ -2677,6 +2677,8 @@ void Recompiler::Recompile(const std::filesystem::path& headerFilePath)
                 fmt::println("Recompiling functions... {}%", static_cast<float>(i + 1) / functions.size() * 100.0f);
 
             Recompile(functions[i]);
+            functions[i].blocks.clear();
+            functions[i].blocks.shrink_to_fit();
         }
         else
         {
