@@ -33,7 +33,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y 7zip
+          sudo apt-get install -y 7zip patchelf
           pip install --upgrade gdown
 
       - name: Free Disk Space
@@ -467,6 +467,25 @@ jobs:
 
           echo "Assets prepared successfully."
           ls -l ./UnleashedRecompLib/private/
+
+      - name: Build Host Tools
+        run: |
+          mkdir -p build_host
+          cd build_host
+          cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_TOOLS_ONLY=ON ..
+          make -j$(nproc) XenonRecomp XenosRecomp bc_diff file_to_c fshasher x_decompress
+          mkdir -p ../build_tools/bin
+          cp tools/XenonRecomp/XenonRecomp/XenonRecomp ../build_tools/bin/
+          cp tools/XenosRecomp/XenosRecomp/XenosRecomp ../build_tools/bin/
+          cp tools/bc_diff/bc_diff ../build_tools/bin/
+          cp tools/file_to_c/file_to_c ../build_tools/bin/
+          cp tools/fshasher/fshasher ../build_tools/bin/
+          cp tools/x_decompress/x_decompress ../build_tools/bin/
+          cp ../tools/XenosRecomp/thirdparty/dxc-bin/lib/x64/libdxcompiler.so ../build_tools/bin/
+          patchelf --set-rpath '$ORIGIN' ../build_tools/bin/XenosRecomp
+          ls -l ../build_tools/bin
+          cd ..
+          rm -rf build_host
 
       - name: Build Release APK
         working-directory: ./android
