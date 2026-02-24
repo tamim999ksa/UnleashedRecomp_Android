@@ -2660,7 +2660,7 @@ void Recompiler::Recompile(const std::filesystem::path& headerFilePath)
 
     for (size_t i = 0; i < functions.size(); i++)
     {
-        if ((i % 256) == 0)
+        if ((i % 64) == 0)
         {
             SaveCurrentOutData();
             println("#include \"ppc_recomp_shared.h\"\n");
