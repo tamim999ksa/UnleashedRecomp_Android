@@ -2558,7 +2558,7 @@ bool Recompiler::Recompile(const Function& fn)
 
 void Recompiler::Recompile(const std::filesystem::path& headerFilePath)
 {
-    out.reserve(3 * 1024 * 1024);
+    out.reserve(1024 * 1024);
 
     {
         println("#pragma once");
@@ -2658,8 +2658,8 @@ void Recompiler::Recompile(const std::filesystem::path& headerFilePath)
         SaveCurrentOutData("ppc_func_mapping.cpp");
     }
 
-    const size_t batchSize = 20;
-    // Pad to 17000 functions to ensure stable file count for CMake (17000 / 20 = 850 files)
+    const size_t batchSize = 10;
+    // Pad to 17000 functions to ensure stable file count for CMake (17000 / 10 = 1700 files)
     const size_t targetFuncCount = 17000;
     const size_t loopEnd = std::max(functions.size(), targetFuncCount);
 
