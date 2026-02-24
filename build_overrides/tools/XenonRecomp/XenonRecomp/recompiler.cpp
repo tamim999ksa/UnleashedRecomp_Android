@@ -2558,7 +2558,7 @@ bool Recompiler::Recompile(const Function& fn)
 
 void Recompiler::Recompile(const std::filesystem::path& headerFilePath)
 {
-    out.reserve(10 * 1024 * 1024);
+    out.reserve(3 * 1024 * 1024);
 
     {
         println("#pragma once");
@@ -2658,18 +2658,30 @@ void Recompiler::Recompile(const std::filesystem::path& headerFilePath)
         SaveCurrentOutData("ppc_func_mapping.cpp");
     }
 
-    for (size_t i = 0; i < functions.size(); i++)
+    const size_t batchSize = 20;
+    // Pad to 17000 functions to ensure stable file count for CMake (17000 / 20 = 850 files)
+    const size_t targetFuncCount = 17000;
+    const size_t loopEnd = std::max(functions.size(), targetFuncCount);
+
+    for (size_t i = 0; i < loopEnd; i++)
     {
-        if ((i % 64) == 0)
+        if ((i % batchSize) == 0)
         {
             SaveCurrentOutData();
             println("#include \"ppc_recomp_shared.h\"\n");
         }
 
-        if ((i % 2048) == 0 || (i == (functions.size() - 1)))
-            fmt::println("Recompiling functions... {}%", static_cast<float>(i + 1) / functions.size() * 100.0f);
+        if (i < functions.size())
+        {
+            if ((i % 2048) == 0 || (i == (functions.size() - 1)))
+                fmt::println("Recompiling functions... {}%", static_cast<float>(i + 1) / functions.size() * 100.0f);
 
-        Recompile(functions[i]);
+            Recompile(functions[i]);
+        }
+        else
+        {
+            println("// Padding function {}", i);
+        }
     }
 
     SaveCurrentOutData();
