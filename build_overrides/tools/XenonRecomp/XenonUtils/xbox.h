@@ -247,13 +247,13 @@ typedef struct _XXOVERLAPPED {
         {
             be<uint32_t> Error;
             be<uint32_t> Length;
-        } _ErrorLength;
+        } u;
 
         struct
         {
             uint32_t InternalLow;
             uint32_t InternalHigh;
-        } _InternalLowHigh;
+        } v;
     };
     uint32_t InternalContext;
     be<uint32_t> hEvent;
@@ -261,10 +261,8 @@ typedef struct _XXOVERLAPPED {
     be<uint32_t> dwCompletionContext;
     be<uint32_t> dwExtendedError;
 } XXOVERLAPPED, *PXXOVERLAPPED;
-
 static_assert(sizeof(_XXOVERLAPPED) == 0x1C);
 
-// https://learn.microsoft.com/en-us/windows/win32/api/winbase/ns-winbase-memorystatus
 typedef struct _XMEMORYSTATUS {
     be<uint32_t> dwLength;
     be<uint32_t> dwMemoryLoad;

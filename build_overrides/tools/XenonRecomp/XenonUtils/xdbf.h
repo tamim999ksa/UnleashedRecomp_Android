@@ -132,7 +132,7 @@ union XDBFTitleID
     {
         be<uint16_t> u16;
         char u8[0x02];
-    } AsU16;
+    } s;
 
     be<uint32_t> u32;
 };
