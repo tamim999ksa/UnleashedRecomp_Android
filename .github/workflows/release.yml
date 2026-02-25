@@ -46,7 +46,7 @@ jobs:
         run: |
           sudo swapoff -a || true
           sudo rm -f /swapfile
-          sudo fallocate -l 8G /swapfile
+          sudo dd if=/dev/zero of=/swapfile bs=1M count=8192 status=progress
           sudo chmod 600 /swapfile
           sudo mkswap /swapfile
           sudo swapon /swapfile
@@ -128,7 +128,7 @@ jobs:
           # 1. Try provided URL
           if [ -n "$GAME_DATA_URL" ]; then
              echo "Attempting download from provided URL..."
-             if curl -L -o game_data.iso "$GAME_DATA_URL"; then
+             if curl -fL -o game_data.iso "$GAME_DATA_URL"; then
                 download_success=true
              else
                 echo "Failed to download from provided URL."
@@ -138,15 +138,11 @@ jobs:
           # 2. Try CDN (Primary default)
           if [ "$download_success" = false ]; then
              echo "Attempting primary download (CDN)..."
-             if curl -L -o game_data.7z "https://cdn.atserver.us/Games/Windows/Sonic%20Unleashed/BASE%20ROM%20%5BADVANCED%5D.7z"; then
+             if curl -fL -o game_data.7z "https://cdn.atserver.us/Games/Windows/Sonic%20Unleashed/BASE%20ROM%20%5BADVANCED%5D.7z"; then
                 download_success=true
              fi
           fi
 
-          if [ "$download_success" = false ]; then
-             echo "Failed to download Game Data."
-             exit 1
-          fi
 
           # 3. Try Google Drive (Secondary default)
           if [ "$download_success" = false ]; then
@@ -161,6 +157,13 @@ jobs:
              done
           fi
 
+          if [ "$download_success" = false ]; then
+             echo "Failed to download Game Data."
+             exit 1
+          fi
+
+
+
           # --- DLC ---
           echo "Downloading DLC..."
           download_success=false
@@ -168,7 +171,7 @@ jobs:
           # 1. Try provided URL
           if [ -n "$DLC_DATA_URL" ]; then
              echo "Attempting download from provided URL..."
-             if curl -L -o dlc_data.rar "$DLC_DATA_URL"; then
+             if curl -fL -o dlc_data.rar "$DLC_DATA_URL"; then
                 download_success=true
              else
                 echo "Failed to download from provided URL."
@@ -178,15 +181,11 @@ jobs:
           # 3. Try CDN
           if [ "$download_success" = false ]; then
              echo "Attempting primary download (CDN)..."
-             if curl -L -o dlc_data.7z "https://cdn.atserver.us/Games/Windows/Sonic%20Unleashed/DLC%20%5BADVANCED%5D.7z"; then
+             if curl -fL -o dlc_data.7z "https://cdn.atserver.us/Games/Windows/Sonic%20Unleashed/DLC%20%5BADVANCED%5D.7z"; then
                 download_success=true
              fi
           fi
 
-          if [ "$download_success" = false ]; then
-             echo "Failed to download DLC Data."
-             exit 1
-          fi
 
           # 2. Try Google Drive
           if [ "$download_success" = false ]; then
@@ -201,6 +200,13 @@ jobs:
              done
           fi
 
+          if [ "$download_success" = false ]; then
+             echo "Failed to download DLC Data."
+             exit 1
+          fi
+
+
+
           # --- Title Update ---
           echo "Downloading Title Update..."
           download_success=false
@@ -208,7 +214,7 @@ jobs:
           # 1. Try provided URL
           if [ -n "$TITLE_UPDATE_URL" ]; then
              echo "Attempting download from provided URL..."
-             if curl -L -o title_update.rar "$TITLE_UPDATE_URL"; then
+             if curl -fL -o title_update.rar "$TITLE_UPDATE_URL"; then
                 download_success=true
              else
                 echo "Failed to download from provided URL."
@@ -218,15 +224,11 @@ jobs:
           # 3. Try CDN
           if [ "$download_success" = false ]; then
              echo "Attempting primary download (CDN)..."
-             if curl -L -o title_update.7z "https://cdn.atserver.us/Games/Windows/Sonic%20Unleashed/UPDATE%20%5BADVANCED%5D.7z"; then
+             if curl -fL -o title_update.7z "https://cdn.atserver.us/Games/Windows/Sonic%20Unleashed/UPDATE%20%5BADVANCED%5D.7z"; then
                 download_success=true
              fi
           fi
 
-          if [ "$download_success" = false ]; then
-             echo "Failed to download Title Update."
-             exit 1
-          fi
 
           # 2. Try Google Drive
           if [ "$download_success" = false ]; then
@@ -240,6 +242,13 @@ jobs:
                sleep 15
              done
           fi
+
+          if [ "$download_success" = false ]; then
+             echo "Failed to download Title Update."
+             exit 1
+          fi
+
+
 
           # Process Game Data
           if [ -f game_data.iso ]; then
