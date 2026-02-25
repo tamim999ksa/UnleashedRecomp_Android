@@ -1,5 +1,11 @@
 name: Release
 on:
+  workflow_call:
+    secrets:
+      ASSET_REPO:
+        required: false
+      ASSET_REPO_TOKEN:
+        required: false
   release:
     types: [published]
   workflow_dispatch:
