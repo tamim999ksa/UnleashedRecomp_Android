@@ -445,9 +445,11 @@ BIN2C(TARGET_OBJ UnleashedRecomp SOURCE_FILE "${RESOURCES_SOURCE_PATH}/sounds/sy
 
 enable_testing()
 
+if (NOT ANDROID)
 add_executable(GuestResourceTest tests/guest_resource_test.cpp)
 target_link_libraries(GuestResourceTest PRIVATE XenonUtils)
 target_include_directories(GuestResourceTest PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/gpu)
 target_compile_features(GuestResourceTest PRIVATE cxx_std_20)
 
 add_test(NAME GuestResourceTest COMMAND GuestResourceTest)
+endif()
