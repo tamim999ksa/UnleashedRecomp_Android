@@ -8,5 +8,5 @@ on:
 jobs:
   build:
     if: github.event_name == 'push' || github.event_name == 'workflow_dispatch' || github.repository == github.event.pull_request.head.repo.full_name
-    uses: ./.github/workflows/validate.yml
+    uses: ./.github/workflows/release.yml
     secrets: inherit
