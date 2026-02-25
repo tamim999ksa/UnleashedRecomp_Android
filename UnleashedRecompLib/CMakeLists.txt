@@ -4,7 +4,8 @@ if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/private/default.xex")
     message(FATAL_ERROR "\n\nError: UnleashedRecompLib/private/default.xex is missing!\nPlease provide the original game assets in UnleashedRecompLib/private/.\nFor CI builds, ensure ASSET_REPO is configured correctly.\n\n")
 endif()
 
-if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/private/default.xexp")
+# Optional patch file check
+if(FALSE)
     message(FATAL_ERROR "\n\nError: UnleashedRecompLib/private/default.xexp is missing!\nPlease provide the original game assets in UnleashedRecompLib/private/.\nFor CI builds, ensure ASSET_REPO is configured correctly.\n\n")
 endif()
 
@@ -35,9 +36,9 @@ endforeach()
 
 
 # Configure optional dependency for patch file
-set(DEFAULT_XEXP_PATH )
-if(EXISTS "")
-    set(DEFAULT_XEXP_DEP "")
+set(DEFAULT_XEXP_PATH "${CMAKE_CURRENT_SOURCE_DIR}/private/default.xexp")
+if(EXISTS "${DEFAULT_XEXP_PATH}")
+    set(DEFAULT_XEXP_DEP "${DEFAULT_XEXP_PATH}")
 else()
     set(DEFAULT_XEXP_DEP "")
 endif()
@@ -51,7 +52,7 @@ add_custom_command(
         $<TARGET_FILE:XenonRecompHost> "${CMAKE_CURRENT_SOURCE_DIR}/config/SWA.toml" "${UNLEASHED_RECOMP_TOOLS_ROOT}/XenonRecomp/XenonUtils/ppc_context.h"
     DEPENDS 
         "${CMAKE_CURRENT_SOURCE_DIR}/private/default.xex"
-        "${CMAKE_CURRENT_SOURCE_DIR}/private/default.xexp"
+        ${DEFAULT_XEXP_DEP}
         "${CMAKE_CURRENT_SOURCE_DIR}/config/SWA.toml"
     USES_TERMINAL
 )
