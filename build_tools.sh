@@ -28,7 +28,7 @@ export CXX=g++
 cmake ../.. -DCMAKE_BUILD_TYPE=Release -DBUILD_TOOLS_ONLY=ON
 
 # Build
-cmake --build . --target file_to_c fshasher x_decompress bc_diff --parallel $(nproc)
+cmake --build . --target file_to_c fshasher x_decompress bc_diff --parallel 2
 
 # Install function using absolute path
 copy_tool() {
@@ -65,7 +65,7 @@ export CXX=g++
 cmake ../.. -DCMAKE_BUILD_TYPE=Release -DBUILD_TOOLS_ONLY=ON
 
 # Build
-cmake --build . --target XenonRecomp XenosRecomp --parallel $(nproc)
+cmake --build . --target XenonRecomp XenosRecomp --parallel 2
 
 # Install
 copy_tool "XenonRecomp"
@@ -79,3 +79,11 @@ echo "Copied libdxcompiler.so"
 
 echo "Build tools ready in $OUTPUT_BIN_DIR"
 ls -l "$OUTPUT_BIN_DIR"
+
+# Patch RPATH for XenosRecomp
+if command -v patchelf >/dev/null 2>&1; then
+    patchelf --set-rpath '$ORIGIN' "$OUTPUT_BIN_DIR/XenosRecomp"
+    echo "Patched RPATH for XenosRecomp"
+else
+    echo "Warning: patchelf not found, skipping RPATH patch"
+fi
