@@ -1,0 +1,508 @@
+name: Release
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      game_data_url:
+        description: 'URL or File ID for Game Data ISO (optional)'
+        required: false
+        type: string
+      dlc_data_url:
+        description: 'URL or File ID for DLC Data RAR (optional)'
+        required: false
+        type: string
+      title_update_url:
+        description: 'URL or File ID for Title Update RAR (optional)'
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  build-release:
+    name: Build Release
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y 7zip patchelf
+          pip install --upgrade gdown
+
+      - name: Free Disk Space
+        run: |
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /opt/ghc
+          sudo rm -rf "/usr/local/share/boost"
+
+      - name: Create Swap File
+        run: |
+          sudo swapoff -a || true
+          sudo rm -f /swapfile
+          sudo fallocate -l 8G /swapfile
+          sudo chmod 600 /swapfile
+          sudo mkswap /swapfile
+          sudo swapon /swapfile
+          sudo swapon --show
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          cmdline-tools-version: 11076708
+
+      - name: Install Android NDK
+        run: yes | sdkmanager "ndk;25.2.9519653" "cmdline-tools;11.0" "platforms;android-33" "build-tools;33.0.0"
+
+      - name: Cache vcpkg
+        uses: actions/cache@v4
+        with:
+          path: |
+            ./thirdparty/vcpkg/downloads
+            ./thirdparty/vcpkg/packages
+          key: vcpkg-android-${{ hashFiles('vcpkg.json') }}
+          restore-keys: |
+              vcpkg-android-
+
+      - name: Bootstrap vcpkg
+        run: |
+          ./thirdparty/vcpkg/bootstrap-vcpkg.sh
+
+      - name: Build extract-xiso
+        run: |
+          git clone https://github.com/XboxDev/extract-xiso.git
+          cd extract-xiso
+          git checkout 7f81390a1d1e72778557db2b62aa0d14c38e4235
+          sed -i 's|if ( ( err = mkdir( dir->filename, 0755 ) ) ) mkdir_err( dir->filename );|if ( ( err = mkdir( dir->filename, 0755 ) ) ) { if ( errno != EEXIST ) mkdir_err( dir->filename ) else err = 0; }|' extract-xiso.c
+          sed -i 's|if ( ( err = mkdir( iso_name, 0755 ) ) ) mkdir_err( iso_name );|if ( ( err = mkdir( iso_name, 0755 ) ) ) { if ( errno != EEXIST ) mkdir_err( iso_name ) else err = 0; }|' extract-xiso.c
+          sed -i 's|(void\*)in_context->xiso|(void*)(long)in_context->xiso|' extract-xiso.c
+          sed -i 's|cmake_minimum_required(VERSION 2.8)|cmake_minimum_required(VERSION 3.10)|' CMakeLists.txt
+          mkdir build
+          cd build
+          cmake ..
+          make
+          sudo make install
+
+      - name: Apply Patches
+        run: |
+          chmod +x ./apply_patches.sh
+          ./apply_patches.sh
+
+      - name: Run Build Tools
+        run: |
+          chmod +x ./build_tools.sh
+          ./build_tools.sh
+
+      - name: Cache Assets
+        id: cache-assets
+        uses: actions/cache@v4
+        with:
+          path: ./private
+          key: game-assets-v2
+
+      - name: Download and Extract Assets
+        if: steps.cache-assets.outputs.cache-hit != 'true'
+        env:
+          GAME_DATA_URL: ${{ inputs.game_data_url }}
+          DLC_DATA_URL: ${{ inputs.dlc_data_url }}
+          TITLE_UPDATE_URL: ${{ inputs.title_update_url }}
+        run: |
+          mkdir -p private
+
+          # --- Game Data ---
+          echo "Downloading Game Data..."
+          download_success=false
+
+          # 1. Try provided URL
+          if [ -n "$GAME_DATA_URL" ]; then
+             echo "Attempting download from provided URL..."
+             if curl -L -o game_data.iso "$GAME_DATA_URL"; then
+                download_success=true
+             else
+                echo "Failed to download from provided URL."
+             fi
+          fi
+
+          # 2. Try CDN (Primary default)
+          if [ "$download_success" = false ]; then
+             echo "Attempting primary download (CDN)..."
+             if curl -L -o game_data.7z "https://cdn.atserver.us/Games/Windows/Sonic%20Unleashed/BASE%20ROM%20%5BADVANCED%5D.7z"; then
+                download_success=true
+             fi
+          fi
+
+          if [ "$download_success" = false ]; then
+             echo "Failed to download Game Data."
+             exit 1
+          fi
+
+          # 3. Try Google Drive (Secondary default)
+          if [ "$download_success" = false ]; then
+             echo "Attempting secondary download (Google Drive)..."
+             for i in {1..3}; do
+               if gdown 1QfU4ewEbJoFPYYcaPdmT9Ma1WhR-5jck -O game_data.iso; then
+                 download_success=true
+                 break
+               fi
+               echo "gdown failed, retrying in 15s..."
+               sleep 15
+             done
+          fi
+
+          # --- DLC ---
+          echo "Downloading DLC..."
+          download_success=false
+
+          # 1. Try provided URL
+          if [ -n "$DLC_DATA_URL" ]; then
+             echo "Attempting download from provided URL..."
+             if curl -L -o dlc_data.rar "$DLC_DATA_URL"; then
+                download_success=true
+             else
+                echo "Failed to download from provided URL."
+             fi
+          fi
+
+          # 3. Try CDN
+          if [ "$download_success" = false ]; then
+             echo "Attempting primary download (CDN)..."
+             if curl -L -o dlc_data.7z "https://cdn.atserver.us/Games/Windows/Sonic%20Unleashed/DLC%20%5BADVANCED%5D.7z"; then
+                download_success=true
+             fi
+          fi
+
+          if [ "$download_success" = false ]; then
+             echo "Failed to download DLC Data."
+             exit 1
+          fi
+
+          # 2. Try Google Drive
+          if [ "$download_success" = false ]; then
+             echo "Attempting secondary download (Google Drive)..."
+             for i in {1..3}; do
+               if gdown 1qnthOSI-rO-M09yN8OigABqRDeTTVSbB -O dlc_data.rar; then
+                 download_success=true
+                 break
+               fi
+               echo "gdown failed, retrying in 15s..."
+               sleep 15
+             done
+          fi
+
+          # --- Title Update ---
+          echo "Downloading Title Update..."
+          download_success=false
+
+          # 1. Try provided URL
+          if [ -n "$TITLE_UPDATE_URL" ]; then
+             echo "Attempting download from provided URL..."
+             if curl -L -o title_update.rar "$TITLE_UPDATE_URL"; then
+                download_success=true
+             else
+                echo "Failed to download from provided URL."
+             fi
+          fi
+
+          # 3. Try CDN
+          if [ "$download_success" = false ]; then
+             echo "Attempting primary download (CDN)..."
+             if curl -L -o title_update.7z "https://cdn.atserver.us/Games/Windows/Sonic%20Unleashed/UPDATE%20%5BADVANCED%5D.7z"; then
+                download_success=true
+             fi
+          fi
+
+          if [ "$download_success" = false ]; then
+             echo "Failed to download Title Update."
+             exit 1
+          fi
+
+          # 2. Try Google Drive
+          if [ "$download_success" = false ]; then
+             echo "Attempting secondary download (Google Drive)..."
+             for i in {1..3}; do
+               if gdown 1eYsQCzGOtcxxdCSwd7a0WHVbZELrSEEF -O title_update.rar; then
+                 download_success=true
+                 break
+               fi
+               echo "gdown failed, retrying in 15s..."
+               sleep 15
+             done
+          fi
+
+          # Process Game Data
+          if [ -f game_data.iso ]; then
+             echo "Moving Game Data ISO to private/..."
+             mv game_data.iso private/
+          elif [ -f game_data.7z ]; then
+             echo "Extracting Game Data 7z to private/..."
+             7z x game_data.7z -oprivate -y
+          else
+             echo "Error: Game Data not found!"
+             exit 1
+          fi
+
+          # Process DLC
+          echo "Extracting DLC..."
+          if [ -f dlc_data.rar ]; then
+             7z x dlc_data.rar -oprivate -y
+          elif [ -f dlc_data.7z ]; then
+             7z x dlc_data.7z -oprivate -y
+          else
+             echo "Error: DLC Data not found!"
+             exit 1
+          fi
+
+          # Process Title Update
+          echo "Extracting Title Update..."
+          if [ -f title_update.rar ]; then
+             echo "Checking if title_update.rar is a standard archive..."
+             if 7z l title_update.rar > /dev/null 2>&1; then
+                 echo "Extracting title_update.rar with 7z..."
+                 7z x title_update.rar -oprivate -y -x!default.xex
+             else
+                 echo "Not a standard archive, attempting STFS extraction..."
+                 mkdir -p temp_stfs
+                 if ! python3 tools/extract_stfs.py title_update.rar temp_stfs; then
+                     echo "Error: STFS extraction failed!"
+                     exit 1
+                 fi
+                 if [ -f "temp_stfs/default.xex" ]; then
+                     echo "Removing default.xex from Title Update"
+                     rm "temp_stfs/default.xex"
+                 fi
+                 if [ "$(ls -A temp_stfs)" ]; then
+                     cp -r temp_stfs/* private/ || true
+                 fi
+                 rm -rf temp_stfs
+             fi
+          elif [ -f title_update.7z ]; then
+             echo "Extracting Title Update 7z..."
+             mkdir -p temp_tu
+             7z x title_update.7z -otemp_tu -y
+             find temp_tu -type f | while read f; do
+                echo "Processing extracted file: $f"
+                mkdir -p temp_stfs_loop
+                if python3 tools/extract_stfs.py "$f" temp_stfs_loop; then
+                   echo "Successfully extracted STFS package."
+                   if [ -f "temp_stfs_loop/default.xex" ]; then
+                       rm "temp_stfs_loop/default.xex"
+                   fi
+                   if [ "$(ls -A temp_stfs_loop)" ]; then
+                       cp -r temp_stfs_loop/* private/ || true
+                   fi
+                else
+                   echo "Not an STFS package, moving to private..."
+                   if [ "$(basename "$f")" == "default.xex" ]; then
+                       echo "Skipping Title Update default.xex to preserve Game Data version."
+                   else
+                       mv "$f" private/
+                   fi
+                fi
+                rm -rf temp_stfs_loop
+             done
+             rm -rf temp_tu
+          else
+             echo "Error: Title Update not found!"
+             exit 1
+          fi
+
+          # Search for and extract ISOs recursively
+          echo "Searching for ISOs..."
+          while true; do
+            # Use a temporary file to list ISOs to avoid pipe subshell issues
+            find private -name "*.iso" > iso_list.txt
+            if [ ! -s iso_list.txt ]; then
+              echo "No more ISOs found."
+              rm iso_list.txt
+              break
+            fi
+
+            echo "Found ISOs to extract:"
+            cat iso_list.txt
+
+            while read iso_file; do
+               echo "Processing ISO: $iso_file"
+               ls -lh "$iso_file"
+               file "$iso_file"
+               echo "Hex dump of header:"
+               head -c 64 "$iso_file" | xxd || true
+
+               # Create temp dir
+               rm -rf temp_iso
+               mkdir -p temp_iso
+
+               extraction_success=false
+               if extract-xiso -x "$iso_file" -d temp_iso; then
+                   echo "extract-xiso successful."
+                   extraction_success=true
+               else
+                   echo "extract-xiso failed. Attempting fallback to 7z..."
+                   if 7z x "$iso_file" -otemp_iso -y; then
+                       echo "7z extraction successful."
+                       extraction_success=true
+                   else
+                       echo "Failed to extract ISO with both extract-xiso and 7z."
+                       exit 1
+                   fi
+               fi
+
+               if [ "$extraction_success" = true ]; then
+                   echo "Resolving conflicts and merging into private/..."
+
+                   # 1. Remove directories from temp_iso that conflict with existing files in private
+                   # (We prioritize the file version from DLC/TU)
+                   if [ -d "temp_iso" ]; then
+                       find temp_iso -depth -type d | while read dir; do
+                           # Strip temp_iso/ prefix to get relative path
+                           rel_path="${dir#temp_iso/}"
+                           if [ "$rel_path" != "temp_iso" ] && [ -f "private/$rel_path" ]; then
+                               echo "Conflict: '$rel_path' is a directory in ISO but a file in private. Keeping private file."
+                               rm -rf "$dir"
+                           fi
+                       done
+                   fi
+
+                   # 2. Remove files from temp_iso that conflict with existing directories in private
+                   if [ -d "temp_iso" ]; then
+                       find temp_iso -type f | while read file; do
+                           rel_path="${file#temp_iso/}"
+                           if [ -d "private/$rel_path" ]; then
+                               echo "Conflict: '$rel_path' is a file in ISO but a directory in private. Keeping private directory."
+                               rm "$file"
+                           fi
+                       done
+                   fi
+
+                   # Special case: Ensure default.xex comes from the ISO/Game Data if present
+                   # This is required because default.xexp (if present in ISO) expects the ISO version of default.xex,
+                   # but the standard merge logic below prioritizes the Title Update version in "private".
+                   if [ -f "temp_iso/default.xex" ]; then
+                       echo "Overwriting private/default.xex with version from ISO/Game Data..."
+                       mv -f "temp_iso/default.xex" "private/default.xex"
+                   fi
+
+                   # 3. Merge remaining content into private
+                   # -n (no-clobber) ensures we don't overwrite existing files (prioritizing DLC/TU)
+                   if [ -d "temp_iso" ] && [ "$(ls -A temp_iso)" ]; then
+                      cp -rn temp_iso/* private/ || true
+                   fi
+
+                   rm -rf temp_iso
+
+                   # Delete the source ISO
+                   echo "Deleting processed ISO: $iso_file"
+                   rm "$iso_file"
+               fi
+
+            done < iso_list.txt
+            rm iso_list.txt
+          done
+
+          echo "Listing private directory contents:"
+          ls -R private
+
+      - name: Prepare Project
+        run: |
+          mkdir -p ./UnleashedRecompLib/private
+
+          if [ -d "./private" ] && [ "$(ls -A ./private)" ]; then
+            echo "Listing private directory contents for debugging:"
+            find ./private -maxdepth 3
+
+            echo "Searching for default.xex..."
+            if [ -f "./private/default.xex" ]; then
+                cp "./private/default.xex" "./UnleashedRecompLib/private/default.xex"
+            else
+                find ./private -iname "default.xex" -not -path "*/Content/*" -not -path "*/000B0000/*" -exec cp {} ./UnleashedRecompLib/private/default.xex \; -quit || true
+                if [ ! -f "./UnleashedRecompLib/private/default.xex" ]; then
+                     echo "Warning: Base game default.xex not found in standard paths. Searching all..."
+                     find ./private -iname "default.xex" -exec cp {} ./UnleashedRecompLib/private/default.xex \; -quit || true
+                fi
+            fi
+
+            echo "Searching for default.xexp..."
+            if [ -f "./private/default.xexp" ]; then
+                cp "./private/default.xexp" "./UnleashedRecompLib/private/default.xexp"
+            else
+                find ./private -iname "default.xexp" -exec cp {} ./UnleashedRecompLib/private/default.xexp \; -quit || true
+            fi
+
+            echo "Searching for default_patched.xex..."
+            if [ -f "./private/default_patched.xex" ]; then
+                cp "./private/default_patched.xex" "./UnleashedRecompLib/private/default_patched.xex"
+            else
+                find ./private -iname "default_patched.xex" -exec cp {} ./UnleashedRecompLib/private/default_patched.xex \;
+            fi
+
+            echo "Searching for shader.ar..."
+            find ./private -iname "shader.ar" -exec cp {} ./UnleashedRecompLib/private/shader.ar \; -quit || true
+          else
+            echo "Private directory is empty or does not exist."
+          fi
+
+          if [ ! -s "./UnleashedRecompLib/private/default.xex" ]; then
+            echo "Error: default.xex not found or empty in UnleashedRecompLib/private/ or ASSET_REPO."
+            exit 1
+          fi
+          if [ ! -s "./UnleashedRecompLib/private/default.xexp" ] && [ ! -s "./UnleashedRecompLib/private/default_patched.xex" ]; then
+            echo "Error: default.xexp AND default_patched.xex not found or empty in UnleashedRecompLib/private/ or ASSET_REPO."
+            exit 1
+          fi
+          if [ ! -s "./UnleashedRecompLib/private/shader.ar" ]; then
+            echo "Error: shader.ar not found or empty in UnleashedRecompLib/private/ or ASSET_REPO."
+            exit 1
+          fi
+
+          echo "Assets prepared successfully."
+          ls -l ./UnleashedRecompLib/private/
+
+      - name: Build Host Tools
+        run: |
+          mkdir -p build_host
+          cd build_host
+          cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_TOOLS_ONLY=ON ..
+          make -j$(nproc) XenonRecomp XenosRecomp bc_diff file_to_c fshasher x_decompress
+          mkdir -p ../build_tools/bin
+          cp tools/XenonRecomp/XenonRecomp/XenonRecomp ../build_tools/bin/
+          cp tools/XenosRecomp/XenosRecomp/XenosRecomp ../build_tools/bin/
+          cp tools/bc_diff/bc_diff ../build_tools/bin/
+          cp tools/file_to_c/file_to_c ../build_tools/bin/
+          cp tools/fshasher/fshasher ../build_tools/bin/
+          cp tools/x_decompress/x_decompress ../build_tools/bin/
+          cp ../tools/XenosRecomp/thirdparty/dxc-bin/lib/x64/libdxcompiler.so ../build_tools/bin/
+          patchelf --set-rpath '$ORIGIN' ../build_tools/bin/XenosRecomp
+          ls -l ../build_tools/bin
+          cd ..
+          rm -rf build_host
+
+      - name: Build Release APK
+        working-directory: ./android
+        env:
+          CMAKE_BUILD_PARALLEL_LEVEL: 1
+        run: ./gradlew assembleRelease
+
+      - name: Upload Release Asset
+        if: github.event_name == 'release'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload ${{ github.event.release.tag_name }} android/app/build/outputs/apk/release/app-release.apk --clobber
+
+      - name: Upload Artifact
+        if: github.event_name != 'release'
+        uses: actions/upload-artifact@v4
+        with:
+          name: UnleashedRecomp-Android-Release
+          path: android/app/build/outputs/apk/release/app-release.apk
