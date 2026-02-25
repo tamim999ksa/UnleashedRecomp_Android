@@ -37,10 +37,15 @@ jobs:
           pip install --upgrade gdown
 
       - name: Free Disk Space
-        run: |
-          sudo rm -rf /usr/share/dotnet
-          sudo rm -rf /opt/ghc
-          sudo rm -rf "/usr/local/share/boost"
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: false
+          android: false
+          dotnet: true
+          haskell: true
+          large-packages: true
+          docker-images: true
+          swap-storage: false
 
       - name: Create Swap File
         run: |
@@ -257,6 +262,7 @@ jobs:
           elif [ -f game_data.7z ]; then
              echo "Extracting Game Data 7z to private/..."
              7z x game_data.7z -oprivate -y
+             rm game_data.7z
           else
              echo "Error: Game Data not found!"
              exit 1
@@ -266,8 +272,10 @@ jobs:
           echo "Extracting DLC..."
           if [ -f dlc_data.rar ]; then
              7z x dlc_data.rar -oprivate -y
+             rm dlc_data.rar
           elif [ -f dlc_data.7z ]; then
              7z x dlc_data.7z -oprivate -y
+             rm dlc_data.7z
           else
              echo "Error: DLC Data not found!"
              exit 1
@@ -280,6 +288,7 @@ jobs:
              if 7z l title_update.rar > /dev/null 2>&1; then
                  echo "Extracting title_update.rar with 7z..."
                  7z x title_update.rar -oprivate -y -x!default.xex
+                 rm title_update.rar
              else
                  echo "Not a standard archive, attempting STFS extraction..."
                  mkdir -p temp_stfs
@@ -300,6 +309,7 @@ jobs:
              echo "Extracting Title Update 7z..."
              mkdir -p temp_tu
              7z x title_update.7z -otemp_tu -y
+             rm title_update.7z
              find temp_tu -type f | while read f; do
                 echo "Processing extracted file: $f"
                 mkdir -p temp_stfs_loop
