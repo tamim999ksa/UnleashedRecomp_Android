@@ -73,7 +73,7 @@ bool Recompiler::LoadConfig(const std::string_view& configFilePath)
                 }
                 else
                 {
-                    fmt::print("ERROR: Unable to apply the patch file, ");
+                    fmt::print("WARNING: Unable to apply the patch file, ");
 
                     switch (result)
                     {
@@ -107,7 +107,7 @@ bool Recompiler::LoadConfig(const std::string_view& configFilePath)
                     }
 
 
-                    return false;
+
                     if (!config.patchedFilePath.empty())
                     {
                         std::ofstream stream(config.directoryPath + config.patchedFilePath, std::ios::binary);
@@ -122,8 +122,8 @@ bool Recompiler::LoadConfig(const std::string_view& configFilePath)
             }
             else
             {
-                fmt::println("ERROR: Unable to load the patch file");
-                return false;
+                fmt::println("WARNING: Unable to load the patch file, proceeding with the original file..."); if (!config.patchedFilePath.empty()) { std::ofstream stream(config.directoryPath + config.patchedFilePath, std::ios::binary); if (stream.good()) { stream.write(reinterpret_cast<const char*>(file.data()), file.size()); stream.close(); } }
+
             }
         }
     }
@@ -2320,7 +2320,6 @@ bool Recompiler::Recompile(const RecompileArgs& args)
     case PPC_INST_XORIS:
         println("\t{}.u64 = {}.u64 ^ {};", r(insn.operands[0]), r(insn.operands[1]), insn.operands[2] << 16);
         break;
-
     default:
         return false;
     }
