@@ -110,21 +110,19 @@ std::vector<std::filesystem::path>* ModLoader::GetIncludeDirectories(size_t modI
     return modIndex < g_mods.size() ? &g_mods[modIndex].includeDirs : nullptr;
 }
 
-void ModLoader::Init()
+static std::filesystem::path LoadConfiguration(const std::filesystem::path& userPath)
 {
-    const std::filesystem::path& userPath = GetUserPath();
-
     IniFile configIni;
     if (!configIni.read(userPath / "cpkredir.ini"))
     {
         configIni = {};
 
         if (!configIni.read(GetGamePath() / "cpkredir.ini"))
-            return;
+            return {};
     }
 
     if (!configIni.getBool("CPKREDIR", "Enabled", true))
-        return;
+        return {};
 
     if (configIni.getBool("CPKREDIR", "EnableSaveFileRedirection", false))
     {
@@ -140,17 +138,18 @@ void ModLoader::Init()
     if (configIni.getString("CPKREDIR", "LogType", std::string()) == "console")
     {
         os::process::ShowConsole();
-        s_isLogTypeConsole = true;
+        ModLoader::s_isLogTypeConsole = true;
     }
 
     std::string modsDbIniFilePathU8 = configIni.getString("CPKREDIR", "ModsDbIni", "");
     if (modsDbIniFilePathU8.empty())
-        return;
+        return {};
 
-    IniFile modsDbIni;
-    if (!modsDbIni.read(std::u8string_view((const char8_t*)modsDbIniFilePathU8.c_str())))
-        return;
+    return std::filesystem::path(std::u8string_view((const char8_t*)modsDbIniFilePathU8.c_str()));
+}
 
+static void LoadMods(const IniFile& modsDbIni)
+{
     bool foundModSaveFilePath = false;
 
     size_t activeModCount = modsDbIni.get<size_t>("Main", "ActiveModCount", 0);
@@ -235,7 +234,10 @@ void ModLoader::Init()
         if (!mod.includeDirs.empty())
             g_mods.emplace_back(std::move(mod));
     }
+}
 
+static void IndexModFiles()
+{
     g_modFileIndex.clear();
     for (size_t i = 0; i < g_mods.size(); ++i)
     {
@@ -264,7 +266,10 @@ void ModLoader::Init()
             }
         }
     }
+}
 
+static void LoadCodes(const IniFile& modsDbIni)
+{
     auto codeCount = modsDbIni.get<size_t>("Codes", "CodeCount", 0);
 
     if (codeCount)
@@ -301,6 +306,24 @@ void ModLoader::Init()
         }
     }
 }
+
+void ModLoader::Init()
+{
+    const std::filesystem::path& userPath = GetUserPath();
+
+    std::filesystem::path modsDbIniFilePath = LoadConfiguration(userPath);
+    if (modsDbIniFilePath.empty())
+        return;
+
+    IniFile modsDbIni;
+    if (!modsDbIni.read(modsDbIniFilePath))
+        return;
+
+    LoadMods(modsDbIni);
+    IndexModFiles();
+    LoadCodes(modsDbIni);
+}
+
 
 static constexpr uint32_t LZX_SIGNATURE = 0xFF512EE;
 
