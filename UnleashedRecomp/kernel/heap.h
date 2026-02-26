@@ -4,8 +4,12 @@
 
 struct Heap
 {
-    Mutex mutex;
-    O1HeapInstance* heap;
+    static constexpr int NUM_SHARDS = 32;
+
+    Mutex mutexes[NUM_SHARDS];
+    O1HeapInstance* heaps[NUM_SHARDS];
+    size_t shardSize;
+    void* heapBase;
 
     Mutex physicalMutex;
     O1HeapInstance* physicalHeap;

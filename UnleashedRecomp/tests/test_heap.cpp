@@ -1,3 +1,4 @@
+#include <mutex>
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include "doctest.h"
 #define UNIT_TEST
@@ -58,7 +59,7 @@ TEST_CASE("Heap Initialization") {
     // Verify initialization works
     CHECK_NOTHROW(g_userHeap.Init());
 
-    CHECK(g_userHeap.heap != nullptr);
+    CHECK(g_userHeap.heaps[0] != nullptr);
     CHECK(g_userHeap.physicalHeap != nullptr);
 
     // Verify physical heap pointer is at the expected location (start of reserved end)
@@ -68,7 +69,7 @@ TEST_CASE("Heap Initialization") {
 
 TEST_CASE("Heap Allocation") {
     // Ensure initialized
-    if (!g_userHeap.heap) g_userHeap.Init();
+    if (!g_userHeap.heaps[0]) g_userHeap.Init();
 
     SUBCASE("Basic Allocation") {
         void* ptr = g_userHeap.Alloc(128);

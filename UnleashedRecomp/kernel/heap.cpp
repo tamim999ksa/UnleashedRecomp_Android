@@ -10,12 +10,14 @@
 #include <cstddef>
 #include <cstdint>
 #include <o1heap.h>
+#include <atomic>
 #endif
 
 #include "heap.h"
 #include "memory.h"
 #ifndef UNIT_TEST
 #include "function.h"
+#include <atomic>
 #endif
 
 constexpr size_t RESERVED_BEGIN = 0x7FEA0000;
@@ -23,15 +25,45 @@ constexpr size_t RESERVED_END = 0xA0000000;
 
 void Heap::Init()
 {
-    heap = o1heapInit(g_memory.Translate(0x20000), RESERVED_BEGIN - 0x20000);
+    size_t totalSize = RESERVED_BEGIN - 0x20000;
+    shardSize = totalSize / NUM_SHARDS;
+    heapBase = g_memory.Translate(0x20000);
+
+    for (int i = 0; i < NUM_SHARDS; i++)
+    {
+        heaps[i] = o1heapInit(g_memory.Translate(0x20000 + i * shardSize), shardSize);
+    }
+
     physicalHeap = o1heapInit(g_memory.Translate(RESERVED_END), 0x100000000 - RESERVED_END);
 }
 
 void* Heap::Alloc(size_t size)
 {
-    std::lock_guard lock(mutex);
+    static std::atomic<uint32_t> threadCounter{0};
+    static thread_local int hint = -1;
 
-    return o1heapAllocate(heap, std::max<size_t>(1, size));
+    if (hint == -1)
+        hint = threadCounter.fetch_add(1) % NUM_SHARDS;
+
+    int idx = hint;
+
+    // Try hinted shard
+    {
+        std::lock_guard lock(mutexes[idx]);
+        void* ptr = o1heapAllocate(heaps[idx], std::max<size_t>(1, size));
+        if (ptr) return ptr;
+    }
+
+    // Try others
+    for (int i = 1; i < NUM_SHARDS; i++)
+    {
+        int tryIdx = (idx + i) % NUM_SHARDS;
+        std::lock_guard lock(mutexes[tryIdx]);
+        void* ptr = o1heapAllocate(heaps[tryIdx], std::max<size_t>(1, size));
+        if (ptr) return ptr;
+    }
+
+    return nullptr;
 }
 
 void* Heap::AllocPhysical(size_t size, size_t alignment)
@@ -59,8 +91,14 @@ void Heap::Free(void* ptr)
     }
     else
     {
-        std::lock_guard lock(mutex);
-        o1heapFree(heap, ptr);
+        uintptr_t offset = (uintptr_t)ptr - (uintptr_t)heapBase;
+        int idx = (int)(offset / shardSize);
+
+        if (idx >= 0 && idx < NUM_SHARDS)
+        {
+            std::lock_guard lock(mutexes[idx]);
+            o1heapFree(heaps[idx], ptr);
+        }
     }
 }
 
