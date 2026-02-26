@@ -232,3 +232,19 @@ target_include_directories(test_freelist PRIVATE
 target_compile_features(test_freelist PRIVATE cxx_std_20)
 
 add_test(NAME FreeListTest COMMAND test_freelist)
+
+# test_achievement_manager
+add_executable(test_achievement_manager test_achievement_manager.cpp
+    ${CMAKE_SOURCE_DIR}/UnleashedRecomp/user/achievement_manager.cpp
+    ${CMAKE_SOURCE_DIR}/UnleashedRecomp/user/achievement_data.cpp
+)
+
+target_include_directories(test_achievement_manager PRIVATE
+    ${CMAKE_SOURCE_DIR}/UnleashedRecomp/tests/mock
+    ${CMAKE_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/UnleashedRecomp
+)
+
+target_compile_features(test_achievement_manager PRIVATE cxx_std_20)
+
+add_test(NAME AchievementManagerTest COMMAND test_achievement_manager)
