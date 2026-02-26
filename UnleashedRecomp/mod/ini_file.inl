@@ -30,101 +30,136 @@ inline bool IniFile::read(const std::filesystem::path& filePath)
 
     file.close();
 
+    const char* p = data.get();
+    const char* end = p + dataSize;
     Section* section = nullptr;
-    const char* dataPtr = data.get();
 
-    while (dataPtr < data.get() + dataSize)
+    while (p < end)
     {
-        if (*dataPtr == ';')
+        // Skip leading whitespace
+        while (p < end && isWhitespace(*p))
+            ++p;
+
+        if (p >= end)
+            break;
+
+        const char c = *p;
+
+        if (isNewLine(c))
         {
-            while (*dataPtr != '\0' && !isNewLine(*dataPtr))
-                ++dataPtr;
+            ++p;
+            continue;
         }
-        else if (*dataPtr == '[')
+
+        if (c == ';')
         {
-            ++dataPtr;
-            const char* endPtr = dataPtr;
-            while (*endPtr != '\0' && !isNewLine(*endPtr) && *endPtr != ']')
-                ++endPtr;
-
-            if (*endPtr != ']')
-                return false;
-
-            std::string sectionName(dataPtr, endPtr - dataPtr);
-            section = &m_sections[hashStr(sectionName)];
-            section->name = std::move(sectionName);
-
-            dataPtr = endPtr + 1;
+            // Comment: skip until newline
+            ++p;
+            while (p < end && !isNewLine(*p))
+                ++p;
         }
-        else if (!isWhitespace(*dataPtr) && !isNewLine(*dataPtr))
+        else if (c == '[')
         {
-            if (section == nullptr)
-                return false;
+            // Section
+            const char* start = ++p;
+            while (p < end && !isNewLine(*p) && *p != ']')
+                ++p;
 
-            const char* endPtr;
-            if (*dataPtr == '"')
+            if (p < end && *p == ']')
             {
-                ++dataPtr;
-                endPtr = dataPtr;
+                std::string_view sectionNameView(start, p - start);
+                size_t hash = hashStr(sectionNameView);
 
-                while (*endPtr != '\0' && !isNewLine(*endPtr) && *endPtr != '"')
-                    ++endPtr;
+                // Use default construction if not found, then fill name
+                section = &m_sections[hash];
+                if (section->name.empty())
+                    section->name = sectionNameView;
 
-                if (*endPtr != '"')
-                    return false;
+                ++p; // Skip ']'
             }
             else
             {
-                endPtr = dataPtr;
-
-                while (*endPtr != '\0' && !isNewLine(*endPtr) && !isWhitespace(*endPtr) && *endPtr != '=')
-                    ++endPtr;
-
-                if (!isNewLine(*endPtr) && !isWhitespace(*endPtr) && *endPtr != '=')
-                    return false;
-            }
-
-            std::string propertyName(dataPtr, endPtr - dataPtr);
-            auto& property = section->properties[hashStr(propertyName)];
-            property.name = std::move(propertyName);
-
-            dataPtr = endPtr;
-            while (*dataPtr != '\0' && !isNewLine(*dataPtr) && *dataPtr != '=')
-                ++dataPtr;
-
-            if (*dataPtr == '=')
-            {
-                ++dataPtr;
-
-                while (*dataPtr != '\0' && isWhitespace(*dataPtr))
-                    ++dataPtr;
-
-                if (*dataPtr == '"')
-                {
-                    ++dataPtr;
-                    endPtr = dataPtr;
-
-                    while (*endPtr != '\0' && !isNewLine(*endPtr) && *endPtr != '"')
-                        ++endPtr;
-
-                    if (*endPtr != '"')
-                        return false;
-                }
-                else
-                {
-                    endPtr = dataPtr;
-
-                    while (*endPtr != '\0' && !isNewLine(*endPtr) && !isWhitespace(*endPtr))
-                        ++endPtr;
-                }
-
-                property.value = std::string(dataPtr, endPtr - dataPtr);
-                dataPtr = endPtr + 1;
+                // Malformed section header (missing ']' or newline before ']')
+                return false;
             }
         }
         else
         {
-            ++dataPtr;
+            // Property
+            if (section == nullptr)
+                return false;
+
+            const char* keyStart;
+            const char* keyEnd;
+
+            if (c == '"')
+            {
+                keyStart = ++p;
+                while (p < end && !isNewLine(*p) && *p != '"')
+                    ++p;
+
+                if (p >= end || *p != '"')
+                    return false;
+
+                keyEnd = p++; // Store end and skip quote
+            }
+            else
+            {
+                keyStart = p;
+                while (p < end && !isNewLine(*p) && !isWhitespace(*p) && *p != '=')
+                    ++p;
+                keyEnd = p;
+            }
+
+            std::string_view keyView(keyStart, keyEnd - keyStart);
+
+            // Skip until '=' or newline to handle spaces/garbage between key and '='
+            while (p < end && !isNewLine(*p) && *p != '=')
+                ++p;
+
+            // Always add property, even if '=' is missing (empty value)
+            // This matches the behavior of the original implementation which creates an entry
+            // immediately after parsing the name.
+            size_t keyHash = hashStr(keyView);
+            auto& property = section->properties[keyHash];
+
+            if (property.name.empty())
+                property.name = keyView;
+
+            if (p < end && *p == '=')
+            {
+                ++p; // Skip '='
+
+                // Skip whitespace after '='
+                while (p < end && isWhitespace(*p))
+                    ++p;
+
+                const char* valStart;
+                const char* valEnd;
+
+                if (p < end && *p == '"')
+                {
+                    valStart = ++p;
+                    while (p < end && !isNewLine(*p) && *p != '"')
+                        ++p;
+
+                    if (p >= end || *p != '"')
+                        return false;
+
+                    valEnd = p++; // Store end and skip quote
+                }
+                else
+                {
+                    valStart = p;
+                    // Current behavior: stop at whitespace
+                    while (p < end && !isNewLine(*p) && !isWhitespace(*p))
+                        ++p;
+                    valEnd = p;
+                }
+
+                std::string_view valView(valStart, valEnd - valStart);
+                property.value = valView;
+            }
         }
     }
 
