@@ -66,7 +66,7 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
         with:
-          cmdline-tools-version: 11076708
+          cmdline-tools-version: 10406996
 
       - name: Install Android NDK
         run: yes | sdkmanager "ndk;25.2.9519653" "cmdline-tools;latest" "platforms;android-34" "build-tools;34.0.0"
@@ -287,7 +287,7 @@ jobs:
              echo "Checking if title_update.rar is a standard archive..."
              if 7z l title_update.rar > /dev/null 2>&1; then
                  echo "Extracting title_update.rar with 7z..."
-                 7z x title_update.rar -oprivate -y -x!default.xex
+                 7z x title_update.rar -oprivate -y
                  rm title_update.rar
              else
                  echo "Not a standard archive, attempting STFS extraction..."
@@ -323,11 +323,7 @@ jobs:
                    fi
                 else
                    echo "Not an STFS package, moving to private..."
-                   if [ "$(basename "$f")" == "default.xex" ]; then
-                       echo "Skipping Title Update default.xex to preserve Game Data version."
-                   else
-                       mv "$f" private/
-                   fi
+                   mv "$f" private/
                 fi
                 rm -rf temp_stfs_loop
              done
@@ -404,12 +400,15 @@ jobs:
                        done
                    fi
 
-                   # Special case: Ensure default.xex comes from the ISO/Game Data if present
-                   # This is required because default.xexp (if present in ISO) expects the ISO version of default.xex,
-                   # but the standard merge logic below prioritizes the Title Update version in "private".
+                   # Special case: Prioritize Title Update default.xex if present
                    if [ -f "temp_iso/default.xex" ]; then
-                       echo "Overwriting private/default.xex with version from ISO/Game Data..."
-                       mv -f "temp_iso/default.xex" "private/default.xex"
+                       if [ ! -f "private/default.xex" ]; then
+                           echo "Copying default.xex from ISO/Game Data..."
+                           mv "temp_iso/default.xex" "private/default.xex"
+                       else
+                           echo "Skipping ISO default.xex in favor of existing version (Title Update)."
+                           rm "temp_iso/default.xex"
+                       fi
                    fi
 
                    # 3. Merge remaining content into private
