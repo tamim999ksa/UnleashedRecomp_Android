@@ -33,7 +33,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y 7zip patchelf
+          sudo apt-get install -y 7zip patchelf ninja-build zip unzip tar pkg-config autoconf automake libtool curl
           pip install --upgrade gdown
 
       - name: Free Disk Space
