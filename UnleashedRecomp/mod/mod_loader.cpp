@@ -304,9 +304,31 @@ void ModLoader::Init()
 
 static constexpr uint32_t LZX_SIGNATURE = 0xFF512EE;
 
+struct LzxHeader
+{
+    be<uint32_t> Signature;          // 0x00
+    be<uint32_t> Unk04;              // 0x04
+    be<uint32_t> WindowSize;         // 0x08
+    be<uint32_t> BlockSizeParam;     // 0x0C
+    uint8_t      Unk10[8];           // 0x10
+    be<uint64_t> UncompressedSize;   // 0x18
+    uint8_t      Unk20[8];           // 0x20
+    be<uint32_t> ChunkSize;          // 0x28
+    uint8_t      Unk2C[4];           // 0x2C
+};
+static_assert(sizeof(LzxHeader) == 0x30);
+
+struct LzxBlockHeader
+{
+    be<uint32_t> BlockSize;
+};
+static_assert(sizeof(LzxBlockHeader) == 0x4);
+
 static std::span<uint8_t> decompressLzx(PPCContext& ctx, uint8_t* base, const uint8_t* compressedData, size_t compressedDataSize, be<uint32_t>* scratchSpace)
 {
     assert(g_memory.IsInMemoryRange(compressedData));
+
+    const auto* header = reinterpret_cast<const LzxHeader*>(compressedData);
 
     bool shouldFreeScratchSpace = false;
     if (scratchSpace == nullptr)
@@ -320,12 +342,12 @@ static std::span<uint8_t> decompressLzx(PPCContext& ctx, uint8_t* base, const ui
 
     // Initialize decompressor
     ctx.r3.u32 = 1;
-    ctx.r4.u32 = uint32_t((compressedData + 0xC) - base);
-    ctx.r5.u32 = *reinterpret_cast<const be<uint32_t>*>(compressedData + 0x8);
+    ctx.r4.u32 = uint32_t(reinterpret_cast<const uint8_t*>(&header->BlockSizeParam) - base);
+    ctx.r5.u32 = header->WindowSize;
     ctx.r6.u32 = uint32_t(reinterpret_cast<uint8_t*>(scratchSpace) - base);
     sub_831CE1A0(ctx, base);
 
-    uint64_t decompressedDataSize = *reinterpret_cast<const be<uint64_t>*>(compressedData + 0x18);
+    uint64_t decompressedDataSize = header->UncompressedSize;
     uint8_t* decompressedData = reinterpret_cast<uint8_t*>(g_userHeap.Alloc(decompressedDataSize));
     if (decompressedData == nullptr)
     {
@@ -335,9 +357,9 @@ static std::span<uint8_t> decompressLzx(PPCContext& ctx, uint8_t* base, const ui
         return {};
     }
 
-    uint32_t blockSize = *reinterpret_cast<const be<uint32_t>*>(compressedData + 0x28);
+    uint32_t blockSize = header->ChunkSize;
     size_t decompressedDataOffset = 0;
-    size_t compressedDataOffset = 0x30;
+    size_t compressedDataOffset = sizeof(LzxHeader);
 
     while (decompressedDataOffset < decompressedDataSize)
     {
@@ -348,18 +370,19 @@ static std::span<uint8_t> decompressLzx(PPCContext& ctx, uint8_t* base, const ui
 
         *(scratchSpace + 1) = decompressedBlockSize;
 
-        uint32_t compressedBlockSize = *reinterpret_cast<const be<uint32_t>*>(compressedData + compressedDataOffset);
+        const auto* blockHeader = reinterpret_cast<const LzxBlockHeader*>(compressedData + compressedDataOffset);
+        uint32_t compressedBlockSize = blockHeader->BlockSize;
 
         // Decompress
         ctx.r3.u32 = *scratchSpace;
         ctx.r4.u32 = uint32_t((decompressedData + decompressedDataOffset) - base);
         ctx.r5.u32 = uint32_t(reinterpret_cast<uint8_t*>(scratchSpace + 1) - base);
-        ctx.r6.u32 = uint32_t((compressedData + compressedDataOffset + 0x4) - base);
+        ctx.r6.u32 = uint32_t((reinterpret_cast<const uint8_t*>(blockHeader) + sizeof(LzxBlockHeader)) - base);
         ctx.r7.u32 = compressedBlockSize;
         sub_831CE0D0(ctx, base);
 
         decompressedDataOffset += *(scratchSpace + 1);
-        compressedDataOffset += 0x4 + compressedBlockSize;
+        compressedDataOffset += sizeof(LzxBlockHeader) + compressedBlockSize;
     }
 
     // Deinitialize decompressor
