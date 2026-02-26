@@ -187,7 +187,6 @@ void ISOFileSystem::parseDirectoryTree(uint32_t gameOffset, uint32_t rootSector,
     uint16_t nodeL, nodeR;
     uint32_t sector, length;
     uint8_t attributes, nameLength;
-    char fileName[256];
     const uint8_t FileAttributeDirectory = 0x10;
     while (!iterationStack.empty())
     {
@@ -221,9 +220,6 @@ void ISOFileSystem::parseDirectoryTree(uint32_t gameOffset, uint32_t rootSector,
             return;
         }
 
-        memcpy(fileName, &mappedFileData[nameOffset], nameLength);
-        fileName[nameLength] = '\0';
-
         if (nodeL)
         {
             iterationStack.emplace(step.fileNameBase, step.nodeOffset, nodeL * 4);
@@ -234,16 +230,19 @@ void ISOFileSystem::parseDirectoryTree(uint32_t gameOffset, uint32_t rootSector,
             iterationStack.emplace(step.fileNameBase, step.nodeOffset, nodeR * 4);
         }
 
-        std::string fileNameUTF8;
-        fileNameUTF8.reserve(step.fileNameBase.length() + nameLength);
-        fileNameUTF8.append(step.fileNameBase);
-        fileNameUTF8.append(fileName, nameLength);
+        bool isDirectory = (attributes & FileAttributeDirectory) != 0;
 
-        if (attributes & FileAttributeDirectory)
+        std::string fileNameUTF8;
+        fileNameUTF8.reserve(step.fileNameBase.length() + nameLength + (isDirectory ? 1 : 0));
+        fileNameUTF8.append(step.fileNameBase);
+        fileNameUTF8.append((const char*)&mappedFileData[nameOffset], nameLength);
+
+        if (isDirectory)
         {
             if (length > 0)
             {
-                pathCache.emplace_back(std::move(fileNameUTF8)).push_back('/');
+                fileNameUTF8.push_back('/');
+                pathCache.emplace_back(std::move(fileNameUTF8));
                 iterationStack.emplace(pathCache.back(), gameOffset + sector * XeSectorSize, 0);
             }
         }
