@@ -220,3 +220,15 @@ target_compile_features(test_heap PRIVATE cxx_std_20)
 target_link_libraries(test_heap PRIVATE Threads::Threads)
 
 add_test(NAME HeapTest COMMAND test_heap)
+
+# test_freelist
+add_executable(test_freelist test_freelist.cpp)
+
+target_include_directories(test_freelist PRIVATE
+    ${CMAKE_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/UnleashedRecomp
+)
+
+target_compile_features(test_freelist PRIVATE cxx_std_20)
+
+add_test(NAME FreeListTest COMMAND test_freelist)
