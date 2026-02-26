@@ -411,9 +411,9 @@ std::filesystem::path FileSystem::ResolvePath(const std::string_view& path, bool
         {
             builtPath += newRoot;
             builtPath += '/';
+            builtPath += path.substr(index + 2);
         }
         
-        builtPath += path.substr(index + 2);
     }
     else
     {
