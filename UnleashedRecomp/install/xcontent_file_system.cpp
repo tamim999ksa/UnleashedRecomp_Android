@@ -514,12 +514,13 @@ XContentFileSystem::XContentFileSystem(const std::filesystem::path &contentPath)
             {
                 if (directoryEntry->length > 0)
                 {
-                    iterationStack.emplace(fileNameUTF8 + "/", directoryEntry->dataBlock, 0);
+                    fileNameUTF8 += '/';
+                    iterationStack.emplace(std::move(fileNameUTF8), directoryEntry->dataBlock, 0);
                 }
             }
             else
             {
-                fileMap[fileNameUTF8] = { directoryEntry->length, directoryEntry->dataBlock, 0 };
+                fileMap[std::move(fileNameUTF8)] = { directoryEntry->length, directoryEntry->dataBlock, 0 };
             }
         }
     }
