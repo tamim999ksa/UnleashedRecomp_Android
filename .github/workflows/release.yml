@@ -69,7 +69,7 @@ jobs:
           cmdline-tools-version: 11076708
 
       - name: Install Android NDK
-        run: yes | sdkmanager "ndk;25.2.9519653" "cmdline-tools;11.0" "platforms;android-33" "build-tools;33.0.0"
+        run: yes | sdkmanager "ndk;25.2.9519653" "cmdline-tools;latest" "platforms;android-34" "build-tools;34.0.0"
 
       - name: Cache vcpkg
         uses: actions/cache@v4
