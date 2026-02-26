@@ -179,44 +179,52 @@ uint32_t GuestTimeoutToMilliseconds(be<int64_t>* timeout)
     return timeout ? (*timeout * -1) / 10000 : INFINITE;
 }
 
+// Note: Exported as kVariable in xboxkrnl_table.inc
 void VdHSIOCalibrationLock()
 {
-    LOG_UTILITY("!!! STUB !!!");
+    LOG_UTILITY("STUB: VdHSIOCalibrationLock - Variable access not implemented");
 }
 
+// Note: Exported as kVariable in xboxkrnl_table.inc
 void KeCertMonitorData()
 {
-    LOG_UTILITY("!!! STUB !!!");
+    LOG_UTILITY("STUB: KeCertMonitorData - Variable access not implemented");
 }
 
+// Note: Exported as kVariable in xboxkrnl_table.inc
 void XexExecutableModuleHandle()
 {
-    LOG_UTILITY("!!! STUB !!!");
+    LOG_UTILITY("STUB: XexExecutableModuleHandle - Variable access not implemented");
 }
 
+// Note: Exported as kVariable in xboxkrnl_table.inc
 void ExLoadedCommandLine()
 {
-    LOG_UTILITY("!!! STUB !!!");
+    LOG_UTILITY("STUB: ExLoadedCommandLine - Variable access not implemented");
 }
 
+// Note: Exported as kVariable in xboxkrnl_table.inc
 void KeDebugMonitorData()
 {
-    LOG_UTILITY("!!! STUB !!!");
+    LOG_UTILITY("STUB: KeDebugMonitorData - Variable access not implemented");
 }
 
+// Note: Exported as kVariable in xboxkrnl_table.inc
 void ExThreadObjectType()
 {
-    LOG_UTILITY("!!! STUB !!!");
+    LOG_UTILITY("STUB: ExThreadObjectType - Variable access not implemented");
 }
 
+// Note: Exported as kVariable in xboxkrnl_table.inc
 void KeTimeStampBundle()
 {
-    LOG_UTILITY("!!! STUB !!!");
+    LOG_UTILITY("STUB: KeTimeStampBundle - Variable access not implemented");
 }
 
+// Note: Exported as kVariable in xboxkrnl_table.inc
 void XboxHardwareInfo()
 {
-    LOG_UTILITY("!!! STUB !!!");
+    LOG_UTILITY("STUB: XboxHardwareInfo - Variable access not implemented");
 }
 
 void XGetVideoMode()
