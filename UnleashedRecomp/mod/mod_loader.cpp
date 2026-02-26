@@ -48,7 +48,16 @@ std::filesystem::path ModLoader::ResolvePath(std::string_view path)
             if (path == "SYS-DATA")
                 return ModLoader::s_saveFilePath;
             else
-                return ModLoader::s_saveFilePath.parent_path() / path;
+            {
+                std::filesystem::path basePath = ModLoader::s_saveFilePath.parent_path().lexically_normal();
+                std::filesystem::path targetPath = basePath / path;
+                std::filesystem::path normalizedPath = targetPath.lexically_normal();
+
+                auto [mismatchBase, mismatchTarget] = std::mismatch(basePath.begin(), basePath.end(), normalizedPath.begin(), normalizedPath.end());
+
+                if (mismatchBase == basePath.end())
+                    return normalizedPath;
+            }
         }
 
         return {};
