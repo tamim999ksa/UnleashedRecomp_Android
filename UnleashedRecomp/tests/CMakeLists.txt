@@ -194,3 +194,14 @@ target_include_directories(test_string_holder PRIVATE
 target_compile_features(test_string_holder PRIVATE cxx_std_20)
 
 add_test(NAME StringHolderTest COMMAND test_string_holder)
+
+# benchmark_mod_loader_optimization
+add_executable(benchmark_mod_loader_optimization benchmark_mod_loader_optimization.cpp)
+
+target_include_directories(benchmark_mod_loader_optimization PRIVATE
+    ${CMAKE_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/UnleashedRecomp
+    ${CMAKE_SOURCE_DIR}/thirdparty/unordered_dense/include
+)
+
+target_compile_features(benchmark_mod_loader_optimization PRIVATE cxx_std_20)

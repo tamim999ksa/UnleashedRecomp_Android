@@ -64,15 +64,18 @@ std::filesystem::path ModLoader::ResolvePath(std::string_view path)
     if (findResult != s_cache.end())
         return findResult->second;
 
-    std::string pathStr(path);
-    std::replace(pathStr.begin(), pathStr.end(), '\\', '/');
+    thread_local std::string s_lookupKey;
+    s_lookupKey.resize(path.size());
+    std::transform(path.begin(), path.end(), s_lookupKey.begin(), [](char c) {
+        return c == '\\' ? '/' : std::tolower((unsigned char)c);
+    });
 
-    std::string key = pathStr;
-    std::transform(key.begin(), key.end(), key.begin(), [](unsigned char c) { return std::tolower(c); });
-
-    auto it = g_modFileIndex.find(key);
+    auto it = g_modFileIndex.find(s_lookupKey);
     if (it != g_modFileIndex.end())
     {
+        std::string pathStr(path);
+        std::replace(pathStr.begin(), pathStr.end(), '\\', '/');
+
         std::filesystem::path fsPath(pathStr);
 
         bool canBeMerged =
