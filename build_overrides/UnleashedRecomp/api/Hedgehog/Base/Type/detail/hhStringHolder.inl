@@ -7,41 +7,44 @@ namespace Hedgehog::Base
 
     inline SStringHolder* SStringHolder::Make(const char* in_pStr)
     {
-        const size_t len = strlen(in_pStr);
-        if (len > 0xFFFFFFFF - (sizeof(RefCount) + 1))
+        size_t len = strlen(in_pStr);
+        size_t allocSize = sizeof(RefCount) + len + 1;
+
+        if (allocSize < len || allocSize > UINT32_MAX)
             return nullptr;
 
-        auto pHolder = (SStringHolder*)__HH_ALLOC((uint32_t)(sizeof(RefCount) + len + 1));
+        auto pHolder = (SStringHolder*)__HH_ALLOC((uint32_t)allocSize);
+
         if (!pHolder)
             return nullptr;
 
         pHolder->RefCount = 1;
-        strcpy(pHolder->aStr, in_pStr);
+        memcpy(pHolder->aStr, in_pStr, len + 1);
         return pHolder;
     }
 
     inline void SStringHolder::AddRef()
     {
-        uint32_t originalValue = RefCount.value;
-        be<uint32_t> original;
-        be<uint32_t> incremented;
+        std::atomic_ref refCount(RefCount.value);
+
+        be<uint32_t> original, incremented;
         do
         {
-            original.value = originalValue;
+            original = RefCount;
             incremented = original + 1;
-        } while (!__atomic_compare_exchange_n(&RefCount.value, &originalValue, incremented.value, true, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST));
+        } while (!refCount.compare_exchange_weak(original.value, incremented.value));
     }
 
     inline void SStringHolder::Release()
     {
-        uint32_t originalValue = RefCount.value;
-        be<uint32_t> original;
-        be<uint32_t> decremented;
+        std::atomic_ref refCount(RefCount.value);
+
+        be<uint32_t> original, decremented;
         do
         {
-            original.value = originalValue;
+            original = RefCount;
             decremented = original - 1;
-        } while (!__atomic_compare_exchange_n(&RefCount.value, &originalValue, decremented.value, true, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST));
+        } while (!refCount.compare_exchange_weak(original.value, decremented.value));
 
         if (decremented == 0)
             __HH_FREE(this);

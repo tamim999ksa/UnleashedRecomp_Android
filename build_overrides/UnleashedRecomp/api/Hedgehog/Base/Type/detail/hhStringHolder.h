@@ -1,4 +1,6 @@
 #pragma once
+#include <cstring>
+#include <cstdint>
 
 #include <SWA.inl>
 
@@ -10,7 +12,7 @@ namespace Hedgehog::Base
         char aStr[];
 
         static SStringHolder* GetHolder(const char* in_pStr);
-        static SStringHolder* Make(const char* in_pStr, size_t length);
+        static SStringHolder* Make(const char* in_pStr);
 
         void AddRef();
         void Release();

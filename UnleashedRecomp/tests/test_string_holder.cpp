@@ -56,9 +56,19 @@ char* my_strcpy(char* dest, const char* src) {
     return std::strcpy(dest, src);
 }
 
+void* my_memcpy(void* dest, const void* src, size_t count) {
+    if (g_useMockStrlen) {
+        // Safe mock for huge length copy
+        if (dest && count > 0) ((char*)dest)[0] = '\0';
+        return dest;
+    }
+    return std::memcpy(dest, src, count);
+}
+
 // Intercept standard functions BEFORE including the implementation
 #define strlen my_strlen
 #define strcpy my_strcpy
+#define memcpy my_memcpy
 
 namespace Hedgehog::Base
 {
@@ -83,12 +93,12 @@ namespace Hedgehog::Base
 // Reset macro definitions
 #undef strlen
 #undef strcpy
+#undef memcpy
 
 using namespace Hedgehog::Base;
 
 TEST_CASE("SStringHolder::Make behavior") {
-    // Reset state before each test case run? Doctest runs test cases independently? No, state persists if global.
-    // So reset at start of test case.
+    // Reset state before each test case run
     g_allocCalled = false;
     g_lastAllocSize = 0;
     g_lastAllocPtr = nullptr;
@@ -131,8 +141,7 @@ TEST_CASE("SStringHolder::Make behavior") {
 
         // If allocation happened, it must not be the overflowed small size
         if (g_allocCalled) {
-             CHECK(g_lastAllocSize > 100); // Expect large allocation attempt if any (which would fail ideally or be caught)
-             // But actually we expect Make to return nullptr BEFORE allocation or AFTER allocation failure
+             CHECK(g_lastAllocSize > 100);
         }
 
         if (holder) holder->Release();
