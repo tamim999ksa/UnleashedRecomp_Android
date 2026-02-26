@@ -474,10 +474,6 @@ jobs:
             echo "Error: default.xex not found or empty in UnleashedRecompLib/private/ or ASSET_REPO."
             exit 1
           fi
-          if [ ! -s "./UnleashedRecompLib/private/default.xexp" ] && [ ! -s "./UnleashedRecompLib/private/default_patched.xex" ]; then
-            echo "Error: default.xexp AND default_patched.xex not found or empty in UnleashedRecompLib/private/ or ASSET_REPO."
-            exit 1
-          fi
           if [ ! -s "./UnleashedRecompLib/private/shader.ar" ]; then
             echo "Error: shader.ar not found or empty in UnleashedRecompLib/private/ or ASSET_REPO."
             exit 1
