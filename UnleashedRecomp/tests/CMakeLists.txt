@@ -205,3 +205,18 @@ target_include_directories(benchmark_mod_loader_optimization PRIVATE
 )
 
 target_compile_features(benchmark_mod_loader_optimization PRIVATE cxx_std_20)
+
+# test_heap
+add_executable(test_heap test_heap.cpp ${CMAKE_SOURCE_DIR}/thirdparty/o1heap/o1heap.c)
+
+target_include_directories(test_heap PRIVATE
+    ${CMAKE_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/UnleashedRecomp
+    ${CMAKE_SOURCE_DIR}/thirdparty/o1heap
+)
+
+target_compile_features(test_heap PRIVATE cxx_std_20)
+
+target_link_libraries(test_heap PRIVATE Threads::Threads)
+
+add_test(NAME HeapTest COMMAND test_heap)

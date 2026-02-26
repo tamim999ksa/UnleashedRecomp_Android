@@ -1,7 +1,22 @@
+#ifndef UNIT_TEST
 #include <stdafx.h>
+#else
+#include <algorithm>
+#include <mutex>
+#include <cstring>
+#include <cassert>
+#include <new>
+#include <utility>
+#include <cstddef>
+#include <cstdint>
+#include <o1heap.h>
+#endif
+
 #include "heap.h"
 #include "memory.h"
+#ifndef UNIT_TEST
 #include "function.h"
+#endif
 
 constexpr size_t RESERVED_BEGIN = 0x7FEA0000;
 constexpr size_t RESERVED_END = 0xA0000000;
@@ -57,6 +72,7 @@ size_t Heap::Size(void* ptr)
     return 0;
 }
 
+#ifndef UNIT_TEST
 uint32_t RtlAllocateHeap(uint32_t heapHandle, uint32_t flags, uint32_t size)
 {
     void* ptr = g_userHeap.Alloc(size);
@@ -132,3 +148,4 @@ GUEST_FUNCTION_HOOK(sub_82BD6FD0, RtlSizeHeap);
 
 GUEST_FUNCTION_HOOK(sub_831CC9C8, XAllocMem);
 GUEST_FUNCTION_HOOK(sub_831CCA60, XFreeMem);
+#endif
