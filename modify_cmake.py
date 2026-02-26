@@ -1,5 +1,3 @@
-import sys
-
 with open('UnleashedRecomp/CMakeLists.txt', 'r') as f:
     lines = f.readlines()
 
