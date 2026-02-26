@@ -7,6 +7,7 @@
 #include <os/logger.h>
 #include <user/config.h>
 #include <stdafx.h>
+#include <algorithm>
 
 struct FileHandle : KernelObject
 {
@@ -32,7 +33,7 @@ struct FindHandle : KernelObject
             };
 
         std::string_view pathNoPrefix = path;
-        size_t index = pathNoPrefix.find(":\\");
+        size_t index = pathNoPrefix.find(":\\\\");
         if (index != std::string_view::npos)
             pathNoPrefix.remove_prefix(index + 2);
 
@@ -424,9 +425,31 @@ std::filesystem::path FileSystem::ResolvePath(const std::string_view& path, bool
 
         if (!newRoot.empty())
         {
-            builtPath += newRoot;
-            builtPath += '/';
-            builtPath += path.substr(index + 2);
+            std::filesystem::path rootPath(std::u8string_view((const char8_t*)newRoot.data(), newRoot.size()));
+            rootPath = rootPath.lexically_normal();
+
+            std::string relativePathStr(path.substr(index + 2));
+            std::replace(relativePathStr.begin(), relativePathStr.end(), '\\', '/');
+
+            std::filesystem::path relativePath(std::u8string_view((const char8_t*)relativePathStr.c_str()));
+
+            std::filesystem::path fullPath = (rootPath / relativePath).lexically_normal();
+
+            // Check for path traversal
+            auto [mismatchBase, mismatchTarget] = std::mismatch(
+                rootPath.begin(), rootPath.end(),
+                fullPath.begin(), fullPath.end()
+            );
+
+            if (mismatchBase == rootPath.end())
+            {
+                builtPath = (const char*)fullPath.u8string().c_str();
+            }
+            else
+            {
+                // Traversal detected, return empty path
+                return {};
+            }
         }
         
     }
