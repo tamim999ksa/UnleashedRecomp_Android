@@ -344,7 +344,7 @@ struct TextureDescriptorAllocator
 
     void free(uint32_t value)
     {
-        assert(value != NULL);
+        assert(value != 0);
         std::lock_guard lock(mutex);
         freed.push_back(value);
     }
@@ -682,7 +682,7 @@ static void DestructTempResources()
         {
             const auto surface = reinterpret_cast<GuestSurface*>(resource);
 
-            if (surface->descriptorIndex != NULL)
+            if (surface->descriptorIndex != 0)
                 g_textureDescriptorAllocator.free(surface->descriptorIndex);
 
             surface->~GuestSurface();
@@ -1554,7 +1554,7 @@ static void BeginCommandList()
             if (g_intermediaryBackBufferTextureWidth != width ||
                 g_intermediaryBackBufferTextureHeight != height)
             {
-                if (g_intermediaryBackBufferTextureDescriptorIndex == NULL)
+                if (g_intermediaryBackBufferTextureDescriptorIndex == 0)
                     g_intermediaryBackBufferTextureDescriptorIndex = g_textureDescriptorAllocator.allocate();
 
                 Video::WaitForGPU(); // Fine to wait for GPU, this'll only happen during resize.
@@ -3975,7 +3975,7 @@ static std::unique_ptr<RenderPipeline> CreateGraphicsPipeline(const PipelineStat
         auto& inputElement = pipelineState.vertexDeclaration->inputElements[i];
         auto& inputSlotIndex = inputSlotIndices[inputElement.slotIndex];
     
-        if (inputSlotIndex == NULL)
+        if (inputSlotIndex == 0)
             inputSlotIndex = ++inputSlotCount;
     
         auto& inputSlot = inputSlots[inputSlotIndex - 1];
@@ -4268,7 +4268,7 @@ static void ProcSetSamplerState(const RenderCommand& cmd)
     if (dirty)
     {
         auto& [descriptorIndex, sampler] = g_samplerStates[XXH3_64bits(&samplerDesc, sizeof(RenderSamplerDesc))];
-        if (descriptorIndex == NULL)
+        if (descriptorIndex == 0)
         {
             descriptorIndex = g_samplerStates.size();
             sampler = g_device->createSampler(samplerDesc);
