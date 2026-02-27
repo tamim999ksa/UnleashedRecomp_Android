@@ -13,6 +13,11 @@
 #include <os/process.h>
 #include <xxHashMap.h>
 
+namespace
+{
+    constexpr size_t MAX_LZX_UNCOMPRESSED_SIZE = 1024 * 1024 * 256; // 256MB
+}
+
 enum class ModType
 {
     HMM,
@@ -349,9 +354,15 @@ static_assert(sizeof(LzxBlockHeader) == 0x4);
 
 static std::span<uint8_t> decompressLzx(PPCContext& ctx, uint8_t* base, const uint8_t* compressedData, size_t compressedDataSize, be<uint32_t>* scratchSpace)
 {
+    if (compressedDataSize < sizeof(LzxHeader))
+        return {};
+
     assert(g_memory.IsInMemoryRange(compressedData));
 
     const auto* header = reinterpret_cast<const LzxHeader*>(compressedData);
+
+    if (header->UncompressedSize > MAX_LZX_UNCOMPRESSED_SIZE)
+        return {};
 
     bool shouldFreeScratchSpace = false;
     if (scratchSpace == nullptr)

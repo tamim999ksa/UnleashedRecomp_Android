@@ -18,7 +18,7 @@ void AchievementOverlay::Open(int id)
     g_lastOverlayId = id;
 }
 
-#include <kernel/memory.h>
+#include <kernel/memory_mock.h>
 Memory g_memory;
 bool mock_bools[4];
 

@@ -248,3 +248,27 @@ target_include_directories(test_achievement_manager PRIVATE
 target_compile_features(test_achievement_manager PRIVATE cxx_std_20)
 
 add_test(NAME AchievementManagerTest COMMAND test_achievement_manager)
+
+# test_mod_loader_lzx
+add_executable(test_mod_loader_lzx test_mod_loader_lzx.cpp)
+
+target_include_directories(test_mod_loader_lzx PRIVATE
+    ${CMAKE_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/UnleashedRecomp
+    ${CMAKE_SOURCE_DIR}/UnleashedRecomp/tests/mock
+    ${CMAKE_SOURCE_DIR}/thirdparty/unordered_dense/include
+    ${CMAKE_SOURCE_DIR}/tools/XenonRecomp/thirdparty/fmt/include
+    ${CMAKE_SOURCE_DIR}/tools/XenonRecomp/thirdparty/xxHash
+    ${CMAKE_SOURCE_DIR}/thirdparty/tomlplusplus/include
+)
+
+target_compile_features(test_mod_loader_lzx PRIVATE cxx_std_20)
+
+target_compile_definitions(test_mod_loader_lzx PRIVATE XXH_INLINE_ALL FMT_HEADER_ONLY)
+
+target_link_libraries(test_mod_loader_lzx PRIVATE
+    fmt::fmt
+    tomlplusplus::tomlplusplus
+)
+
+add_test(NAME ModLoaderLzxTest COMMAND test_mod_loader_lzx)
