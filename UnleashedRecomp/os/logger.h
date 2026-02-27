@@ -1,6 +1,7 @@
 #pragma once
 
 #include <source_location>
+#include <fmt/format.h>
 
 #define LOG_IMPL(type, func, str)       os::logger::Log(str, os::logger::ELogType::type, func)
 #define LOGF_IMPL(type, func, str, ...) os::logger::Log(fmt::format(str, __VA_ARGS__), os::logger::ELogType::type, func)

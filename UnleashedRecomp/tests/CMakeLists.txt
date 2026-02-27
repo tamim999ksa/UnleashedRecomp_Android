@@ -272,3 +272,21 @@ target_link_libraries(test_mod_loader_lzx PRIVATE
 )
 
 add_test(NAME ModLoaderLzxTest COMMAND test_mod_loader_lzx)
+
+# test_version_utils
+add_executable(test_version_utils test_version_utils.cpp)
+
+target_sources(test_version_utils PRIVATE ${CMAKE_SOURCE_DIR}/UnleashedRecomp/install/version_utils.cpp)
+
+target_include_directories(test_version_utils PRIVATE
+    ${CMAKE_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/UnleashedRecomp
+    ${CMAKE_SOURCE_DIR}/UnleashedRecomp/tests/mock
+    ${CMAKE_SOURCE_DIR}/tools/XenonRecomp/thirdparty/fmt/include
+)
+
+target_compile_features(test_version_utils PRIVATE cxx_std_20)
+
+target_compile_definitions(test_version_utils PRIVATE FMT_HEADER_ONLY)
+
+add_test(NAME VersionUtilsTest COMMAND test_version_utils)
