@@ -10,6 +10,7 @@ namespace SWA
     class CInputState : public Hedgehog::Base::CSynchronizedObject
     {
     public:
+        // TODO: Hedgehog::Base::TSynchronizedPtr<CInputState>
         static Hedgehog::Base::TSynchronizedPtr<CInputState> GetInstance();
 
         SPadState m_PadStates[8];
