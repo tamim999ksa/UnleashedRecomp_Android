@@ -103,6 +103,7 @@ jobs:
 
       - name: Apply Patches
         run: |
+          chmod +x tools/XenosRecomp/thirdparty/dxc-bin/bin/x64/dxc-linux
           chmod +x ./apply_patches.sh
           ./apply_patches.sh
 
