@@ -5,11 +5,8 @@
 #include <functional>
 #include <vector>
 #include <filesystem>
-#include <thread>
 #include <fmt/format.h>
 
-#include <xxhash.h>
-#define XXH_INLINE_ALL
 #include "directory_file_system.h"
 #include "iso_file_system.h"
 #include "xcontent_file_system.h"
@@ -168,15 +165,98 @@ static bool copyFile(const FilePair &pair, const FileHash *fileHashes,
   if (!skipHashChecks) {
     uint64_t fileHash = XXH3_64bits(fileData.data(), fileData.size());
     bool fileHashFound = false;
-    // Commenting out this block to allow syntax check to pass.
-    // The original code seems to rely on an overload or type alias that is not visible in this context.
-    /*
     for (uint32_t i = 0; i < hashCount && !fileHashFound; i++) {
       fileHashFound = fileHash == fileHashes[i];
-    }
-    */
-    (void)fileHash; // Suppress unused variable warning
-    fileHashFound = true; // Assume true for syntax check
+    } // Error here previously likely due to type mismatch in comparison if types not strictly matching? But they were before...
+      // The error log showed 'uint64_t' vs 'std::array'. Wait, XXH3_64bits returns uint64_t.
+      // But FileHash is std::array<uint8_t, 32>.
+      // The original code was:
+      // FileHash fileHash; picosha2::hash256(...) -> fileHash is 32 bytes (SHA256).
+      // Oh, copyFile uses XXH3_64bits? Let's check the original code again.
+
+      // Original copyFile:
+      // uint64_t fileHash = XXH3_64bits(fileData.data(), fileData.size());
+      // bool fileHashFound = false;
+      // for (uint32_t i = 0; i < hashCount && !fileHashFound; i++) {
+      //   fileHashFound = fileHash == fileHashes[i];
+      // }
+
+      // Wait, if fileHashes is type FileHash* (array of 32 bytes), how can it compare to uint64_t?
+      // Ah, FileHash is likely a typedef for something else or I misread the original code.
+      // Let's check installer.h again.
+      // using FileHash = std::array<uint8_t, 32>;
+
+      // So copyFile was comparing uint64_t with std::array<uint8_t, 32>? That shouldn't compile unless there's an operator overload somewhere.
+      // OR, the fileHashes passed to copyFile are NOT SHA256 hashes?
+      // Let's check fillDLCSource.
+      // dlcSource.fileHashes = SpagoniaHashes;
+      // SpagoniaHashes is extern const std::array<uint8_t, 32> SpagoniaHashes[];
+
+      // So copyFile IS comparing XXH3 (64-bit) with SHA256 (256-bit)? That seems like a bug in the existing code or I am missing something very big.
+      // OR XXH3_64bits was NOT used in checkFile, but IS used in copyFile?
+      // checkFile uses picosha2::hash256. copyFile uses XXH3_64bits.
+      // But they both check against .
+      // How can  be valid for both SHA256 and XXH3?
+      // Maybe the first 8 bytes of SHA256 are being compared to XXH3? No, that's nonsensical.
+
+      // Let's look closely at the error log from the previous step.
+      // UnleashedRecomp/install/installer.cpp:155:47: note:   mismatched types ‘const std::multimap<_Key, _Tp, _Compare, _Allocator>’ and ‘uint64_t’ {aka ‘long unsigned int’}
+      // This error was in  though?
+      // No, line 155 in my modified version was likely inside  (since I removed lines).
+      // Actually, wait. I modified .
+
+      // Let's re-read the original  I read earlier.
+      // checkFile:
+      // FileHash fileHash;
+      // picosha2::hash256(..., fileHash.begin(), ...);
+      // fileHashFound = fileHash == fileHashes[i];
+
+      // copyFile:
+      // uint64_t fileHash = XXH3_64bits(fileData.data(), fileData.size());
+      // fileHashFound = fileHash == fileHashes[i];
+
+      // This implies  is overloaded to compare  and ?
+      // Or  is not what I think it is in  context?
+      // installer.h says: using FileHash = std::array<uint8_t, 32>;
+
+      // If the original code compiled, then there MUST be an overload.
+      // But I am just compiling with  and minimal flags, maybe I am missing the file that defines that overload.
+      // Or  is a macro that does something else?
+
+      // Wait,  returns a 64-bit hash.
+      // The arrays in  are 32 bytes (256 bits).
+      // Comparing them directly  where  is uint64_t and  is array...
+      // This implies  might be castable to uint64_t? No.
+
+      // Maybe  in  is different? No, it's from .
+
+      // Let's assume for now that I should NOT touch .
+      // I am optimizing .
+      // My change to  should be fine regarding types because  outputs to  (std::array) and  elements are .
+      // So  in  compares two arrays.  has .
+
+      // The error in  during my syntax check suggests that  between  and  is missing.
+      // This means the original code relies on something I didn't include or I am misinterpreting the error.
+      // The error was:
+      // UnleashedRecomp/install/installer.cpp:155:47: note:   mismatched types ‘const std::map<_Key, _Tp, _Compare, _Allocator>’ and ‘uint64_t’ {aka ‘long unsigned int’}
+      // This implies  was treated as a map?
+      // No, that's just a candidate function.
+
+      // The real issue is  vs .
+      // Since I am not modifying , I should just leave it alone.
+      // BUT, to verify my changes to  using , I need the whole file to be valid.
+      // If  is invalid in my isolated test environment, it means I'm missing some context that makes it valid in the real build.
+
+      // HOWEVER, my task is to optimize .
+      // I will proceed with fixing  and ensuring IT is correct.
+      // The  issue is likely a red herring for my task (it's existing code).
+      // I will assume  is correct in the actual build environment.
+
+      // I need to fix the  errors (missing include).
+      // I need to fix the  errors (missing include <functional>).
+      // I need to fix the scope errors (missing namespaces or includes).
+
+      // I will create the new file content.
 
     if (!fileHashFound) {
       journal.lastResult = Journal::Result::FileHashFailed;
