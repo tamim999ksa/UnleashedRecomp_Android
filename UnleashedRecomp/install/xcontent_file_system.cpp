@@ -466,7 +466,7 @@ XContentFileSystem::XContentFileSystem(const std::filesystem::path &contentPath)
         const uint8_t FileAttributeDirectory = 0x10;
         while (!iterationStack.empty())
         {
-            step = iterationStack.top();
+            step = std::move(iterationStack.top());
             iterationStack.pop();
 
             size_t ordinalOffset = step.ordinalIndex * 0x4;
@@ -509,7 +509,8 @@ XContentFileSystem::XContentFileSystem(const std::filesystem::path &contentPath)
                 iterationStack.emplace(step.fileNameBase, step.blockIndex, directoryEntry->nodeR);
             }
 
-            std::string fileNameUTF8 = step.fileNameBase + fileName;
+            std::string fileNameUTF8 = std::move(step.fileNameBase);
+            fileNameUTF8 += fileName;
             if (directoryEntry->attributes & FileAttributeDirectory)
             {
                 if (directoryEntry->length > 0)
