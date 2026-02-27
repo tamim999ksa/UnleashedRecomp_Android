@@ -1,23 +1,57 @@
-#include "Hedgehog/Universe/Engine/hhUpdateUnit.h"
-#include "Hedgehog/Universe/Engine/hhMessageActor.h"
+#include "mock_swa_minimal.h"
 
-// Mock dependencies if needed, but headers might be enough if valid.
+// Shadow the SWA include path by placing a fake SWA.inl in this directory
+// and including it via standard include paths.
+// The build system or command line must prioritize this directory.
+
+#ifndef _HEDGEHOG_BASE_HH_OBJECT_H_
+#define _HEDGEHOG_BASE_HH_OBJECT_H_
+namespace Hedgehog::Base {
+}
+#endif
+
+#include "Hedgehog/Universe/Engine/hhUpdateInfo.h"
+#include "Hedgehog/Universe/Thread/hhParallelJob.h"
+#include "Hedgehog/Universe/Engine/hhUpdateUnit.h"
+
+#include <cstdio>
+
+// Provide definitions for CUpdateUnit methods to satisfy linker
+namespace Hedgehog::Universe {
+    CUpdateUnit::CUpdateUnit() : CObject(), IParallelJob() {}
+    void CUpdateUnit::ExecuteParallelJob(const SUpdateInfo& in_rUpdateInfo) {
+        printf("CUpdateUnit::ExecuteParallelJob base called\n");
+    }
+}
 
 class TestUpdateUnit : public Hedgehog::Universe::CUpdateUnit
 {
 public:
     TestUpdateUnit() : CUpdateUnit() {}
-};
 
-class TestGameObject : public Hedgehog::Universe::CUpdateUnit, public Hedgehog::Universe::CMessageActor
-{
-public:
-    // CGameObject-like structure
+    virtual void ExecuteParallelJob(const Hedgehog::Universe::SUpdateInfo& in_rUpdateInfo) override
+    {
+        printf("TestUpdateUnit::ExecuteParallelJob called\n");
+    }
+
+    virtual void UpdateParallel(const Hedgehog::Universe::SUpdateInfo& in_rUpdateInfo) override
+    {
+        printf("TestUpdateUnit::UpdateParallel called\n");
+    }
+
+    virtual void UpdateSerial(const Hedgehog::Universe::SUpdateInfo& in_rUpdateInfo) override
+    {
+        printf("TestUpdateUnit::UpdateSerial called\n");
+    }
 };
 
 int main()
 {
     TestUpdateUnit unit;
-    // TestGameObject obj; // This might fail if abstract or ambiguous
+    Hedgehog::Universe::SUpdateInfo updateInfo;
+    unit.ExecuteParallelJob(updateInfo);
+    unit.UpdateParallel(updateInfo);
+    unit.UpdateSerial(updateInfo);
+
     return 0;
 }
