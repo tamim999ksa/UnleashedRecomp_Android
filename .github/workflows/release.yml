@@ -110,9 +110,10 @@ jobs:
 
       - name: Apply Patches
         run: |
-          chmod +x tools/XenosRecomp/thirdparty/dxc-bin/bin/x64/dxc-linux
           chmod +x ./apply_patches.sh
+          chmod +x tools/XenosRecomp/thirdparty/dxc-bin/bin/x64/dxc-linux
           ./apply_patches.sh
+          chmod +x tools/XenosRecomp/thirdparty/dxc-bin/bin/x64/dxc-linux
 
       - name: Run Build Tools
         run: |
