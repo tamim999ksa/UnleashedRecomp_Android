@@ -101,12 +101,10 @@ jobs:
             exit 1
           fi
           if [ ! -f "./UnleashedRecompLib/private/default.xexp" ]; then
-            echo "Error: default.xexp not found in UnleashedRecompLib/private/ or ASSET_REPO."
-            exit 1
+            echo "Warning: default.xexp not found in UnleashedRecompLib/private/ or ASSET_REPO."
           fi
           if [ ! -f "./UnleashedRecompLib/private/shader.ar" ]; then
-            echo "Error: shader.ar not found in UnleashedRecompLib/private/ or ASSET_REPO."
-            exit 1
+            echo "Warning: shader.ar not found in UnleashedRecompLib/private/ or ASSET_REPO."
           fi
 
           echo "Assets prepared successfully."

@@ -6,23 +6,89 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch:
+    inputs:
+      os:
+        description: 'Target OS'
+        required: true
+        type: choice
+        options:
+          - android
+          - linux
+          - windows
+        default: 'android'
+      game_url:
+        description: 'URL for game data (ISO/XEX/ZIP)'
+        required: true
+        type: string
+      update_url:
+        description: 'URL for update data (default.xexp) (optional)'
+        required: false
+        type: string
+      dlc_url:
+        description: 'URL for DLC data (shader.ar) (optional)'
+        required: false
+        type: string
 
 jobs:
   build:
-    runs-on: ubuntu-24.04
+    runs-on: ${{ (inputs.os == 'windows') && 'windows-latest' || 'ubuntu-24.04' }}
 
+    defaults:
+      run:
+        shell: bash
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Set up JDK
+      - name: Set up JDK (Android only)
+        if: ${{ (inputs.os == 'android' || github.event_name == 'push') }}
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '17'
           cache: 'gradle'
 
-      - name: Build APK
+      - name: Setup Android SDK (Android only)
+        if: ${{ (inputs.os == 'android' || github.event_name == 'push') }}
+        uses: android-actions/setup-android@v3.2.1
+
+      - name: Install Android NDK (Android only)
+        if: ${{ (inputs.os == 'android' || github.event_name == 'push') }}
+        run: yes | sdkmanager "ndk;25.2.9519653"
+
+      - name: Download Game Data
+        env:
+          GAME_URL: ${{ inputs.game_url }}
+          UPDATE_URL: ${{ inputs.update_url }}
+          DLC_URL: ${{ inputs.dlc_url }}
+        run: |
+          mkdir -p ./UnleashedRecompLib/private
+
+          if [ -n "$GAME_URL" ]; then
+            echo "::add-mask::$GAME_URL"
+            wget -qO /tmp/game_data "$GAME_URL"
+            if file /tmp/game_data | grep -qi 'zip'; then
+               unzip -o -q /tmp/game_data -d ./UnleashedRecompLib/private/
+               rm /tmp/game_data
+            elif file /tmp/game_data | grep -qi 'iso'; then
+               mv /tmp/game_data ./UnleashedRecompLib/private/game.iso
+            else
+               mv /tmp/game_data ./UnleashedRecompLib/private/default.xex
+            fi
+          fi
+
+          if [ -n "$UPDATE_URL" ]; then
+            echo "::add-mask::$UPDATE_URL"
+            wget -qO ./UnleashedRecompLib/private/default.xexp "$UPDATE_URL"
+          fi
+
+          if [ -n "$DLC_URL" ]; then
+            echo "::add-mask::$DLC_URL"
+            wget -qO ./UnleashedRecompLib/private/shader.ar "$DLC_URL"
+          fi
+      - name: Build APK (Android only)
+        if: ${{ (inputs.os == 'android' || github.event_name == 'push') }}
         run: |
           ./gradlew assembleRelease --no-daemon --stacktrace
 
@@ -31,21 +97,63 @@ jobs:
           echo 'Optimize memory usage'
           # Add memory optimization commands if necessary
 
+
       - name: Asset Handling
+        if: ${{ (inputs.os == 'android' || github.event_name == 'push') }}
         run: |
           echo 'Handling assets'
           ./gradlew processReleaseResources
 
-      - name: Archive APK
+      - name: Archive APK (Android only)
+        if: ${{ (inputs.os == 'android' || github.event_name == 'push') }}
         run: |
           mkdir -p output/apk
           cp app/build/outputs/apk/release/app-release.apk output/apk/
 
-      - name: Upload APK
+      - name: Upload APK (Android only)
+        if: ${{ (inputs.os == 'android' || github.event_name == 'push') }}
         uses: actions/upload-artifact@v4
         with:
           name: my-app-release
           path: output/apk/app-release.apk
+
+      - name: Cache vcpkg (Linux/Windows)
+        if: ${{ (inputs.os == 'linux') || (inputs.os == 'windows') }}
+        uses: actions/cache@v4
+        with:
+          path: |
+            ./thirdparty/vcpkg/downloads
+            ./thirdparty/vcpkg/packages
+          key: vcpkg-${{ inputs.os }}-${{ hashFiles('vcpkg.json') }}
+
+      - name: Bootstrap vcpkg (Linux/Windows)
+        if: ${{ (inputs.os == 'linux') || (inputs.os == 'windows') }}
+        run: |
+          if [ "$RUNNER_OS" == "Windows" ]; then
+            ./thirdparty/vcpkg/bootstrap-vcpkg.bat
+          else
+            ./thirdparty/vcpkg/bootstrap-vcpkg.sh
+          fi
+
+      - name: Build Linux/Windows
+        if: ${{ (inputs.os == 'linux') || (inputs.os == 'windows') }}
+        run: |
+          echo "Building for ${{ inputs.os }}"
+          chmod +x ./build_tools.sh
+          ./build_tools.sh
+          mkdir -p build_${{ inputs.os }}
+          cd build_${{ inputs.os }}
+          cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE="../thirdparty/vcpkg/scripts/buildsystems/vcpkg.cmake"
+          cmake --build . --config Release --parallel $(nproc)
+      - name: Upload Artifacts (Linux/Windows)
+        if: ${{ inputs.os == 'linux' || inputs.os == 'windows' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: UnleashedRecomp-${{ inputs.os }}
+          path: |
+            build_${{ inputs.os }}/*
+            !build_${{ inputs.os }}/**/*.o
+            !build_${{ inputs.os }}/**/*.a
 
       - name: Cleanup
         run: |
