@@ -1,1 +1,52 @@
-name: Release\n\non:  \n  push:  \n    branches:  \n      - main\n\njobs:  \n  build:  \n    runs-on: ubuntu-latest\n    steps:  \n      - name: Checkout code  \n        uses: actions/checkout@v2  \n      \n      - name: Set up JDK  \n        uses: actions/setup-java@v1  \n        with:  \n          java-version: '11'  \n          java-package: jdk  \n          architecture: x64  \n      \n      - name: Cache Gradle packages  \n        uses: actions/cache@v2  \n        with:  \n          path: ~/.gradle/caches  \n          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*') }}  \n          restore-keys:  \n            ${{ runner.os }}-gradle-\n      \n      - name: Build APK  \n        run:  \n          ./gradlew assembleRelease -x lint  \n      \n      - name: Optimize APK  \n        run:  \n          ./gradlew optimizeRelease  \n      \n      - name: Clean Up Assets  \n        run:  \n          ./gradlew cleanBuildCache  \n          ./gradlew uninstallAll  \n\n      - name: Upload Release APK  \n        uses: actions/upload-artifact@v2  \n        with:  \n          name: UnleashedRecomp_Android  \n          path: app/build/outputs/apk/release/*\\n  \n  release:  \n    needs: build  \n    runs-on: ubuntu-latest  \n    steps:  \n      - name: Checkout code  \n        uses: actions/checkout@v2  \n      \n      - name: Create Release  \n        id: create_release  \n        uses: softprops/action-gh-release@v1  \n        with:  \n          tag: v1.0.0  \n          files:  \n            - app/build/outputs/apk/release/*.apk  \n        env:  \n          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+# Optimized Release Workflow
+
+name: Release
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        java-version: [11, 17]
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Set up JDK ${{ matrix.java-version }}
+      uses: actions/setup-java@v1
+      with:
+        java-version: ${{ matrix.java-version }}
+        distribution: 'adopt'
+
+    - name: Increase Swap to 16GB
+      run: |
+        sudo fallocate -l 16G /swapfile
+        sudo chmod 600 /swapfile
+        sudo mkswap /swapfile
+        sudo swapon /swapfile
+
+    - name: Build tools
+      run: |
+        make -j2
+        # Aggressive memory cleanup
+        sync; echo 3 | sudo tee /proc/sys/vm/drop_caches
+
+    - name: Build APK
+      run: |
+        export CMAKE_BUILD_PARALLEL_LEVEL=1
+        ./gradlew build
+
+    - name: Use G1GC Garbage Collector
+      run: |
+        export JAVA_OPTS='-XX:+UseG1GC'
+
+    - name: Deploy artifacts
+      uses: actions/upload-artifact@v2
+      with:
+        name: apk
+        path: app/build/outputs/apk/release/*.apk
