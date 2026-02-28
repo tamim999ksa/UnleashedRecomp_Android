@@ -13,14 +13,8 @@ namespace Hedgehog::Universe
         IParallelJob() {}
         IParallelJob(const swa_null_ctor&) {}
 
-        ~IParallelJob()
-        {
-            SWA_VIRTUAL_FUNCTION(void, 0, this);
-        }
+        virtual ~IParallelJob() = default;
 
-        void ExecuteParallelJob(const SUpdateInfo& in_rUpdateInfo)
-        {
-            SWA_VIRTUAL_FUNCTION(void, 1, this, &in_rUpdateInfo);
-        }
+        virtual void ExecuteParallelJob(const SUpdateInfo& in_rUpdateInfo) = 0;
     };
 }
