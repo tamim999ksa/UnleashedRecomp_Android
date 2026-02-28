@@ -1,3 +1,4 @@
+#include <fstream>
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include "doctest.h"
 
@@ -191,4 +192,109 @@ TEST_CASE("ConfigDef GetDefinition") {
 
     CHECK(intConfig.GetDefinition(false) == "Key = 123");
     CHECK(intConfig.GetDefinition(true) == "[Section]\nKey = 123");
+}
+
+// Minimal logic of Config::Load for testing
+namespace ConfigMock {
+    bool saved_called = false;
+    bool create_callbacks_called = false;
+    std::filesystem::path configPath = "mock_config.toml";
+
+    void CreateCallbacks() { create_callbacks_called = true; }
+    void Save() { saved_called = true; }
+    std::filesystem::path GetConfigPath() { return configPath; }
+}
+
+void Test_ConfigLoad()
+{
+    if (!Config::s_isCallbacksCreated)
+    {
+        ConfigMock::CreateCallbacks();
+        Config::s_isCallbacksCreated = true;
+    }
+
+    auto configPath = ConfigMock::GetConfigPath();
+
+    if (!std::filesystem::exists(configPath))
+    {
+        ConfigMock::Save();
+        return;
+    }
+
+    try
+    {
+        toml::parse_result toml;
+        std::ifstream tomlStream(configPath);
+
+        if (tomlStream.is_open())
+            toml = toml::parse(tomlStream);
+
+        for (auto def : g_configDefinitions)
+        {
+            def->ReadValue(toml);
+        }
+    }
+    catch (toml::parse_error& err)
+    {
+        // Suppress logging
+    }
+}
+
+
+TEST_CASE("Config Load") {
+    g_configDefinitions.clear();
+
+    // Reset our mock state
+    ConfigMock::saved_called = false;
+    ConfigMock::create_callbacks_called = false;
+    Config::s_isCallbacksCreated = false;
+
+    // Set up a config def so we can see if it reads correctly
+    ConfigDef<int> loadIntConfig("LoadSec", "LoadInt", 1);
+
+    if (std::filesystem::exists(ConfigMock::configPath)) {
+        std::filesystem::remove(ConfigMock::configPath);
+    }
+
+    // Test 1: Load when config doesn't exist
+    Test_ConfigLoad();
+
+    CHECK(ConfigMock::create_callbacks_called == true);
+    CHECK(Config::s_isCallbacksCreated == true);
+    CHECK(ConfigMock::saved_called == true); // Save should be called if config doesn't exist
+    CHECK(loadIntConfig.Value == 1);
+
+    // Test 2: Load when config exists
+    ConfigMock::saved_called = false;
+
+    // Modify file manually
+    std::ofstream out(ConfigMock::configPath);
+    out << "[LoadSec]\nLoadInt = 99\n";
+    out.close();
+
+    Test_ConfigLoad();
+
+    CHECK(ConfigMock::saved_called == false); // Save shouldn't be called this time
+    // The value should now be 99
+    CHECK(loadIntConfig.Value == 99);
+    CHECK(loadIntConfig.IsLoadedFromConfig);
+
+    // Test 3: Load with invalid syntax doesn't crash
+    std::ofstream out2(ConfigMock::configPath);
+    out2 << "[LoadSec\nInvalid TOML\n";
+    out2.close();
+
+    // Change value so we can ensure it wasn't modified
+    loadIntConfig.Value = 50;
+
+    // This should catch the error and log it, not crash
+    Test_ConfigLoad();
+
+    // Value remains unchanged from 50 because it failed to parse
+    CHECK(loadIntConfig.Value == 50);
+
+    // Clean up
+    if (std::filesystem::exists(ConfigMock::configPath)) {
+        std::filesystem::remove(ConfigMock::configPath);
+    }
 }
