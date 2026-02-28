@@ -32,10 +32,6 @@ It is based on the static recompilation of the Xbox 360 version of Sonic Unleash
 
 ## How to Install / Build APK
 
-### Prebuilt APK
-
-If a prebuilt APK is provided in the releases, install it directly on your device.
-
 ### Build from Source using GitHub Actions
 
 1. Fork or clone this repository.
