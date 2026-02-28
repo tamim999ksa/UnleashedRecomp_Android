@@ -1,6 +1,7 @@
 #pragma once
 
 #include <user/achievement_data.h>
+#include <unordered_map>
 
 enum class EAchBinStatus
 {
@@ -16,6 +17,7 @@ class AchievementManager
 {
 public:
     static inline AchievementData Data{};
+    static inline std::unordered_map<uint16_t, time_t> s_unlockedTimestamps{};
     static inline EAchBinStatus BinStatus{ EAchBinStatus::Success };
 
     static std::filesystem::path GetDataPath(bool checkForMods)

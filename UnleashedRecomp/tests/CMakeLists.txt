@@ -63,7 +63,7 @@ add_executable(test_os_process test_os_process.cpp)
 
 # Compile process_android.cpp if on UNIX (Linux/Android/macOS)
 if(UNIX)
-    target_sources(test_os_process PRIVATE ${CMAKE_SOURCE_DIR}/UnleashedRecomp/os/android/process_android.cpp)
+    target_sources(test_os_process PRIVATE ${CMAKE_SOURCE_DIR}/${PROJECT_ROOT}/UnleashedRecomp/os/android/process_android.cpp)
 endif()
 
 target_include_directories(test_os_process PRIVATE
@@ -78,7 +78,7 @@ add_test(NAME OSProcessTest COMMAND test_os_process)
 add_executable(test_text_wrap test_text_wrap.cpp)
 
 target_sources(test_text_wrap PRIVATE
-    ${CMAKE_SOURCE_DIR}/UnleashedRecomp/ui/text_wrap_utils.cpp
+    ${CMAKE_SOURCE_DIR}/${PROJECT_ROOT}/UnleashedRecomp/ui/text_wrap_utils.cpp
     ${CMAKE_SOURCE_DIR}/thirdparty/imgui/imgui.cpp
     ${CMAKE_SOURCE_DIR}/thirdparty/imgui/imgui_draw.cpp
     ${CMAKE_SOURCE_DIR}/thirdparty/imgui/imgui_tables.cpp
@@ -101,7 +101,7 @@ add_test(NAME TextWrapTest COMMAND test_text_wrap)
 
 # benchmark_iso_parsing
 add_executable(benchmark_iso_parsing benchmark_iso_parsing.cpp
-    ${CMAKE_SOURCE_DIR}/UnleashedRecomp/install/iso_file_system.cpp
+    ${CMAKE_SOURCE_DIR}/${PROJECT_ROOT}/UnleashedRecomp/install/iso_file_system.cpp
     ${CMAKE_SOURCE_DIR}/tools/XenonRecomp/XenonUtils/memory_mapped_file.cpp
 )
 
@@ -116,7 +116,7 @@ target_compile_features(benchmark_iso_parsing PRIVATE cxx_std_20)
 
 # test_iso_file_system
 add_executable(test_iso_file_system test_iso_file_system.cpp
-    ${CMAKE_SOURCE_DIR}/UnleashedRecomp/install/iso_file_system.cpp
+    ${CMAKE_SOURCE_DIR}/${PROJECT_ROOT}/UnleashedRecomp/install/iso_file_system.cpp
     ${CMAKE_SOURCE_DIR}/tools/XenonRecomp/XenonUtils/memory_mapped_file.cpp
 )
 
@@ -137,7 +137,7 @@ add_executable(test_xex_security test_xex_security.cpp)
 target_include_directories(test_xex_security PRIVATE
     ${CMAKE_SOURCE_DIR}
     ${CMAKE_SOURCE_DIR}/UnleashedRecomp
-    ${CMAKE_SOURCE_DIR}/UnleashedRecomp/tests/mock
+    ${CMAKE_SOURCE_DIR}/${PROJECT_ROOT}/UnleashedRecomp/tests/mock
 )
 
 target_compile_features(test_xex_security PRIVATE cxx_std_20)
@@ -165,7 +165,7 @@ target_include_directories(test_string_utils PRIVATE
 
 target_compile_features(test_string_utils PRIVATE cxx_std_20)
 
-target_sources(test_string_utils PRIVATE ${CMAKE_SOURCE_DIR}/UnleashedRecomp/ui/string_utils.cpp)
+target_sources(test_string_utils PRIVATE ${CMAKE_SOURCE_DIR}/${PROJECT_ROOT}/UnleashedRecomp/ui/string_utils.cpp)
 
 add_test(NAME StringUtilsTest COMMAND test_string_utils)
 
@@ -179,7 +179,7 @@ target_include_directories(test_ruby_utils PRIVATE
 
 target_compile_features(test_ruby_utils PRIVATE cxx_std_20)
 
-target_sources(test_ruby_utils PRIVATE ${CMAKE_SOURCE_DIR}/UnleashedRecomp/ui/ruby_utils.cpp)
+target_sources(test_ruby_utils PRIVATE ${CMAKE_SOURCE_DIR}/${PROJECT_ROOT}/UnleashedRecomp/ui/ruby_utils.cpp)
 
 add_test(NAME RubyUtilsTest COMMAND test_ruby_utils)
 
@@ -235,12 +235,12 @@ add_test(NAME FreeListTest COMMAND test_freelist)
 
 # test_achievement_manager
 add_executable(test_achievement_manager test_achievement_manager.cpp
-    ${CMAKE_SOURCE_DIR}/UnleashedRecomp/user/achievement_manager.cpp
-    ${CMAKE_SOURCE_DIR}/UnleashedRecomp/user/achievement_data.cpp
+    ${CMAKE_SOURCE_DIR}/${PROJECT_ROOT}/UnleashedRecomp/user/achievement_manager.cpp
+    ${CMAKE_SOURCE_DIR}/${PROJECT_ROOT}/UnleashedRecomp/user/achievement_data.cpp
 )
 
 target_include_directories(test_achievement_manager PRIVATE
-    ${CMAKE_SOURCE_DIR}/UnleashedRecomp/tests/mock
+    ${CMAKE_SOURCE_DIR}/${PROJECT_ROOT}/UnleashedRecomp/tests/mock
     ${CMAKE_SOURCE_DIR}
     ${CMAKE_SOURCE_DIR}/UnleashedRecomp
 )
@@ -255,7 +255,7 @@ add_executable(test_mod_loader_lzx test_mod_loader_lzx.cpp)
 target_include_directories(test_mod_loader_lzx PRIVATE
     ${CMAKE_SOURCE_DIR}
     ${CMAKE_SOURCE_DIR}/UnleashedRecomp
-    ${CMAKE_SOURCE_DIR}/UnleashedRecomp/tests/mock
+    ${CMAKE_SOURCE_DIR}/${PROJECT_ROOT}/UnleashedRecomp/tests/mock
     ${CMAKE_SOURCE_DIR}/thirdparty/unordered_dense/include
     ${CMAKE_SOURCE_DIR}/tools/XenonRecomp/thirdparty/fmt/include
     ${CMAKE_SOURCE_DIR}/tools/XenonRecomp/thirdparty/xxHash
@@ -276,12 +276,12 @@ add_test(NAME ModLoaderLzxTest COMMAND test_mod_loader_lzx)
 # test_version_utils
 add_executable(test_version_utils test_version_utils.cpp)
 
-target_sources(test_version_utils PRIVATE ${CMAKE_SOURCE_DIR}/UnleashedRecomp/install/version_utils.cpp)
+target_sources(test_version_utils PRIVATE ${CMAKE_SOURCE_DIR}/${PROJECT_ROOT}/UnleashedRecomp/install/version_utils.cpp)
 
 target_include_directories(test_version_utils PRIVATE
     ${CMAKE_SOURCE_DIR}
     ${CMAKE_SOURCE_DIR}/UnleashedRecomp
-    ${CMAKE_SOURCE_DIR}/UnleashedRecomp/tests/mock
+    ${CMAKE_SOURCE_DIR}/${PROJECT_ROOT}/UnleashedRecomp/tests/mock
     ${CMAKE_SOURCE_DIR}/tools/XenonRecomp/thirdparty/fmt/include
 )
 

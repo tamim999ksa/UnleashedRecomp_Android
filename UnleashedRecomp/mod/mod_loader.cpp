@@ -153,6 +153,47 @@ static std::filesystem::path LoadConfiguration(const std::filesystem::path& user
     return std::filesystem::path(std::u8string_view((const char8_t*)modsDbIniFilePathU8.c_str()));
 }
 
+static void LoadUMMMod(const IniFile& modIni, const std::filesystem::path& modDirectoryPath, Mod& mod, std::string& modSaveFilePathU8, bool foundModSaveFilePath)
+{
+    mod.type = ModType::UMM;
+    mod.includeDirs.emplace_back(modDirectoryPath);
+    mod.merge = modIni.getBool("Details", "Merge", modIni.getBool("Filesystem", "Merge", false));
+
+    std::string readOnly = modIni.getString("Details", "Read-only", modIni.getString("Filesystem", "Read-only", std::string()));
+    std::replace(readOnly.begin(), readOnly.end(), '\\', '/');
+    std::string_view readOnlySplit = readOnly;
+
+    for (size_t index = readOnlySplit.find(','); !readOnlySplit.empty(); index = readOnlySplit.find(','))
+    {
+        mod.readOnly.emplace(readOnlySplit.substr(0, index));
+        if (index == std::string_view::npos)
+            break;
+        readOnlySplit.remove_prefix(index + 1);
+    }
+
+    if (!foundModSaveFilePath)
+        modSaveFilePathU8 = modIni.getString("Details", "Save", modIni.getString("Filesystem", "Save", std::string()));
+}
+
+static void LoadHMMMod(const IniFile& modIni, const std::filesystem::path& modDirectoryPath, Mod& mod, std::string& modSaveFilePathU8, bool foundModSaveFilePath)
+{
+    mod.type = ModType::HMM;
+
+    size_t includeDirCount = modIni.get<size_t>("Main", "IncludeDirCount", 0);
+    for (size_t j = 0; j < includeDirCount; j++)
+    {
+        std::string includeDirU8 = modIni.getString("Main", fmt::format("IncludeDir{}", j), "");
+        if (!includeDirU8.empty())
+        {
+            std::replace(includeDirU8.begin(), includeDirU8.end(), '\\', '/');
+            mod.includeDirs.emplace_back(modDirectoryPath / std::u8string_view((const char8_t*)includeDirU8.c_str()));
+        }
+    }
+
+    if (!foundModSaveFilePath)
+        modSaveFilePathU8 = modIni.getString("Main", "SaveFile", std::string());
+}
+
 static void LoadMods(const IniFile& modsDbIni)
 {
     bool foundModSaveFilePath = false;
@@ -181,47 +222,11 @@ static void LoadMods(const IniFile& modsDbIni)
 
         if (modIni.contains("Details") || modIni.contains("Filesystem")) // UMM
         {
-            mod.type = ModType::UMM;
-            mod.includeDirs.emplace_back(modDirectoryPath);
-            mod.merge = modIni.getBool("Details", "Merge", modIni.getBool("Filesystem", "Merge", false));
-
-            std::string readOnly = modIni.getString("Details", "Read-only", modIni.getString("Filesystem", "Read-only", std::string()));
-            std::replace(readOnly.begin(), readOnly.end(), '\\', '/');
-            std::string_view readOnlySplit = readOnly;
-
-            while (!readOnlySplit.empty())
-            {
-                size_t index = readOnlySplit.find(',');
-                if (index == std::string_view::npos)
-                {
-                    mod.readOnly.emplace(readOnlySplit);
-                    break;
-                }
-
-                mod.readOnly.emplace(readOnlySplit.substr(0, index));
-                readOnlySplit.remove_prefix(index + 1);
-            }
-
-            if (!foundModSaveFilePath)
-                modSaveFilePathU8 = modIni.getString("Details", "Save", modIni.getString("Filesystem", "Save", std::string()));
+            LoadUMMMod(modIni, modDirectoryPath, mod, modSaveFilePathU8, foundModSaveFilePath);
         }
         else // HMM
         {
-            mod.type = ModType::HMM;
-
-            size_t includeDirCount = modIni.get<size_t>("Main", "IncludeDirCount", 0);
-            for (size_t j = 0; j < includeDirCount; j++)
-            {
-                std::string includeDirU8 = modIni.getString("Main", fmt::format("IncludeDir{}", j), "");
-                if (!includeDirU8.empty())
-                {
-                    std::replace(includeDirU8.begin(), includeDirU8.end(), '\\', '/');
-                    mod.includeDirs.emplace_back(modDirectoryPath / std::u8string_view((const char8_t*)includeDirU8.c_str()));
-                }
-            }
-
-            if (!foundModSaveFilePath)
-                modSaveFilePathU8 = modIni.getString("Main", "SaveFile", std::string());
+            LoadHMMMod(modIni, modDirectoryPath, mod, modSaveFilePathU8, foundModSaveFilePath);
         }
 
         if (!modSaveFilePathU8.empty())

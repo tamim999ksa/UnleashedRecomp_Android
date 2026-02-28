@@ -1,3 +1,5 @@
+#include <execution>
+#include <atomic>
 #include "installer.h"
 
 #include <picosha2.h>
@@ -421,18 +423,40 @@ bool Installer::computeTotalSize(std::span<const FilePair> filePairs,
                                  const FileHash *fileHashes,
                                  VirtualFileSystem &sourceVfs, Journal &journal,
                                  uint64_t &totalSize) {
-  for (FilePair pair : filePairs) {
-    const std::string filename(pair.first);
-    if (!sourceVfs.exists(filename)) {
-      journal.lastResult = Journal::Result::FileMissing;
-      journal.lastErrorMessage = fmt::format("File {} does not exist in {}.",
-                                             filename, sourceVfs.getName());
-      return false;
-    }
+  std::atomic<bool> success{true};
+  std::atomic<uint64_t> localTotalSize{0};
 
-    totalSize += sourceVfs.getSize(filename);
+  std::for_each(std::execution::par_unseq, filePairs.begin(), filePairs.end(),
+                [&](const FilePair &pair) {
+                  if (!success.load(std::memory_order_relaxed)) {
+                    return;
+                  }
+
+                  const std::string filename(pair.first);
+                  if (!sourceVfs.exists(filename)) {
+                    success.store(false, std::memory_order_relaxed);
+                    return;
+                  }
+
+                  localTotalSize.fetch_add(sourceVfs.getSize(filename),
+                                           std::memory_order_relaxed);
+                });
+
+  if (!success.load(std::memory_order_relaxed)) {
+    // Sequentially find the missing file to update the journal
+    for (FilePair pair : filePairs) {
+      const std::string filename(pair.first);
+      if (!sourceVfs.exists(filename)) {
+        journal.lastResult = Journal::Result::FileMissing;
+        journal.lastErrorMessage = fmt::format("File {} does not exist in {}.",
+                                               filename, sourceVfs.getName());
+        break;
+      }
+    }
+    return false;
   }
 
+  totalSize += localTotalSize.load(std::memory_order_relaxed);
   return true;
 }
 

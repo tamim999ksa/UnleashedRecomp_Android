@@ -318,6 +318,7 @@ XContentFileSystem::XContentFileSystem(const std::filesystem::path &contentPath)
             }
 
             StfsDirectoryBlock *directoryBlock = (StfsDirectoryBlock *)(&rootMappedFileData[offset]);
+            std::string fullPath;
             for (uint32_t j = 0; j < StfsEntriesPerDirectoryBlock; j++)
             {
                 const StfsDirectoryEntry &directoryEntry = directoryBlock->entries[j];
@@ -326,19 +327,23 @@ XContentFileSystem::XContentFileSystem(const std::filesystem::path &contentPath)
                     break;
                 }
 
-                std::string fileNameBase;
                 uint32_t pathIndex = entryToPathIndex[directoryEntry.directoryIndex];
                 if (pathIndex != 0xFFFFFFFF)
                 {
-                    fileNameBase = directoryPaths[pathIndex];
+                    fullPath = directoryPaths[pathIndex];
+                }
+                else
+                {
+                    fullPath.clear();
                 }
 
-                std::string fileName(directoryEntry.name, directoryEntry.flags.nameLength & 0x3F);
+                fullPath.append(directoryEntry.name, directoryEntry.flags.nameLength & 0x3F);
                 if (directoryEntry.flags.directory)
                 {
                     if (entryCount < 0x10000)
                     {
-                        directoryPaths.push_back(fileNameBase + fileName + "/");
+                        fullPath.push_back('/');
+                        directoryPaths.push_back(fullPath);
                         entryToPathIndex[entryCount] = (uint32_t)(directoryPaths.size() - 1);
                     }
                     entryCount++;
@@ -347,7 +352,7 @@ XContentFileSystem::XContentFileSystem(const std::filesystem::path &contentPath)
 
                 uint32_t fileBlockIndex = parseUint24(directoryEntry.startBlockNumberRaw);
                 uint32_t fileBlockCount = parseUint24(directoryEntry.allocatedDataBlocksRaw);
-                fileMap[fileNameBase + fileName] = { directoryEntry.length, fileBlockIndex, fileBlockCount };
+                fileMap[fullPath] = { directoryEntry.length, fileBlockIndex, fileBlockCount };
                 entryCount++;
             }
 
