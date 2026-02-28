@@ -166,17 +166,13 @@ static bool copyFile(const FilePair &pair, const FileHash *fileHashes,
   }
 
   if (!skipHashChecks) {
-    uint64_t fileHash = XXH3_64bits(fileData.data(), fileData.size());
+    FileHash fileHash;
+    picosha2::hash256(fileData.begin(), fileData.end(), fileHash.begin(), fileHash.end());
+
     bool fileHashFound = false;
-    // Commenting out this block to allow syntax check to pass.
-    // The original code seems to rely on an overload or type alias that is not visible in this context.
-    /*
     for (uint32_t i = 0; i < hashCount && !fileHashFound; i++) {
-      fileHashFound = fileHash == fileHashes[i];
+      fileHashFound = (fileHash == fileHashes[i]);
     }
-    */
-    (void)fileHash; // Suppress unused variable warning
-    fileHashFound = true; // Assume true for syntax check
 
     if (!fileHashFound) {
       journal.lastResult = Journal::Result::FileHashFailed;
