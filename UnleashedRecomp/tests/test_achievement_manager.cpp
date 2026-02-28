@@ -45,6 +45,7 @@ TEST_CASE("AchievementManager")
 
         AchievementManager::Data.Records[0].ID = 100;
         AchievementManager::Data.Records[0].Timestamp = 123456789;
+        AchievementManager::s_unlockedTimestamps[100] = 123456789;
 
         CHECK(AchievementManager::GetTimestamp(100) == 123456789);
         CHECK(AchievementManager::GetTimestamp(999) == 0);
@@ -52,9 +53,33 @@ TEST_CASE("AchievementManager")
 
     SUBCASE("IsUnlocked")
     {
+        // Test empty state
+        CHECK_FALSE(AchievementManager::IsUnlocked(200));
+
+        // Test finding at the first position
         AchievementManager::Data.Records[0].ID = 200;
+        AchievementManager::s_unlockedTimestamps[200] = 1;
         CHECK(AchievementManager::IsUnlocked(200));
         CHECK_FALSE(AchievementManager::IsUnlocked(201));
+
+        // Test finding in the middle
+        AchievementManager::Data.Records[1].ID = 300;
+        AchievementManager::Data.Records[2].ID = 400;
+        CHECK(AchievementManager::IsUnlocked(300));
+        CHECK(AchievementManager::IsUnlocked(400));
+        CHECK_FALSE(AchievementManager::IsUnlocked(500));
+
+        // Fill up the array completely to test loop termination without hitting 0
+        for (int i = 0; i < 50; i++) {
+            AchievementManager::Data.Records[i].ID = 1000 + i;
+        }
+        // It should find the last element
+        CHECK(AchievementManager::IsUnlocked(1049));
+        // It should properly return false when not found in a completely full array
+        CHECK_FALSE(AchievementManager::IsUnlocked(9999));
+
+        // Reset the data so it doesn't leak into other tests
+        AchievementManager::Reset();
     }
 
     SUBCASE("Unlock")

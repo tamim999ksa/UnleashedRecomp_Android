@@ -318,6 +318,7 @@ XContentFileSystem::XContentFileSystem(const std::filesystem::path &contentPath)
             }
 
             StfsDirectoryBlock *directoryBlock = (StfsDirectoryBlock *)(&rootMappedFileData[offset]);
+            std::string fullPath;
             for (uint32_t j = 0; j < StfsEntriesPerDirectoryBlock; j++)
             {
                 const StfsDirectoryEntry &directoryEntry = directoryBlock->entries[j];
@@ -326,24 +327,23 @@ XContentFileSystem::XContentFileSystem(const std::filesystem::path &contentPath)
                     break;
                 }
 
-                std::string_view fileNameBase;
                 uint32_t pathIndex = entryToPathIndex[directoryEntry.directoryIndex];
                 if (pathIndex != 0xFFFFFFFF)
                 {
-                    fileNameBase = directoryPaths[pathIndex];
+                    fullPath = directoryPaths[pathIndex];
+                }
+                else
+                {
+                    fullPath.clear();
                 }
 
-                std::string_view fileName(directoryEntry.name, directoryEntry.flags.nameLength & 0x3F);
+                fullPath.append(directoryEntry.name, directoryEntry.flags.nameLength & 0x3F);
                 if (directoryEntry.flags.directory)
                 {
                     if (entryCount < 0x10000)
                     {
-                        std::string dirPath;
-                        dirPath.reserve(fileNameBase.size() + fileName.size() + 1);
-                        dirPath.append(fileNameBase);
-                        dirPath.append(fileName);
-                        dirPath.push_back('/');
-                        directoryPaths.push_back(std::move(dirPath));
+                        fullPath.push_back('/');
+                        directoryPaths.push_back(fullPath);
                         entryToPathIndex[entryCount] = (uint32_t)(directoryPaths.size() - 1);
                     }
                     entryCount++;
@@ -352,11 +352,7 @@ XContentFileSystem::XContentFileSystem(const std::filesystem::path &contentPath)
 
                 uint32_t fileBlockIndex = parseUint24(directoryEntry.startBlockNumberRaw);
                 uint32_t fileBlockCount = parseUint24(directoryEntry.allocatedDataBlocksRaw);
-                std::string fullPath;
-                fullPath.reserve(fileNameBase.size() + fileName.size());
-                fullPath.append(fileNameBase);
-                fullPath.append(fileName);
-                fileMap[std::move(fullPath)] = { directoryEntry.length, fileBlockIndex, fileBlockCount };
+                fileMap[fullPath] = { directoryEntry.length, fileBlockIndex, fileBlockCount };
                 entryCount++;
             }
 

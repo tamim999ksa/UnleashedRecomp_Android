@@ -1,3 +1,4 @@
+#include <chrono>
 #include <cstring>
 #include <fstream>
 #include "achievement_manager.h"
@@ -10,15 +11,9 @@
 
 time_t AchievementManager::GetTimestamp(uint16_t id)
 {
-    for (int i = 0; i < NUM_RECORDS; i++)
-    {
-        if (!Data.Records[i].ID)
-            break;
-
-        if (Data.Records[i].ID == id)
-            return Data.Records[i].Timestamp;
-    }
-
+    auto it = s_unlockedTimestamps.find(id);
+    if (it != s_unlockedTimestamps.end())
+        return it->second;
     return 0;
 }
 
@@ -39,16 +34,7 @@ size_t AchievementManager::GetTotalRecords()
 
 bool AchievementManager::IsUnlocked(uint16_t id)
 {
-    for (int i = 0; i < NUM_RECORDS; i++)
-    {
-        if (!Data.Records[i].ID)
-            break;
-
-        if (Data.Records[i].ID == id)
-            return true;
-    }
-
-    return false;
+    return s_unlockedTimestamps.find(id) != s_unlockedTimestamps.end();
 }
 
 void AchievementManager::Unlock(uint16_t id)
@@ -62,6 +48,7 @@ void AchievementManager::Unlock(uint16_t id)
         {
             Data.Records[i].ID = id;
             Data.Records[i].Timestamp = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+            s_unlockedTimestamps[id] = Data.Records[i].Timestamp;
             break;
         }
     }
@@ -87,6 +74,7 @@ void AchievementManager::UnlockAll()
 void AchievementManager::Reset()
 {
     Data = {};
+    s_unlockedTimestamps.clear();
 
     // The first usage of the shoe upgrades get stored within a session persistent boolean flag.
     // This causes issues with popping the achievement for the use of these abilities when the player
@@ -175,6 +163,14 @@ bool AchievementManager::LoadBinary()
     file.close();
 
     memcpy(&Data, &data, dataSize);
+
+    for (int i = 0; i < NUM_RECORDS; i++)
+    {
+        if (Data.Records[i].ID != 0)
+            s_unlockedTimestamps[Data.Records[i].ID] = Data.Records[i].Timestamp;
+        else
+            break;
+    }
 
     return true;
 }
