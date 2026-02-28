@@ -77,7 +77,9 @@ jobs:
           echo "$HOME/android-sdk/platform-tools" >> $GITHUB_PATH
 
       - name: Install Android NDK
-        run: yes | sdkmanager "ndk;25.2.9519653" "cmdline-tools;latest" "platforms;android-34" "build-tools;34.0.0"
+        run: |
+          yes | sdkmanager "ndk;25.2.9519653" "cmdline-tools;latest" "platforms;android-34" "build-tools;34.0.0"
+          echo "ANDROID_NDK_HOME=$HOME/android-sdk/ndk/25.2.9519653" >> $GITHUB_ENV
 
       - name: Cache vcpkg
         uses: actions/cache@v4

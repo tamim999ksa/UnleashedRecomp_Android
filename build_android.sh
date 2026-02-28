@@ -33,6 +33,14 @@ else
 fi
 
 # Build APK
+if [ -z "$ANDROID_NDK_HOME" ] && [ -d "$ANDROID_HOME/ndk" ]; then
+    NDK_VERSION=$(ls "$ANDROID_HOME/ndk" | tail -n 1)
+    if [ -n "$NDK_VERSION" ]; then
+        export ANDROID_NDK_HOME="$ANDROID_HOME/ndk/$NDK_VERSION"
+        echo "Auto-detected ANDROID_NDK_HOME: $ANDROID_NDK_HOME"
+    fi
+fi
+
 echo "Building APK..."
 cd android
 ./gradlew assembleDebug
