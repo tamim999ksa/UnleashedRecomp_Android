@@ -1,3 +1,4 @@
+# Modernized workflows
 name: validate-external
 on:
   pull_request_target:

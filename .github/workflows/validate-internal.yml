@@ -1,3 +1,4 @@
+# Modernized workflows
 name: validate-internal
 on:
   push:
