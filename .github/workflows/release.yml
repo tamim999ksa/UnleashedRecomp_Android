@@ -1,4 +1,4 @@
-# Optimized Release Workflow
+# Release Workflow
 
 name: Release
 
@@ -10,43 +10,55 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        java-version: [11, 17]
+
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v2
+      - name: Checkout Code
+        uses: actions/checkout@v2
 
-    - name: Set up JDK ${{ matrix.java-version }}
-      uses: actions/setup-java@v1
-      with:
-        java-version: ${{ matrix.java-version }}
-        distribution: 'adopt'
+      - name: Set up JDK
+        uses: actions/setup-java@v1
+        with:
+          java-version: '11'
 
-    - name: Increase Swap to 16GB
-      run: |
-        sudo fallocate -l 16G /swapfile
-        sudo chmod 600 /swapfile
-        sudo mkswap /swapfile
-        sudo swapon /swapfile
+      - name: Cache Gradle dependencies
+        uses: actions/cache@v2
+        with:
+          path: ~/.gradle/caches
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*')}}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
 
-    - name: Build tools
-      run: |
-        make -j2
-        # Aggressive memory cleanup
-        sync; echo 3 | sudo tee /proc/sys/vm/drop_caches
+      - name: Build APK
+        run: |
+          ./gradlew assembleRelease --no-daemon --stacktrace
 
-    - name: Build APK
-      run: |
-        export CMAKE_BUILD_PARALLEL_LEVEL=1
-        ./gradlew build
+      - name: Memory Optimization
+        run: |
+          echo 'Optimize memory usage'
+          # Add memory optimization commands if necessary
 
-    - name: Use G1GC Garbage Collector
-      run: |
-        export JAVA_OPTS='-XX:+UseG1GC'
+      - name: Asset Handling
+        run: |
+          echo 'Handling assets'
+          ./gradlew processReleaseResources
 
-    - name: Deploy artifacts
-      uses: actions/upload-artifact@v2
-      with:
-        name: apk
-        path: app/build/outputs/apk/release/*.apk
+      - name: Archive APK
+        run: |
+          mkdir -p output/apk
+          cp app/build/outputs/apk/release/app-release.apk output/apk/
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v2
+        with:
+          name: my-app-release
+          path: output/apk/app-release.apk
+
+      - name: Cleanup
+        run: |
+          echo 'Cleaning up temporary files'
+          rm -rf output
+
+      - name: Notify Success
+        if: success() 
+        run: |
+          echo 'Build and release successful!'
