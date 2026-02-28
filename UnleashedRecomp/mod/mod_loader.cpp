@@ -859,18 +859,28 @@ PPC_FUNC(sub_82E0B500)
             return false;
         };
 
-    thread_local xxHashMap<std::vector<std::filesystem::path>> s_cache;
+    struct CachedArchivePath
+    {
+        const std::filesystem::path* includeDir;
+        std::string suffix;
+    };
+    thread_local xxHashMap<std::vector<CachedArchivePath>> s_cache;
 
     XXH64_hash_t hash = XXH3_64bits(arFilePathU8.data(), arFilePathU8.size());
     auto findResult = s_cache.find(hash);
     if (findResult != s_cache.end())
     {
         for (const auto& arFilePath : findResult->second)
-            loadArchive(arFilePath);
+        {
+            thread_local std::filesystem::path combinedFilePath;
+            combinedFilePath = *arFilePath.includeDir;
+            combinedFilePath /= arFilePath.suffix;
+            loadArchive(combinedFilePath);
+        }
     }
     else
     {
-        std::vector<std::filesystem::path> arFilePaths;
+        std::vector<CachedArchivePath> arFilePaths;
         std::filesystem::path arFilePath;
         std::filesystem::path appendArFilePath;
 
@@ -886,7 +896,7 @@ PPC_FUNC(sub_82E0B500)
                         std::filesystem::path combinedFilePath = includeDir / arFilePath;
                         bool success = loadArchive(combinedFilePath);
                         if (success)
-                            arFilePaths.emplace_back(std::move(combinedFilePath));
+                            arFilePaths.push_back({&includeDir, arFilePath.string()});
 
                         return success;
                     };
