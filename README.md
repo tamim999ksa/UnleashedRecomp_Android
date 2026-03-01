@@ -66,23 +66,22 @@ This fork introduces significant architectural improvements, mobile-specific opt
 Create a `private/` directory in the project root and place: `default.xex`, `default.xexp` (optional), `shader.ar` (optional), and your Game data containers (STFS/SVOD).
 
 ### 2. Build via GitHub Actions (Recommended)
-Our CI pipeline is designed for robustness and ease of use:
+Our CI pipeline supports all target OSs:
 1. **Fork** this repository.
-2. Navigate to the **Actions** tab.
-3. Select the **Release** workflow and click **Run workflow**.
-4. Select your target OS (**Android, Windows, or Linux**).
-5. **Dynamic Data Input:** You can provide URLs for your assets. The workflow supports **ZIP, ISO, and XEX** formats and will automatically extract and prepare them.
-6. Download the final artifact once the build completes.
+2. Go to the **Actions** tab -> **Release** workflow -> **Run workflow**.
+3. Select your target OS (**Android, Windows, or Linux**).
+4. **Dynamic Data Input:** Provide URLs for your assets. The workflow supports **ZIP, ISO, and XEX** formats and will automatically prepare them.
+5. Download the final artifact once the build completes.
 
 ### 3. Manual Build (Step-by-Step)
 
-#### 📦 Dependencies (Linux/Android)
-- `gcc 13+`, `g++ 13+`, `cmake` (3.20+), `git`, `libtbb-dev`, **Java 17**, NDK 25.2.9519653.
+#### 📦 Dependencies (Universal)
+- `gcc 13+`, `g++ 13+`, `cmake` (3.20+), `git`, `libtbb-dev`, **Java 17**.
 
-#### 📦 Dependencies (Windows)
-- **Visual Studio 2022** (with "Desktop development with C++" and "Game development with C++").
-- **CMake** (3.20+).
-- **vcpkg** (Included in submodules).
+#### 📦 Platform-Specific Requirements
+- **Android:** Android SDK and **NDK 25.2.9519653**.
+- **Windows:** **Visual Studio 2022** (with C++ Desktop/Game development workloads).
+- **Linux:** Standard build-essential tools and development headers for Vulkan.
 
 #### 🛠️ Build Steps
 ```bash
@@ -90,12 +89,17 @@ Our CI pipeline is designed for robustness and ease of use:
 git clone --recursive https://github.com/yourusername/UnleashedRecomp-Android.git
 cd UnleashedRecomp-Android
 
-# 2. Build for Windows (Using PowerShell)
+# 2. Build for Windows (PowerShell)
 mkdir build; cd build
 cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE="../thirdparty/vcpkg/scripts/buildsystems/vcpkg.cmake"
 cmake --build . --config Release --parallel
 
-# 3. Build for Android (Using Linux)
+# 3. Build for Linux (Bash)
+mkdir build; cd build
+cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE="../thirdparty/vcpkg/scripts/buildsystems/vcpkg.cmake"
+make -j$(nproc)
+
+# 4. Build for Android (Linux)
 # Set your NDK path
 export ANDROID_NDK_HOME=/path/to/android-sdk/ndk/25.2.9519653
 # Build host tools first
