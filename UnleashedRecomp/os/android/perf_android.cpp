@@ -16,6 +16,7 @@
 #include <vector>
 #include <deque>
 #include <numeric>
+#include <atomic>
 #include <os/logger.h>
 #include <user/config.h>
 
@@ -48,6 +49,7 @@ static AThermalManager* g_thermalManager = nullptr;
 static AChoreographer* g_choreographer = nullptr;
 
 static bool g_apisLoaded = false;
+static std::atomic<long> g_lastVsyncTimeNanos{0};
 
 static void LoadAndroidAPIs() {
     if (g_apisLoaded) return;
@@ -171,14 +173,36 @@ void MonitorThermals() {
 }
 
 static void ChoreographerCallback(long frameTimeNanos, void* data) {
-    // This is where vsync-aligned logic would go
+    g_lastVsyncTimeNanos.store(frameTimeNanos, std::memory_order_release);
+    if (g_choreographer && pAChoreographer_postFrameCallback) {
+        pAChoreographer_postFrameCallback(g_choreographer, ChoreographerCallback, nullptr);
+    }
 }
 
 void InitChoreographer() {
     LoadAndroidAPIs();
-    if (pAChoreographer_getInstance) {
+    if (pAChoreographer_getInstance && pAChoreographer_postFrameCallback) {
         g_choreographer = pAChoreographer_getInstance();
+        if (g_choreographer) {
+            pAChoreographer_postFrameCallback(g_choreographer, ChoreographerCallback, nullptr);
+        }
     }
+}
+
+void SetBigCoreAffinity() {
+    cpu_set_t cpuset;
+    CPU_ZERO(&cpuset);
+    int numCores = sysconf(_SC_NPROCESSORS_CONF);
+    if (numCores > 4) {
+        for (int i = numCores / 2; i < numCores; i++) {
+            CPU_SET(i, &cpuset);
+        }
+    } else {
+        for (int i = 0; i < numCores; i++) {
+            CPU_SET(i, &cpuset);
+        }
+    }
+    pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset);
 }
 
 }

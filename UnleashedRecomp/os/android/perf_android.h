@@ -14,3 +14,4 @@ namespace perf {
     void InitChoreographer();
 }
 #endif
+    void SetBigCoreAffinity();

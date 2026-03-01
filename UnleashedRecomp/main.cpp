@@ -44,6 +44,8 @@ XDBFWrapper g_xdbfWrapper;
 std::unordered_map<uint16_t, GuestTexture*> g_xdbfTextureCache;
 
 void HostStartup()
+    void VideoInitializeCallbacks();
+    VideoInitializeCallbacks();
 {
     hid::Init();
 }
@@ -376,6 +378,7 @@ void InitializeSystem()
     timeBeginPeriod(1);
 #endif
 #ifdef __ANDROID__
+    perf::SetBigCoreAffinity();
     SDL_setenv("SDL_AUDIO_DRIVER", "aaudio", 1);
     SDL_setenv("SDL_VIDEODRIVER", "android", 1);
 
