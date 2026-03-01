@@ -26,20 +26,20 @@ This repository features an ultra-modern, high-performance static recompilation 
 
 ---
 
-## 🚀 Cutting-Edge Technical Stack
+## 🚀 Technical Stack
 
-This fork has been aggressively optimized and modernized far beyond traditional ports:
+This fork has been aggressively optimized and modernized
 
 ### 🏎️ Engine & Performance Optimizations
 - **Advanced Architecture:** Native optimization for **ARMv8.2-A** (including Crypto, CRC, DotProd, and FP16 instructions) on Android.
-- **Ultra-Aggressive Compilation:** Utilizes **Full LTO (Link Time Optimization)**, **O3** optimization levels, and **Fast Math** for maximum frame rates.
-- **Parallel Execution Engine:** Powered by **Intel TBB** and C++17 parallel algorithms to accelerate asset loading, hashing, and GPU pipeline pre-compilation.
-- **Background Pipeline Pre-compilation:** Background compilation of graphics pipelines (MSAA, Blur, etc.) ensures a stutter-free experience.
+- **Ultra-Aggressive Compilation:** Utilizes **Full LTO (Link Time Optimization)**, **O3** optimization levels, and **Fast Math**.
+- **Parallel Execution Engine:** Powered by **Intel TBB** and C++20 parallel algorithms to accelerate asset loading, hashing, and GPU pipeline pre-compilation.
+- **Background Pipeline Pre-compilation:** Background compilation of graphics pipelines (MSAA, Blur, etc.) .
 - **Zero-Allocation I/O:** High-performance **STFS** and **SVOD** parsing with zero-allocation string handling and memory-mapped I/O.
 
-### 🎮 The Android Experience (Ultra-Modern)
-- **Vulkan 1.3:** Utilizes the latest Vulkan standards for superior rendering efficiency and modern GPU features.
-- **Oboe High-Performance Audio:** Integrated Google's **Oboe** library for the lowest possible audio latency using **AAudio** and **OpenSL ES**.
+### 🎮 The Android Experience
+- **Vulkan 1.3:** Utilizes the latest Vulkan standards for rendering efficiency and modern GPU features.
+- **Oboe High-Performance Audio:** Integrated Google's **Oboe** library for the lowest possible audio latency using **AAudio**.
 - **Sustained Performance Mode:** Native Android API integration to lock CPU/GPU clocks and prevent thermal throttling.
 - **Enhanced HID & Input:** Refined controller handling with dynamic button prompt switching (Xbox/PS) and optimized multi-touch overlay.
 
