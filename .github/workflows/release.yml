@@ -18,7 +18,7 @@ on:
           - windows
         default: 'android'
       game_url:
-        description: 'URL for game data (ISO/XEX/ZIP)'
+        description: 'URL for game data (ISO/XEX/ZIP/7Z/RAR)'
         required: true
         type: string
       update_url:
@@ -26,7 +26,7 @@ on:
         required: false
         type: string
       dlc_url:
-        description: 'URL for DLC data (shader.ar) (optional)'
+        description: 'URL for dlc data (shader.ar) (optional)'
         required: false
         type: string
 
@@ -40,6 +40,14 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup System (Linux/Android)
+        if: ${{ runner.os == 'Linux' }}
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y patchelf p7zip-full wget file
 
       - name: Set up JDK (Android only)
         if: ${{ (inputs.os == 'android' || github.event_name == 'push') }}
@@ -57,6 +65,20 @@ jobs:
         if: ${{ (inputs.os == 'android' || github.event_name == 'push') }}
         run: yes | sdkmanager "ndk;25.2.9519653"
 
+      - name: Apply Patches
+        if: ${{ runner.os == 'Linux' }}
+        run: |
+          chmod +x apply_patches.sh
+          ./apply_patches.sh
+
+      - name: Build Host Tools
+        if: ${{ runner.os == 'Linux' }}
+        run: |
+          chmod +x build_tools.sh
+          # Ensure dxc-linux is executable for build_tools.sh
+          chmod +x tools/XenosRecomp/thirdparty/dxc-bin/bin/x64/dxc-linux
+          ./build_tools.sh
+
       - name: Download Game Data
         env:
           GAME_URL: ${{ inputs.game_url }}
@@ -64,17 +86,26 @@ jobs:
           DLC_URL: ${{ inputs.dlc_url }}
         run: |
           mkdir -p ./UnleashedRecompLib/private
+          TEMP_DATA="${{ runner.temp }}/game_data"
 
           if [ -n "$GAME_URL" ]; then
             echo "::add-mask::$GAME_URL"
-            wget -qO /tmp/game_data "$GAME_URL"
-            if file /tmp/game_data | grep -qi 'zip'; then
-               unzip -o -q /tmp/game_data -d ./UnleashedRecompLib/private/
-               rm /tmp/game_data
-            elif file /tmp/game_data | grep -qi 'iso'; then
-               mv /tmp/game_data ./UnleashedRecompLib/private/game.iso
+            wget -qO "$TEMP_DATA" "$GAME_URL"
+
+            # Check if it's an archive using 7z (handles zip, rar, 7z)
+            if 7z l "$TEMP_DATA" > /dev/null 2>&1; then
+               echo "Detected archive, extracting..."
+               7z x -y "$TEMP_DATA" -o./UnleashedRecompLib/private/
+               rm "$TEMP_DATA"
+            elif [[ "$RUNNER_OS" == "Linux" ]] && file "$TEMP_DATA" | grep -qi 'iso'; then
+               echo "Detected ISO file"
+               mv "$TEMP_DATA" ./UnleashedRecompLib/private/game.iso
+            elif [[ "$GAME_URL" == *.iso ]]; then
+               echo "Detected ISO file by extension"
+               mv "$TEMP_DATA" ./UnleashedRecompLib/private/game.iso
             else
-               mv /tmp/game_data ./UnleashedRecompLib/private/default.xex
+               echo "Assuming XEX file"
+               mv "$TEMP_DATA" ./UnleashedRecompLib/private/default.xex
             fi
           fi
 
@@ -87,34 +118,26 @@ jobs:
             echo "::add-mask::$DLC_URL"
             wget -qO ./UnleashedRecompLib/private/shader.ar "$DLC_URL"
           fi
+
       - name: Build APK (Android only)
         if: ${{ (inputs.os == 'android' || github.event_name == 'push') }}
+        working-directory: android
         run: |
+          chmod +x gradlew
+          export ANDROID_NDK_HOME=${ANDROID_SDK_ROOT}/ndk/25.2.9519653
           ./gradlew assembleRelease --no-daemon --stacktrace
-
-      - name: Memory Optimization
-        run: |
-          echo 'Optimize memory usage'
-          # Add memory optimization commands if necessary
-
-
-      - name: Asset Handling
-        if: ${{ (inputs.os == 'android' || github.event_name == 'push') }}
-        run: |
-          echo 'Handling assets'
-          ./gradlew processReleaseResources
 
       - name: Archive APK (Android only)
         if: ${{ (inputs.os == 'android' || github.event_name == 'push') }}
         run: |
           mkdir -p output/apk
-          cp app/build/outputs/apk/release/app-release.apk output/apk/
+          cp android/app/build/outputs/apk/release/app-release.apk output/apk/
 
       - name: Upload APK (Android only)
         if: ${{ (inputs.os == 'android' || github.event_name == 'push') }}
         uses: actions/upload-artifact@v4
         with:
-          name: my-app-release
+          name: UnleashedRecomp-Android-APK
           path: output/apk/app-release.apk
 
       - name: Cache vcpkg (Linux/Windows)
@@ -139,19 +162,35 @@ jobs:
         if: ${{ (inputs.os == 'linux') || (inputs.os == 'windows') }}
         run: |
           echo "Building for ${{ inputs.os }}"
-          chmod +x ./build_tools.sh
-          ./build_tools.sh
           mkdir -p build_${{ inputs.os }}
           cd build_${{ inputs.os }}
-          cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE="../thirdparty/vcpkg/scripts/buildsystems/vcpkg.cmake"
-          cmake --build . --config Release --parallel $(nproc)
+
+          # Only use HOST_TOOLS_DIR on Linux/Android builds where it was populated
+          HOST_TOOLS_ARG=""
+          if [ -d "../build_tools/bin" ]; then
+            HOST_TOOLS_ARG="-DHOST_TOOLS_DIR=../build_tools/bin"
+          fi
+
+          cmake .. -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_TOOLCHAIN_FILE="../thirdparty/vcpkg/scripts/buildsystems/vcpkg.cmake" \
+            $HOST_TOOLS_ARG
+
+          if [ "$RUNNER_OS" == "Windows" ]; then
+            cmake --build . --config Release --parallel
+          else
+            cmake --build . --config Release --parallel $(nproc)
+          fi
+
       - name: Upload Artifacts (Linux/Windows)
         if: ${{ inputs.os == 'linux' || inputs.os == 'windows' }}
         uses: actions/upload-artifact@v4
         with:
           name: UnleashedRecomp-${{ inputs.os }}
           path: |
-            build_${{ inputs.os }}/*
+            build_${{ inputs.os }}/Release/*
+            build_${{ inputs.os }}/bin/*
+            build_${{ inputs.os }}/*.exe
+            build_${{ inputs.os }}/${{ inputs.os == 'linux' && 'UnleashedRecomp' || '' }}
             !build_${{ inputs.os }}/**/*.o
             !build_${{ inputs.os }}/**/*.a
 
