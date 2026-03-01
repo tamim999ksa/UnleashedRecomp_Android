@@ -69,7 +69,7 @@ Build for any platform without local setup:
 1.  **Fork** this repository.
 2.  Go to the **Actions** tab -> **Release** workflow -> **Run workflow**.
 3.  Select your target OS (**Android, Windows, or Linux**).
-4.  **Dynamic Asset Ingestion:** Provide URLs for your assets (**ZIP, ISO, or XEX**) — the CI extracts and prepares them automatically!
+4.  **Dynamic Asset Ingestion:** Provide URLs for your assets (**ZIP, RAR, 7Z, ISO, or XEX**) — the CI extracts and prepares them automatically!
 
 ### 💻 Manual Build (Developer Path)
 
