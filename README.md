@@ -27,8 +27,8 @@ Compared to the original PC version, this fork introduces several architectural 
 ## Android Device Requirements (Based on Code)
 
 - **Architecture:** ARMv8-A 64-bit (ARM64 / `arm64-v8a`) **REQUIRED**.
-- **OS Version:** Android 8.0 (Oreo, API 26) or higher.
-- **GPU:** Vulkan 1.1 support **REQUIRED**.
+- **OS Version:** Android 8.0 (Oreo, API 26)+ or higher.
+- **GPU:** Vulkan 1.2 support **REQUIRED**.
 - **RAM:** 4 GB Minimum (6 GB+ strongly recommended).
 - **Storage:** **10-15 GB** of high-speed internal storage for game assets and shader caches.
 - **Audio:** Utilizes **AAudio / Oboe** backends for low-latency audio performance on modern Android devices. (Note: Some kernel audio functions are currently stubs).
