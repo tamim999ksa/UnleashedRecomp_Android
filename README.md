@@ -2,53 +2,51 @@
     <img src="https://raw.githubusercontent.com/hedge-dev/UnleashedRecompResources/refs/heads/main/images/logo/Logo.png" width="512"/>
 </p>
 
-<h1 align="center">Sonic Unleashed Recompiled: Multi-Platform</h1>
+<h1 align="center">Sonic Unleashed Recompiled: Ultra-Modern Edition</h1>
 
 <p align="center">
-  <strong>The definitive native port of the Xbox 360 classic, optimized for Android, Linux, and Windows.</strong>
+  <strong>The definitive native port of the Xbox 360 classic, ultra-modernized for Android, Windows, and Linux.</strong>
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Platform-Android_|_Linux_|_Windows-blue?style=for-the-badge&logo=android" alt="Platforms"/>
-  <img src="https://img.shields.io/badge/Vulkan-1.2-red?style=for-the-badge&logo=vulkan" alt="Vulkan"/>
+  <img src="https://img.shields.io/badge/Platform-Android_|_Windows_|_Linux-blue?style=for-the-badge&logo=android" alt="Platforms"/>
+  <img src="https://img.shields.io/badge/Vulkan-1.3-red?style=for-the-badge&logo=vulkan" alt="Vulkan"/>
+  <img src="https://img.shields.io/badge/Audio-Oboe_/_AAudio-green?style=for-the-badge" alt="Audio"/>
   <img src="https://img.shields.io/badge/Status-Experimental_WIP-orange?style=for-the-badge" alt="Status"/>
 </p>
 
 ---
 
-## 🌟 The Project
+## 🌟 The Ultimate Recompilation
 
-This repository contains a high-performance, static recompilation of the Xbox 360 version of **Sonic Unleashed**. By translating PowerPC binaries directly into native ARM64 or x86-64 machine code, this port achieves near-native execution speeds. Experience the classic "Hedgehog Engine" game with modern enhancements like resolution scaling, ultrawide support, and native low-latency audio across all your devices.
+This repository features an ultra-modern, high-performance static recompilation of the Xbox 360 version of **Sonic Unleashed**. By translating original PowerPC binaries into native machine code (**ARM64** / **x86-64**), this port delivers near-native execution speeds. The "Ultra-Modern Edition" pushes technical boundaries with an industry-leading stack, including **Vulkan 1.3**, **Oboe High-Performance Audio**, and **NDK 29** optimizations.
 
 > [!IMPORTANT]
 > **Game assets are NOT included.** You must provide your own legally acquired Xbox 360 copy of *Sonic Unleashed* and its updates.
 
 ---
 
-## ✨ Cutting-Edge Enhancements
+## 🚀 Cutting-Edge Technical Stack
 
-This fork pushes the boundaries of the recompilation engine with advanced optimizations and platform-native features:
+This fork has been aggressively optimized and modernized far beyond traditional ports:
 
-### 🚀 Engine & Performance
-- **Parallel execution engine:** Powered by **Intel TBB** and C++17 parallel algorithms to accelerate asset loading, hashing, and GPU pipeline pre-compilation.
-- **Background Pipeline Compilation:** Background pre-compilation of graphics pipelines (MSAA, Blur, etc.) eliminates mid-game stutters.
-- **O(1) Optimized Lookups:** Replaced iterative search patterns with hash-based lookups for achievements and mod assets, removing CPU bottlenecks.
-- **Zero-Allocation I/O:** Highly optimized **STFS** and **SVOD** (XContent) parsing with zero-allocation string handling and memory-mapped reads.
-- **Thread-Local Mod Caching:** Drastically reduces file system overhead in modded environments using the specialized `ModLoader` cache.
+### 🏎️ Engine & Performance Optimizations
+- **Advanced Architecture:** Native optimization for **ARMv8.2-A** (including Crypto, CRC, DotProd, and FP16 instructions) on Android.
+- **Ultra-Aggressive Compilation:** Utilizes **Full LTO (Link Time Optimization)**, **O3** optimization levels, and **Fast Math** for maximum frame rates.
+- **Parallel Execution Engine:** Powered by **Intel TBB** and C++17 parallel algorithms to accelerate asset loading, hashing, and GPU pipeline pre-compilation.
+- **Background Pipeline Pre-compilation:** Background compilation of graphics pipelines (MSAA, Blur, etc.) ensures a stutter-free experience.
+- **Zero-Allocation I/O:** High-performance **STFS** and **SVOD** parsing with zero-allocation string handling and memory-mapped I/O.
 
-### 🎮 Platform-Specific Excellence
-- **Android Integration:**
-    - **Sustained Performance Mode:** Native API integration to lock CPU/GPU clocks and prevent thermal throttling.
-    - **Optimized Android HID:** Refined native controller handling and low-latency input processing.
-    - **Next-Gen Audio:** Full **AAudio** and **Oboe** backend integration for sub-millisecond audio response times.
-    - **Native Touch Interface:** Fully customized multi-touch overlay for mobile-first play.
-- **Desktop Mastery:**
-    - Full support for **Linux (including Steam Deck)** and **Windows**.
-    - Optimized for **High-Refresh-Rate** displays and native **Vulkan 1.2** rendering.
-- **Modern UX Features:**
-    - Built-in **Achievement Overlay** faithfully recreated.
-    - Native support for **Resolution Scaling** and **Ultrawide Aspect Ratio** patches.
-    - **Universal Save Redirection** for seamless persistence across OS updates.
+### 🎮 The Android Experience (Ultra-Modern)
+- **Vulkan 1.3:** Utilizes the latest Vulkan standards for superior rendering efficiency and modern GPU features.
+- **Oboe High-Performance Audio:** Integrated Google's **Oboe** library for the lowest possible audio latency using **AAudio** and **OpenSL ES**.
+- **Sustained Performance Mode:** Native Android API integration to lock CPU/GPU clocks and prevent thermal throttling.
+- **Enhanced HID & Input:** Refined controller handling with dynamic button prompt switching (Xbox/PS) and optimized multi-touch overlay.
+
+### 🖥️ Desktop & Modern UX
+- **Cross-Platform Mastery:** Full native support for **Windows** and **Linux (including Steam Deck)**.
+- **Visual Fidelity:** Native support for **Resolution Scaling**, **Ultrawide Aspect Ratio** patches, and high-fidelity shadow resolution (up to 8K).
+- **Modding Support:** Seamless integration with the **Hedge Mod Manager** ecosystem.
 
 ---
 
@@ -56,9 +54,9 @@ This fork pushes the boundaries of the recompilation engine with advanced optimi
 
 | Requirement | Android | Windows / Linux |
 | :--- | :--- | :--- |
-| **Architecture** | ARM64 (arm64-v8a) REQUIRED | x86-64 (Amd64) |
-| **OS Version** | Android 8.0+ (API 26) | Win 10/11 / Ubuntu 24.04+ |
-| **Graphics API** | Vulkan 1.2 REQUIRED | Vulkan 1.2+ |
+| **Architecture** | ARMv8.2-A 64-bit REQUIRED | x86-64 (Amd64) |
+| **OS Version** | Android 8.0+ (Targeting Android 15) | Win 10/11 / Ubuntu 24.04+ |
+| **Graphics API** | Vulkan 1.3 REQUIRED | Vulkan 1.2+ |
 | **RAM** | 4 GB (Strict Guest Allocation) | 8 GB+ Recommended |
 | **Storage** | 10-15 GB (High-speed internal) | 10-15 GB |
 
@@ -67,46 +65,44 @@ This fork pushes the boundaries of the recompilation engine with advanced optimi
 ## 🚀 Installation & Build Guide
 
 ### 🌐 GitHub Actions (Recommended)
-Build for any platform without a local setup:
+Build for any platform without local setup:
 1.  **Fork** this repository.
-2.  Navigate to the **Actions** tab -> **Release** workflow -> **Run workflow**.
-3.  Select your target OS and provide URLs for your assets (**ZIP, ISO, or XEX**).
-4.  The CI handles all extraction, patching, and preparation, providing a ready-to-use artifact.
+2.  Go to the **Actions** tab -> **Release** workflow -> **Run workflow**.
+3.  Select your target OS (**Android, Windows, or Linux**).
+4.  **Dynamic Asset Ingestion:** Provide URLs for your assets (**ZIP, ISO, or XEX**) — the CI extracts and prepares them automatically!
 
 ### 💻 Manual Build (Developer Path)
 
-#### 📦 Prerequisites
-- **Common:** `cmake` (3.22+), `git`, `ninja-build`, `ccache`, `libtbb-dev`.
-- **Android:** Android SDK, **NDK 25.2.9519653**, and **Java 17**.
+#### 📦 Prerequisites (Common)
+- `cmake` (3.22+), `git`, `ninja-build`, `libtbb-dev`.
+- **Android:** Android SDK, **NDK 29.0.14206865**, **Java 17**.
 - **Windows:** **Visual Studio 2022** with **Clang-cl** and **LLVM 18+**.
-- **Linux:** `gcc-13` / `g++-13` and Vulkan development headers.
+- **Linux:** `gcc-13` / `g++-13` and Vulkan SDK.
 
 #### 🛠️ Build Steps
 
-##### **Windows** (PowerShell)
+##### **Windows**
 ```powershell
-mkdir build; cd build
-cmake .. --preset x64-Clang-Release
+cmake --preset x64-Clang-Release
 cmake --build out/build/x64-Clang-Release --config Release --parallel
 ```
 
-##### **Linux** (Bash)
+##### **Linux**
 ```bash
-# Standard Build
 cmake --preset linux-release
 cmake --build out/build/linux-release --config Release --parallel
 
-# Flatpak Build
+# Optional Flatpak
 flatpak-builder --user --install --force-clean build flatpak/io.github.hedge_dev.unleashedrecomp.json
 ```
 
-##### **Android** (Linux/WSL Bash)
+##### **Android**
 ```bash
 # 1. Build host-side tools first
 chmod +x ./build_tools.sh && ./build_tools.sh
 
-# 2. Set NDK path (REQUIRED)
-export ANDROID_NDK_HOME=/path/to/android-sdk/ndk/25.2.9519653
+# 2. Set NDK path (REQUIRED: 29.0.14206865)
+export ANDROID_NDK_HOME=/path/to/android-sdk/ndk/29.0.14206865
 
 # 3. Compile the APK
 chmod +x ./build_android.sh && ./build_android.sh
@@ -115,4 +111,4 @@ chmod +x ./build_android.sh && ./build_android.sh
 ---
 
 ## ⚖️ Disclaimer
-*Sonic Unleashed Recompiled* is an unofficial fan-made project. It is not affiliated with, authorized, or endorsed by SEGA® or Sonic Team™. This project is intended for educational and interoperability purposes and requires legally owned game assets.
+*Sonic Unleashed Recompiled* is an unofficial fan-made project. It is not affiliated with, authorized, or endorsed by SEGA® or Sonic Team™. This project is intended for educational purposes and requires legally owned game assets.

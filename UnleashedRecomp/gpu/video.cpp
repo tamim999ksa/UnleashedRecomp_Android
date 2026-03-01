@@ -8110,3 +8110,18 @@ GUEST_FUNCTION_STUB(sub_82BEA018);
 GUEST_FUNCTION_STUB(sub_82BEA7C0);
 GUEST_FUNCTION_STUB(sub_82BFFF88); // D3DXFilterTexture
 GUEST_FUNCTION_STUB(sub_82BD96D0);
+
+namespace vulkan_utils {
+    std::vector<uint8_t> LoadPipelineCache();
+    void SavePipelineCache(const void* data, size_t size);
+}
+
+namespace plume {
+    extern std::vector<uint8_t> (*g_loadPipelineCacheCallback)();
+    extern void (*g_savePipelineCacheCallback)(const void* data, size_t size);
+}
+
+void VideoInitializeCallbacks() {
+    plume::g_loadPipelineCacheCallback = vulkan_utils::LoadPipelineCache;
+    plume::g_savePipelineCacheCallback = vulkan_utils::SavePipelineCache;
+}

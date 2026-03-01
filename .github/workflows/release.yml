@@ -18,15 +18,15 @@ on:
           - windows
         default: 'android'
       game_url:
-        description: 'URL for game data (ISO/XEX/ZIP)'
+        description: 'URL for game data (ISO/XEX/ZIP/7Z/RAR)'
         required: true
         type: string
       update_url:
-        description: 'URL for update data (default.xexp) (optional)'
+        description: 'URL for update data (default.xexp/ZIP/7Z/RAR) (optional)'
         required: false
         type: string
       dlc_url:
-        description: 'URL for DLC data (shader.ar) (optional)'
+        description: 'URL for dlc data (shader.ar/ZIP/7Z/RAR) (optional)'
         required: false
         type: string
 
@@ -40,6 +40,17 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup System (Linux/Android)
+        if: ${{ runner.os == 'Linux' }}
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y patchelf p7zip-full wget file ccache
+          # Memory optimizations for the build runner
+          sudo sysctl -w vm.swappiness=10
+          sudo sysctl -w vm.vfs_cache_pressure=50
 
       - name: Set up JDK (Android only)
         if: ${{ (inputs.os == 'android' || github.event_name == 'push') }}
@@ -55,9 +66,23 @@ jobs:
 
       - name: Install Android NDK (Android only)
         if: ${{ (inputs.os == 'android' || github.event_name == 'push') }}
-        run: yes | sdkmanager "ndk;25.2.9519653"
+        run: yes | sdkmanager "ndk;29.0.14206865"
 
-      - name: Download Game Data
+      - name: Apply Patches
+        if: ${{ runner.os == 'Linux' }}
+        run: |
+          chmod +x apply_patches.sh
+          ./apply_patches.sh
+
+      - name: Build Host Tools
+        if: ${{ runner.os == 'Linux' }}
+        run: |
+          chmod +x build_tools.sh
+          # Ensure dxc-linux is executable for build_tools.sh
+          chmod +x tools/XenosRecomp/thirdparty/dxc-bin/bin/x64/dxc-linux
+          ./build_tools.sh
+
+      - name: Download Data
         env:
           GAME_URL: ${{ inputs.game_url }}
           UPDATE_URL: ${{ inputs.update_url }}
@@ -65,56 +90,62 @@ jobs:
         run: |
           mkdir -p ./UnleashedRecompLib/private
 
-          if [ -n "$GAME_URL" ]; then
-            echo "::add-mask::$GAME_URL"
-            wget -qO /tmp/game_data "$GAME_URL"
-            if file /tmp/game_data | grep -qi 'zip'; then
-               unzip -o -q /tmp/game_data -d ./UnleashedRecompLib/private/
-               rm /tmp/game_data
-            elif file /tmp/game_data | grep -qi 'iso'; then
-               mv /tmp/game_data ./UnleashedRecompLib/private/game.iso
-            else
-               mv /tmp/game_data ./UnleashedRecompLib/private/default.xex
+          handle_url() {
+            local url="$1"
+            local target_name="$2"
+            local temp_file="${{ runner.temp }}/$(basename "$target_name")_data"
+
+            if [ -n "$url" ]; then
+              echo "::add-mask::$url"
+              wget -qO "$temp_file" "$url"
+
+              if 7z l "$temp_file" > /dev/null 2>&1; then
+                 echo "Detected archive for $target_name, extracting..."
+                 7z x -y "$temp_file" -o./UnleashedRecompLib/private/
+                 rm "$temp_file"
+              elif [ "$target_name" == "game" ]; then
+                 if [[ "$RUNNER_OS" == "Linux" ]] && file "$temp_file" | grep -qi 'iso'; then
+                    echo "Detected ISO file"
+                    mv "$temp_file" ./UnleashedRecompLib/private/game.iso
+                 elif [[ "$url" == *.iso ]]; then
+                    echo "Detected ISO file by extension"
+                    mv "$temp_file" ./UnleashedRecompLib/private/game.iso
+                 else
+                    echo "Assuming XEX file"
+                    mv "$temp_file" ./UnleashedRecompLib/private/default.xex
+                 fi
+              else
+                 echo "Using as $target_name"
+                 mv "$temp_file" "./UnleashedRecompLib/private/$target_name"
+              fi
             fi
-          fi
+          }
 
-          if [ -n "$UPDATE_URL" ]; then
-            echo "::add-mask::$UPDATE_URL"
-            wget -qO ./UnleashedRecompLib/private/default.xexp "$UPDATE_URL"
-          fi
+          handle_url "$GAME_URL" "game"
+          handle_url "$UPDATE_URL" "default.xexp"
+          handle_url "$DLC_URL" "shader.ar"
 
-          if [ -n "$DLC_URL" ]; then
-            echo "::add-mask::$DLC_URL"
-            wget -qO ./UnleashedRecompLib/private/shader.ar "$DLC_URL"
-          fi
       - name: Build APK (Android only)
         if: ${{ (inputs.os == 'android' || github.event_name == 'push') }}
+        working-directory: android
         run: |
-          ./gradlew assembleRelease --no-daemon --stacktrace
-
-      - name: Memory Optimization
-        run: |
-          echo 'Optimize memory usage'
-          # Add memory optimization commands if necessary
-
-
-      - name: Asset Handling
-        if: ${{ (inputs.os == 'android' || github.event_name == 'push') }}
-        run: |
-          echo 'Handling assets'
-          ./gradlew processReleaseResources
+          chmod +x gradlew
+          export ANDROID_NDK_HOME=${ANDROID_SDK_ROOT}/ndk/29.0.14206865
+          # Memory optimization for Gradle
+          export GRADLE_OPTS="-Xmx4096m -Dorg.gradle.daemon=false -Dorg.gradle.parallel=true -Dorg.gradle.workers.max=$(nproc)"
+          ./gradlew assembleRelease --stacktrace
 
       - name: Archive APK (Android only)
         if: ${{ (inputs.os == 'android' || github.event_name == 'push') }}
         run: |
           mkdir -p output/apk
-          cp app/build/outputs/apk/release/app-release.apk output/apk/
+          cp android/app/build/outputs/apk/release/app-release.apk output/apk/
 
       - name: Upload APK (Android only)
         if: ${{ (inputs.os == 'android' || github.event_name == 'push') }}
         uses: actions/upload-artifact@v4
         with:
-          name: my-app-release
+          name: UnleashedRecomp-Android-APK
           path: output/apk/app-release.apk
 
       - name: Cache vcpkg (Linux/Windows)
@@ -135,23 +166,42 @@ jobs:
             ./thirdparty/vcpkg/bootstrap-vcpkg.sh
           fi
 
-      - name: Build Linux/Windows
-        if: ${{ (inputs.os == 'linux') || (inputs.os == 'windows') }}
+      - name: Build Linux
+        if: ${{ (inputs.os == 'linux') }}
         run: |
-          echo "Building for ${{ inputs.os }}"
-          chmod +x ./build_tools.sh
-          ./build_tools.sh
-          mkdir -p build_${{ inputs.os }}
-          cd build_${{ inputs.os }}
-          cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE="../thirdparty/vcpkg/scripts/buildsystems/vcpkg.cmake"
+          echo "Building for Linux"
+          mkdir -p build_linux
+          cd build_linux
+
+          cmake .. -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_TOOLCHAIN_FILE="../thirdparty/vcpkg/scripts/buildsystems/vcpkg.cmake" \
+            -DHOST_TOOLS_DIR="../build_tools/bin"
+
           cmake --build . --config Release --parallel $(nproc)
+
+      - name: Build Windows
+        if: ${{ (inputs.os == 'windows') }}
+        run: |
+          echo "Building for Windows"
+          # On Windows we build host tools as part of the main build as they are native
+          mkdir -p build_windows
+          cd build_windows
+
+          cmake .. -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_TOOLCHAIN_FILE="../thirdparty/vcpkg/scripts/buildsystems/vcpkg.cmake"
+
+          cmake --build . --config Release --parallel
+
       - name: Upload Artifacts (Linux/Windows)
         if: ${{ inputs.os == 'linux' || inputs.os == 'windows' }}
         uses: actions/upload-artifact@v4
         with:
           name: UnleashedRecomp-${{ inputs.os }}
           path: |
-            build_${{ inputs.os }}/*
+            build_${{ inputs.os }}/Release/*
+            build_${{ inputs.os }}/bin/*
+            build_${{ inputs.os }}/*.exe
+            build_${{ inputs.os }}/${{ inputs.os == 'linux' && 'UnleashedRecomp' || '' }}
             !build_${{ inputs.os }}/**/*.o
             !build_${{ inputs.os }}/**/*.a
 

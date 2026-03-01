@@ -111,6 +111,7 @@ set(UNLEASHED_RECOMP_CPU_CXX_SOURCES
 
 set(UNLEASHED_RECOMP_GPU_CXX_SOURCES
     "gpu/video.cpp"
+    "gpu/vulkan_utils.cpp"
     "gpu/imgui/imgui_common.cpp"
     "gpu/imgui/imgui_font_builder.cpp"
     "gpu/imgui/imgui_snapshot.cpp"
@@ -119,7 +120,9 @@ set(UNLEASHED_RECOMP_GPU_CXX_SOURCES
 set(UNLEASHED_RECOMP_APU_CXX_SOURCES
     "apu/audio.cpp"
     "apu/embedded_player.cpp"
-    "apu/driver/sdl2_driver.cpp"
+    $<$<NOT:$<BOOL:${ANDROID}>>:apu/driver/sdl2_driver.cpp>
+    $<$<BOOL:${ANDROID}>:apu/driver/oboe_driver.cpp>
+
 )
 
 set(UNLEASHED_RECOMP_HID_CXX_SOURCES
@@ -225,6 +228,7 @@ set(UNLEASHED_RECOMP_THIRDPARTY_INCLUDES
     "${UNLEASHED_RECOMP_THIRDPARTY_ROOT}/stb"
     "${UNLEASHED_RECOMP_THIRDPARTY_ROOT}/picosha2"
     "${UNLEASHED_RECOMP_THIRDPARTY_ROOT}/unordered_dense/include"
+    $<$<BOOL:${ANDROID}>:${UNLEASHED_RECOMP_THIRDPARTY_ROOT}/oboe/include>
     "${UNLEASHED_RECOMP_TOOLS_ROOT}/bc_diff"
     "${UNLEASHED_RECOMP_TOOLS_ROOT}/XenosRecomp/thirdparty/smol-v/source"
 )
@@ -295,6 +299,7 @@ target_link_libraries(UnleashedRecomp PRIVATE
     xxHash::xxhash
     CURL::libcurl
     plume
+    $<$<BOOL:${ANDROID}>:oboe>
     log
 )
 
@@ -311,7 +316,7 @@ function(compile_shader FILE_PATH TARGET_NAME)
     cmake_path(GET FILE_PATH STEM VARIABLE_NAME)
     add_custom_command(
         OUTPUT ${FILE_PATH}.spirv.h
-        COMMAND ${DIRECTX_DXC_TOOL} -T ${TARGET_NAME} -HV 2021 -all-resources-bound -spirv -fvk-use-dx-layout ${ARGN} -Fh ${FILE_PATH}.spirv.h ${FILE_PATH} -Vn g_${VARIABLE_NAME}_spirv
+        COMMAND ${DIRECTX_DXC_TOOL} -T ${TARGET_NAME} -HV 2021 -all-resources-bound -O3 -spirv -fvk-use-dx-layout ${ARGN} -Fh ${FILE_PATH}.spirv.h ${FILE_PATH} -Vn g_${VARIABLE_NAME}_spirv
         DEPENDS ${FILE_PATH}
     )
     target_sources(UnleashedRecomp PRIVATE ${FILE_PATH}.spirv.h)

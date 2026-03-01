@@ -196,6 +196,32 @@ inline Controller* FindController(int which)
     return nullptr;
 }
 
+
+static void UpdateInputDeviceState(hid::EInputDevice device)
+{
+    if (hid::g_inputDevice == device)
+        return;
+
+    hid::g_inputDevice = device;
+
+    if (device == hid::EInputDevice::Mouse)
+    {
+        if (Config::MouseSupport)
+        {
+            SDL_SetRelativeMouseMode(SDL_TRUE);
+        }
+    }
+    else
+    {
+        SDL_SetRelativeMouseMode(SDL_FALSE);
+
+        if (device != hid::EInputDevice::Keyboard)
+        {
+            SDL_ShowCursor(SDL_DISABLE);
+        }
+    }
+}
+
 static void SetControllerInputDevice(Controller* controller)
 {
     g_activeController = controller;
@@ -203,7 +229,7 @@ static void SetControllerInputDevice(Controller* controller)
     if (App::s_isLoading)
         return;
 
-    hid::g_inputDevice = controller->GetInputDevice();
+    UpdateInputDeviceState(controller->GetInputDevice());
     hid::g_inputDeviceController = hid::g_inputDevice;
 
     auto controllerType = (hid::EInputDeviceExplicit)controller->GetControllerType();
@@ -275,7 +301,7 @@ int HID_OnSDLEvent(void*, SDL_Event* event)
             {
                 if (abs(event->caxis.value) > 8000)
                 {
-                    SDL_ShowCursor(SDL_DISABLE);
+                    UpdateInputDeviceState(controller->GetInputDevice());
                     SetControllerInputDevice(controller);
                 }
 
@@ -283,7 +309,7 @@ int HID_OnSDLEvent(void*, SDL_Event* event)
             }
             else
             {
-                SDL_ShowCursor(SDL_DISABLE);
+                UpdateInputDeviceState(controller->GetInputDevice());
                 SetControllerInputDevice(controller);
 
                 controller->Poll();
@@ -294,7 +320,7 @@ int HID_OnSDLEvent(void*, SDL_Event* event)
 
         case SDL_KEYDOWN:
         case SDL_KEYUP:
-            hid::g_inputDevice = hid::EInputDevice::Keyboard;
+            UpdateInputDeviceState(hid::EInputDevice::Keyboard);
             break;
 
         case SDL_MOUSEMOTION:
@@ -308,13 +334,15 @@ int HID_OnSDLEvent(void*, SDL_Event* event)
             if (event->type == SDL_MOUSEBUTTONUP && event->button.which == SDL_TOUCH_MOUSEID)
                 break;
 
-            if (!GameWindow::IsFullscreen() || GameWindow::s_isFullscreenCursorVisible)
-                SDL_ShowCursor(SDL_ENABLE);
-
-            hid::g_inputDevice = hid::EInputDevice::Mouse;
+            UpdateInputDeviceState(hid::EInputDevice::Mouse);
 
             break;
         }
+
+                case SDL_FINGERDOWN:
+        case SDL_FINGERMOTION:
+            UpdateInputDeviceState(hid::EInputDevice::Touch);
+            break;
 
         case SDL_WINDOWEVENT:
         {

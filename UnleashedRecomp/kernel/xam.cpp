@@ -410,56 +410,69 @@ uint32_t XamInputGetState(uint32_t userIndex, uint32_t flags, XAMINPUT_STATE* st
 
     if (GameWindow::s_isFocused && !keyboardState[SDL_SCANCODE_LALT])
     {
-        if (keyboardState[Config::Key_LeftStickUp])
-            state->Gamepad.sThumbLY = 32767;
-        if (keyboardState[Config::Key_LeftStickDown])
-            state->Gamepad.sThumbLY = -32768;
-        if (keyboardState[Config::Key_LeftStickLeft])
-            state->Gamepad.sThumbLX = -32768;
-        if (keyboardState[Config::Key_LeftStickRight])
-            state->Gamepad.sThumbLX = 32767;
+        bool kbActive = false;
+        if (keyboardState[Config::Key_LeftStickUp]) { state->Gamepad.sThumbLY = 32767; kbActive = true; }
+        if (keyboardState[Config::Key_LeftStickDown]) { state->Gamepad.sThumbLY = -32768; kbActive = true; }
+        if (keyboardState[Config::Key_LeftStickLeft]) { state->Gamepad.sThumbLX = -32768; kbActive = true; }
+        if (keyboardState[Config::Key_LeftStickRight]) { state->Gamepad.sThumbLX = 32767; kbActive = true; }
 
-        if (keyboardState[Config::Key_RightStickUp])
-            state->Gamepad.sThumbRY = 32767;
-        if (keyboardState[Config::Key_RightStickDown])
-            state->Gamepad.sThumbRY = -32768;
-        if (keyboardState[Config::Key_RightStickLeft])
-            state->Gamepad.sThumbRX = -32768;
-        if (keyboardState[Config::Key_RightStickRight])
-            state->Gamepad.sThumbRX = 32767;
+        if (keyboardState[Config::Key_RightStickUp]) { state->Gamepad.sThumbRY = 32767; kbActive = true; }
+        if (keyboardState[Config::Key_RightStickDown]) { state->Gamepad.sThumbRY = -32768; kbActive = true; }
+        if (keyboardState[Config::Key_RightStickLeft]) { state->Gamepad.sThumbRX = -32768; kbActive = true; }
+        if (keyboardState[Config::Key_RightStickRight]) { state->Gamepad.sThumbRX = 32767; kbActive = true; }
 
-        if (keyboardState[Config::Key_LeftTrigger])
-            state->Gamepad.bLeftTrigger = 0xFF;
-        if (keyboardState[Config::Key_RightTrigger])
-            state->Gamepad.bRightTrigger = 0xFF;
+        if (keyboardState[Config::Key_LeftTrigger]) { state->Gamepad.bLeftTrigger = 0xFF; kbActive = true; }
+        if (keyboardState[Config::Key_RightTrigger]) { state->Gamepad.bRightTrigger = 0xFF; kbActive = true; }
 
-        if (keyboardState[Config::Key_DPadUp])
-            state->Gamepad.wButtons |= XAMINPUT_GAMEPAD_DPAD_UP;
-        if (keyboardState[Config::Key_DPadDown])
-            state->Gamepad.wButtons |= XAMINPUT_GAMEPAD_DPAD_DOWN;
-        if (keyboardState[Config::Key_DPadLeft])
-            state->Gamepad.wButtons |= XAMINPUT_GAMEPAD_DPAD_LEFT;
-        if (keyboardState[Config::Key_DPadRight])
-            state->Gamepad.wButtons |= XAMINPUT_GAMEPAD_DPAD_RIGHT;
+        if (keyboardState[Config::Key_DPadUp]) { state->Gamepad.wButtons |= XAMINPUT_GAMEPAD_DPAD_UP; kbActive = true; }
+        if (keyboardState[Config::Key_DPadDown]) { state->Gamepad.wButtons |= XAMINPUT_GAMEPAD_DPAD_DOWN; kbActive = true; }
+        if (keyboardState[Config::Key_DPadLeft]) { state->Gamepad.wButtons |= XAMINPUT_GAMEPAD_DPAD_LEFT; kbActive = true; }
+        if (keyboardState[Config::Key_DPadRight]) { state->Gamepad.wButtons |= XAMINPUT_GAMEPAD_DPAD_RIGHT; kbActive = true; }
 
-        if (keyboardState[Config::Key_Start])
-            state->Gamepad.wButtons |= XAMINPUT_GAMEPAD_START;
-        if (keyboardState[Config::Key_Back])
-            state->Gamepad.wButtons |= XAMINPUT_GAMEPAD_BACK;
+        if (keyboardState[Config::Key_Start]) { state->Gamepad.wButtons |= XAMINPUT_GAMEPAD_START; kbActive = true; }
+        if (keyboardState[Config::Key_Back]) { state->Gamepad.wButtons |= XAMINPUT_GAMEPAD_BACK; kbActive = true; }
 
-        if (keyboardState[Config::Key_LeftBumper])
-            state->Gamepad.wButtons |= XAMINPUT_GAMEPAD_LEFT_SHOULDER;
-        if (keyboardState[Config::Key_RightBumper])
-            state->Gamepad.wButtons |= XAMINPUT_GAMEPAD_RIGHT_SHOULDER;
+        if (keyboardState[Config::Key_LeftBumper]) { state->Gamepad.wButtons |= XAMINPUT_GAMEPAD_LEFT_SHOULDER; kbActive = true; }
+        if (keyboardState[Config::Key_RightBumper]) { state->Gamepad.wButtons |= XAMINPUT_GAMEPAD_RIGHT_SHOULDER; kbActive = true; }
 
-        if (keyboardState[Config::Key_A])
-            state->Gamepad.wButtons |= XAMINPUT_GAMEPAD_A;
-        if (keyboardState[Config::Key_B])
-            state->Gamepad.wButtons |= XAMINPUT_GAMEPAD_B;
-        if (keyboardState[Config::Key_X])
-            state->Gamepad.wButtons |= XAMINPUT_GAMEPAD_X;
-        if (keyboardState[Config::Key_Y])
-            state->Gamepad.wButtons |= XAMINPUT_GAMEPAD_Y;
+        if (keyboardState[Config::Key_A]) { state->Gamepad.wButtons |= XAMINPUT_GAMEPAD_A; kbActive = true; }
+        if (keyboardState[Config::Key_B]) { state->Gamepad.wButtons |= XAMINPUT_GAMEPAD_B; kbActive = true; }
+        if (keyboardState[Config::Key_X]) { state->Gamepad.wButtons |= XAMINPUT_GAMEPAD_X; kbActive = true; }
+        if (keyboardState[Config::Key_Y]) { state->Gamepad.wButtons |= XAMINPUT_GAMEPAD_Y; kbActive = true; }
+
+        if (kbActive)
+            hid::g_inputDevice = hid::EInputDevice::Keyboard;
+    }
+
+    if (GameWindow::s_isFocused && Config::MouseSupport)
+    {
+        int mouseX, mouseY;
+        uint32_t mouseButtons = SDL_GetRelativeMouseState(&mouseX, &mouseY);
+
+        if (mouseX != 0 || mouseY != 0 || mouseButtons != 0)
+        {
+            hid::g_inputDevice = hid::EInputDevice::Mouse;
+
+            if (mouseX != 0 || mouseY != 0)
+            {
+                float sensitivity = Config::MouseSensitivity * 200.0f;
+                auto clampStick = [](float val) -> int16_t {
+                    if (val > 32767.0f) return 32767;
+                    if (val < -32768.0f) return -32768;
+                    return (int16_t)val;
+                };
+
+                int16_t sThumbRX = clampStick((float)mouseX * sensitivity);
+                int16_t sThumbRY = clampStick(-(float)mouseY * sensitivity);
+
+                if (abs(sThumbRX) > abs(state->Gamepad.sThumbRX)) state->Gamepad.sThumbRX = sThumbRX;
+                if (abs(sThumbRY) > abs(state->Gamepad.sThumbRY)) state->Gamepad.sThumbRY = sThumbRY;
+            }
+
+            if (mouseButtons & SDL_BUTTON(SDL_BUTTON_LEFT)) state->Gamepad.wButtons |= XAMINPUT_GAMEPAD_X;
+            if (mouseButtons & SDL_BUTTON(SDL_BUTTON_RIGHT)) state->Gamepad.wButtons |= XAMINPUT_GAMEPAD_A;
+            if (mouseButtons & SDL_BUTTON(SDL_BUTTON_MIDDLE)) state->Gamepad.wButtons |= XAMINPUT_GAMEPAD_B;
+        }
     }
 
     state->Gamepad.wButtons &= ~hid::g_prohibitedButtons;

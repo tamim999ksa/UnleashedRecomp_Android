@@ -8,6 +8,6 @@ class TouchControls
 public:
     static void Init();
     static void Draw();
-    static const XAMINPUT_GAMEPAD& GetState();
+    static XAMINPUT_GAMEPAD GetState();
     static bool IsActive();
 };
