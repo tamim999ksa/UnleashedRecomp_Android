@@ -29,10 +29,11 @@ This project is an **experimental, work-in-progress port** of [Sonic Unleashed R
 This fork introduces significant architectural improvements and mobile-specific optimizations:
 
 ### 🛠️ Core & Kernel
-- **Modular Architecture:** Refactored the monolithic kernel into clean, modular components (`threading`, `synchronization`, `I/O`) for improved stability.
+- **Modular Architecture:** Refactored the monolithic kernel into clean, modular components (`threading`, `synchronization`, `I/O`) for improved stability and maintainability.
 - **Advanced File System:** Native support for Xbox 360 **STFS** and **SVOD** (XContent) parsing with memory-mapped I/O for lightning-fast asset loading.
 - **Modding Support:** Integrated `ModLoader` with a thread-local lookup cache to minimize file system overhead during modded gameplay.
-- **Robustness:** Hardened guest-to-host memory operations to prevent overflows and ensure a crash-free experience.
+- **Universal Save Redirection:** Automatically manages and redirects save data to ensure persistence across updates and mod configurations.
+- **Achievement System:** Includes a native, built-in **Achievement Overlay** and manager, faithfully recreating the original Xbox 360 experience.
 
 ### 🎮 Mobile Experience
 - **Vulkan-First Rendering:** Optimized pipeline specifically for **Vulkan 1.2**, ensuring the best performance on modern mobile GPUs.
@@ -46,11 +47,11 @@ This fork introduces significant architectural improvements and mobile-specific 
 
 | Requirement | Minimum Specification | Recommended |
 | :--- | :--- | :--- |
-| **Architecture** | ARMv8-A 64-bit (ARM64) | Latest flagship SoC |
+| **Architecture** | ARMv8-A 64-bit (ARM64) | Latest flagship SoC (Snapdragon 8 Gen 1+) |
 | **OS Version** | Android 8.0 (API 26) | Android 11+ |
 | **Graphics API** | Vulkan 1.2 | Vulkan 1.3 |
-| **RAM** | 4 GB (Full address space alloc) | 8 GB+ |
-| **Storage** | 10 GB (High-speed internal) | 15 GB+ |
+| **RAM** | 4 GB (Strict Guest Allocation) | 8 GB+ |
+| **Storage** | 10 GB (Internal Storage) | 15 GB+ (UFS 3.0+) |
 
 ---
 
@@ -64,11 +65,12 @@ Create a `private/` directory in the project root and place the following files:
 - Game data containers (STFS/SVOD).
 
 ### 2. Build via GitHub Actions (Easy)
-1. **Fork** this repository to your own account.
+The CI pipeline is highly robust and can ingest assets automatically:
+1. **Fork** this repository.
 2. Navigate to the **Actions** tab.
 3. Select the **Release** workflow and click **Run workflow**.
-4. (Optional) Provide direct download URLs for your assets in the prompt.
-5. Download the final APK from the **Artifacts** section once the build completes.
+4. **Automated Asset Ingestion:** You can provide URLs for your `game_url`, `update_url`, and `dlc_url`. The workflow supports **ZIP, ISO, and XEX** formats and will automatically extract and prepare them for the build.
+5. Download the final APK from the **Artifacts** section.
 
 ### 3. Manual Build (Advanced)
 For developers building locally on Linux or macOS.
@@ -85,7 +87,7 @@ For developers building locally on Linux or macOS.
 git clone --recursive https://github.com/yourusername/UnleashedRecomp-Android.git
 cd UnleashedRecomp-Android
 
-# 2. Build host-side tools (Recompiler, etc.)
+# 2. Build host-side tools (Recompiler, asset handlers, etc.)
 chmod +x ./build_tools.sh
 ./build_tools.sh
 
