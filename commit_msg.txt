@@ -1,6 +1,0 @@
-🧹 Refactor ModLoader code to reduce deep nesting
-
-🎯 What: Simplified string parsing and extracted UMM and HMM mod loading into helper functions.
-💡 Why: Reduces nesting depth in LoadMods and improves maintainability and code readability.
-✅ Verification: Compiled the code changes using GCC syntax check and cmake configuration setup.
-✨ Result: Much cleaner LoadMods function with clear LoadUMMMod and LoadHMMMod extractions.
