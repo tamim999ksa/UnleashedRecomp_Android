@@ -74,6 +74,24 @@ jobs:
           chmod +x apply_patches.sh
           ./apply_patches.sh
 
+      - name: Cache vcpkg (Linux/Windows)
+        if: ${{ inputs.os != '' || github.event_name == 'push' }}
+        uses: actions/cache@v4
+        with:
+          path: |
+            ./thirdparty/vcpkg/downloads
+            ./thirdparty/vcpkg/packages
+          key: vcpkg-${{ inputs.os }}-${{ hashFiles('vcpkg.json') }}
+
+      - name: Bootstrap vcpkg (Linux/Windows)
+        if: ${{ inputs.os != '' || github.event_name == 'push' }}
+        run: |
+          if [ "$RUNNER_OS" == "Windows" ]; then
+            ./thirdparty/vcpkg/bootstrap-vcpkg.bat
+          else
+            ./thirdparty/vcpkg/bootstrap-vcpkg.sh
+          fi
+
       - name: Build Host Tools
         if: ${{ runner.os == 'Linux' }}
         run: |
@@ -147,24 +165,6 @@ jobs:
         with:
           name: UnleashedRecomp-Android-APK
           path: output/apk/app-release.apk
-
-      - name: Cache vcpkg (Linux/Windows)
-        if: ${{ (inputs.os == 'linux') || (inputs.os == 'windows') }}
-        uses: actions/cache@v4
-        with:
-          path: |
-            ./thirdparty/vcpkg/downloads
-            ./thirdparty/vcpkg/packages
-          key: vcpkg-${{ inputs.os }}-${{ hashFiles('vcpkg.json') }}
-
-      - name: Bootstrap vcpkg (Linux/Windows)
-        if: ${{ (inputs.os == 'linux') || (inputs.os == 'windows') }}
-        run: |
-          if [ "$RUNNER_OS" == "Windows" ]; then
-            ./thirdparty/vcpkg/bootstrap-vcpkg.bat
-          else
-            ./thirdparty/vcpkg/bootstrap-vcpkg.sh
-          fi
 
       - name: Build Linux
         if: ${{ (inputs.os == 'linux') }}
