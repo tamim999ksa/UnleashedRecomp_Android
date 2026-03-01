@@ -151,7 +151,7 @@ jobs:
           export ANDROID_NDK_HOME=${ANDROID_SDK_ROOT}/ndk/29.0.14206865
           # Memory optimization for Gradle
           export GRADLE_OPTS="-Xmx4096m -Dorg.gradle.daemon=false -Dorg.gradle.parallel=true -Dorg.gradle.workers.max=$(nproc)"
-          ./gradlew assembleRelease --stacktrace
+          ./gradlew assembleRelease --stacktrace --max-workers=1
 
       - name: Archive APK (Android only)
         if: ${{ (inputs.os == 'android' || github.event_name == 'push') }}

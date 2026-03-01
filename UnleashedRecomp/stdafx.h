@@ -34,6 +34,7 @@
 #include <smolv.h>
 #include <set>
 #include <fmt/core.h>
+#include <fmt/xchar.h>
 #include <list>
 #include <semaphore>
 #include <numeric>
