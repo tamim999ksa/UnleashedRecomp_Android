@@ -31,7 +31,7 @@ Compared to the original PC version, this fork introduces several architectural 
 - **GPU:** Vulkan 1.2 support **REQUIRED**.
 - **RAM:** 4 GB Minimum (6 GB+ strongly recommended).
 - **Storage:** **10-15 GB** of high-speed internal storage for game assets and shader caches.
-- **Audio:** Utilizes **AAudio / Oboe** backends for low-latency audio performance on modern Android devices. (Note: Some kernel audio functions are currently stubs).
+- **Audio:** Utilizes **AAudio / Oboe** backends for low-latency audio performance on modern Android devices.
 
 ## How to Build
 
@@ -48,17 +48,44 @@ The build system requires original game files to be placed in a `private/` direc
 3. Click **Run workflow**. You can provide URLs to your game assets, or the workflow will look for them in your forked repository's `private/` folder.
 4. Download the resulting APK from the artifacts once complete.
 
-### 3. Manual Build (Linux/macOS)
-Ensure you have the **Android SDK**, **NDK (25.2.9519653)**, and **CMake** installed.
+### 3. Manual Build (Step-by-Step)
 
+#### Prerequisites (Dependencies)
+You must have the following tools installed on your host system (Linux or macOS):
+- **Build Essentials:** `gcc`, `g++`, `cmake` (3.20+), `git`, `wget`, `unzip`.
+- **System Libraries:** `libtbb-dev` (for parallel processing).
+- **Android Tools:** Android SDK and **NDK 25.2.9519653**.
+- **Utility:** `patchelf` (optional, for tool optimization).
+
+#### Step 1: Clone the Repository
 ```bash
-# Set your NDK path if not auto-detected
-export ANDROID_NDK_HOME=/path/to/android-sdk/ndk/25.2.9519653
+git clone --recursive https://github.com/yourusername/UnleashedRecomp-Android.git
+cd UnleashedRecomp-Android
+```
 
-# Run the build script
+#### Step 2: Initialize Submodules & Build Tools
+```bash
+# Set up host tools (Recompiler and asset handlers)
+chmod +x ./build_tools.sh
+./build_tools.sh
+```
+
+#### Step 3: Configure Environment
+```bash
+# Point to your Android NDK installation
+export ANDROID_NDK_HOME=/path/to/android-sdk/ndk/25.2.9519653
+```
+
+#### Step 4: Prepare Assets
+Place your `default.xex` and other game files in the `private/` folder as described in the "Prepare Game Assets" section.
+
+#### Step 5: Build the APK
+```bash
+# This script applies patches, builds libraries, and compiles the Android app
+chmod +x ./build_android.sh
 ./build_android.sh
 ```
-The APK will be generated at: `android/app/build/outputs/apk/debug/app-debug.apk`.
+The final APK will be located at: `android/app/build/outputs/apk/debug/app-debug.apk`.
 
 ## Disclaimer
 This project is an unofficial fan-made port and is not affiliated with SEGA or Sonic Team. No game assets are included in this repository.
