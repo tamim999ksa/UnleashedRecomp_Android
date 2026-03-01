@@ -5,7 +5,7 @@
 <h1 align="center">Sonic Unleashed Recompiled</h1>
 
 <p align="center">
-  <strong>The definitive native port of the Xbox 360 classic, ultra-modernized for Android, Windows, and Linux.</strong>
+  <strong>Fork from https://github.com/hedge-dev/UnleashedRecomp </strong>
 </p>
 
 <p align="center">
