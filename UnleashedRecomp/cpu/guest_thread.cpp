@@ -148,6 +148,7 @@ uint32_t GuestThread::Start(const GuestThreadParams& params)
 #ifdef __ANDROID__
     perf::SetThreadPriority(false);
     perf::RegisterHintThread(gettid());
+    perf::SetBigCoreAffinity();
 #endif
 
     const auto procMask = (uint8_t)(params.flags >> 24);

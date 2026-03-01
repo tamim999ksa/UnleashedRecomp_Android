@@ -66,7 +66,7 @@ jobs:
 
       - name: Install Android NDK (Android only)
         if: ${{ (inputs.os == 'android' || github.event_name == 'push') }}
-        run: yes | sdkmanager "ndk;25.2.9519653"
+        run: yes | sdkmanager "ndk;29.0.14206865"
 
       - name: Apply Patches
         if: ${{ runner.os == 'Linux' }}
@@ -130,7 +130,7 @@ jobs:
         working-directory: android
         run: |
           chmod +x gradlew
-          export ANDROID_NDK_HOME=${ANDROID_SDK_ROOT}/ndk/25.2.9519653
+          export ANDROID_NDK_HOME=${ANDROID_SDK_ROOT}/ndk/29.0.14206865
           # Memory optimization for Gradle
           export GRADLE_OPTS="-Xmx4096m -Dorg.gradle.daemon=false -Dorg.gradle.parallel=true -Dorg.gradle.workers.max=$(nproc)"
           ./gradlew assembleRelease --stacktrace

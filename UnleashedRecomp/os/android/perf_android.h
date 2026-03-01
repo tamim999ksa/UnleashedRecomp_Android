@@ -1,18 +1,17 @@
 #pragma once
 
 #ifdef __ANDROID__
-
 #include <cstdint>
-
-struct SDL_Window;
+#include <SDL.h>
 
 namespace perf {
     void EnableSustainedPerformanceMode(bool enable);
+    void RegisterHintThread(int32_t tid);
     void ReportFrameTime(int64_t frameTimeNs);
     void SetThreadPriority(bool isRenderThread);
-    void RegisterHintThread(int32_t tid);
     void ConfigureNativeWindow(SDL_Window* window);
     void MonitorThermals();
+    void InitChoreographer();
 }
-
 #endif
+    void SetBigCoreAffinity();

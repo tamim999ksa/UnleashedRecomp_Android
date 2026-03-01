@@ -28,6 +28,8 @@
 // - Fix resource pools.
 
 namespace plume {
+    std::vector<uint8_t> (*g_loadPipelineCacheCallback)() = nullptr;
+    void (*g_savePipelineCacheCallback)(const void* data, size_t size) = nullptr;
     // Backend constants.
 
     // Required buffer alignment for acceleration structures.
@@ -1396,7 +1398,7 @@ namespace plume {
         pipelineInfo.layout = pipelineLayout->vk;
         pipelineInfo.stage = stageInfo;
 
-        VkResult res = vkCreateComputePipelines(device->vk, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &vk);
+        VkResult res = vkCreateComputePipelines(device->vk, device->pipelineCache, 1, &pipelineInfo, nullptr, &vk);
         if (res != VK_SUCCESS) {
             fprintf(stderr, "vkCreateComputePipelines failed with error code 0x%X.\n", res);
             return;
@@ -1655,7 +1657,7 @@ namespace plume {
         pipelineInfo.layout = pipelineLayout->vk;
         pipelineInfo.renderPass = renderPass;
 
-        VkResult res = vkCreateGraphicsPipelines(device->vk, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &vk);
+        VkResult res = vkCreateGraphicsPipelines(device->vk, device->pipelineCache, 1, &pipelineInfo, nullptr, &vk);
         if (res != VK_SUCCESS) {
             fprintf(stderr, "vkCreateGraphicsPipelines failed with error code 0x%X.\n", res);
             return;
@@ -3854,8 +3856,16 @@ namespace plume {
         portabilityFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PORTABILITY_SUBSET_FEATURES_KHR;
         portabilityFeatures.pNext = featuresChain;
         featuresChain = &portabilityFeatures;
+        VkPhysicalDeviceVulkan13Features vulkan13Features = {};
+        vulkan13Features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES;
+        vulkan13Features.dynamicRendering = VK_TRUE;
+        vulkan13Features.maintenance4 = VK_TRUE;
+        vulkan13Features.inlineUniformBlock = VK_TRUE;
+        vulkan13Features.synchronization2 = VK_TRUE;
 
         VkPhysicalDeviceFeatures2 deviceFeatures = {};
+        vulkan13Features.pNext = featuresChain;
+        featuresChain = &vulkan13Features;
         deviceFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
         deviceFeatures.pNext = featuresChain;
         vkGetPhysicalDeviceFeatures2(physicalDevice, &deviceFeatures);
@@ -3931,6 +3941,8 @@ namespace plume {
             createDeviceChain = &portabilityFeatures;
         }
 
+        vulkan13Features.pNext = createDeviceChain;
+        createDeviceChain = &vulkan13Features;
         // Retrieve the information for the queue families.
         uint32_t queueFamilyCount = 0;
         vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyCount, nullptr);
@@ -4051,6 +4063,17 @@ namespace plume {
         allocatorInfo.instance = renderInterface->instance;
         allocatorInfo.vulkanApiVersion = renderInterface->appInfo.apiVersion;
 
+        VkPipelineCacheCreateInfo cacheCreateInfo = {};
+        cacheCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO;
+        std::vector<uint8_t> cacheData;
+        if (g_loadPipelineCacheCallback) {
+            cacheData = g_loadPipelineCacheCallback();
+            if (!cacheData.empty()) {
+                cacheCreateInfo.initialDataSize = cacheData.size();
+                cacheCreateInfo.pInitialData = cacheData.data();
+            }
+        }
+        vkCreatePipelineCache(vk, &cacheCreateInfo, nullptr, &pipelineCache);
         res = vmaCreateAllocator(&allocatorInfo, &allocator);
         if (res != VK_SUCCESS) {
             fprintf(stderr, "vmaCreateAllocator failed with error code 0x%X.\n", res);
@@ -4391,6 +4414,17 @@ namespace plume {
 
     void VulkanDevice::release() {
         if (allocator != VK_NULL_HANDLE) {
+        if (pipelineCache != VK_NULL_HANDLE) {
+            if (g_savePipelineCacheCallback) {
+                size_t size = 0;
+                vkGetPipelineCacheData(vk, pipelineCache, &size, nullptr);
+                std::vector<uint8_t> data(size);
+                vkGetPipelineCacheData(vk, pipelineCache, &size, data.data());
+                g_savePipelineCacheCallback(data.data(), size);
+            }
+            vkDestroyPipelineCache(vk, pipelineCache, nullptr);
+            pipelineCache = VK_NULL_HANDLE;
+        }
             vmaDestroyAllocator(allocator);
             allocator = VK_NULL_HANDLE;
         }
@@ -4433,7 +4467,7 @@ namespace plume {
         appInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
         appInfo.pEngineName = "plume";
         appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
-        appInfo.apiVersion = VK_API_VERSION_1_2;
+        appInfo.apiVersion = VK_API_VERSION_1_3;
 
         VkInstanceCreateInfo createInfo = {};
         createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
