@@ -31,7 +31,7 @@ Compared to the original PC version, this fork introduces several architectural 
 - **GPU:** Vulkan 1.1 support **REQUIRED**.
 - **RAM:** 4 GB Minimum (6 GB+ strongly recommended).
 - **Storage:** **10-15 GB** of high-speed internal storage for game assets and shader caches.
-- **Audio:** Supports standard Android OpenSL ES / AAudio backends via SDL. (Note: Some kernel audio functions are currently stubs).
+- **Audio:** Utilizes **AAudio / Oboe** backends for low-latency audio performance on modern Android devices. (Note: Some kernel audio functions are currently stubs).
 
 ## How to Build
 
