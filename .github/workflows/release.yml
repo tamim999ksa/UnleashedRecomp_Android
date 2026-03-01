@@ -143,6 +143,12 @@ jobs:
           handle_url "$UPDATE_URL" "default.xexp"
           handle_url "$DLC_URL" "shader.ar"
 
+          # Final search and move to ensure files are at the root of private/
+          # This is similar to build_android.sh recursive search.
+          find ./UnleashedRecompLib/private -maxdepth 4 -iname "default.xex" -exec mv {} ./UnleashedRecompLib/private/default.xex \; 2>/dev/null || true
+          find ./UnleashedRecompLib/private -maxdepth 4 -iname "default.xexp" -exec mv {} ./UnleashedRecompLib/private/default.xexp \; 2>/dev/null || true
+          find ./UnleashedRecompLib/private -maxdepth 4 -iname "shader.ar" -exec mv {} ./UnleashedRecompLib/private/shader.ar \; 2>/dev/null || true
+
       - name: Build APK (Android only)
         if: ${{ (inputs.os == 'android' || github.event_name == 'push') }}
         working-directory: android
