@@ -3786,12 +3786,11 @@ static RenderShader* GetOrLinkShader(GuestShader* guestShader, uint32_t specCons
                 assert(SUCCEEDED(hr) && s_dxcCompiler != nullptr);
             }
 
-            char libraryHlsl[0x100];
-            sprintf_s(libraryHlsl, "export uint g_SpecConstants() { return %d; }", specConstants);
+            std::string libraryHlsl = fmt::format("export uint g_SpecConstants() {{ return {}; }}", specConstants);
 
             DxcBuffer buffer{};
-            buffer.Ptr = libraryHlsl;
-            buffer.Size = strlen(libraryHlsl);
+            buffer.Ptr = libraryHlsl.data();
+            buffer.Size = libraryHlsl.size();
 
             const wchar_t* args[1];
             args[0] = L"-T lib_6_3";
