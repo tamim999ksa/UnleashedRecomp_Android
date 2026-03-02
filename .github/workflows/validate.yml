@@ -63,18 +63,23 @@ jobs:
               vcpkg-android-
 
       - name: Bootstrap vcpkg
+        run: |
           ./thirdparty/vcpkg/bootstrap-vcpkg.sh
 
       - name: Apply Patches
+        run: |
           chmod +x apply_patches.sh
           ./apply_patches.sh
 
       - name: Run Build Tools
+        run: |
           chmod +x ./build_tools.sh
           ./build_tools.sh
 
       - name: Prepare Project
-        if: env.ASSET_REPO != ''
+
+          if: env.ASSET_REPO != ''
+        run: |
           mkdir -p ./UnleashedRecompLib/private
 
           if [ -d "./private" ] && [ "$(ls -A ./private)" ]; then
@@ -110,6 +115,7 @@ jobs:
       - name: Build Debug APK
         if: env.ASSET_REPO != ''
         working-directory: ./android
+        run: |
           chmod +x gradlew
           export ANDROID_NDK_HOME=${ANDROID_SDK_ROOT}/ndk/29.0.14206865
           ./gradlew assembleDebug
@@ -124,6 +130,7 @@ jobs:
       - name: Build Release APK
         if: env.ASSET_REPO != ''
         working-directory: ./android
+        run: |
           chmod +x gradlew
           export ANDROID_NDK_HOME=${ANDROID_SDK_ROOT}/ndk/29.0.14206865
           ./gradlew assembleRelease
