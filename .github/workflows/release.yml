@@ -124,57 +124,139 @@ jobs:
             local target_name="$2"
             local temp_file="${{ runner.temp }}/$(basename "$target_name")_data"
 
-            if [ -n "$url" ]; then
-              echo "::add-mask::$url"
-              wget -qO "$temp_file" "$url"
-
-              if 7z l "$temp_file" > /dev/null 2>&1; then
-                 echo "Detected archive for $target_name, extracting..."
-                 7z x -y "$temp_file" -o./UnleashedRecompLib/private/
-                 rm "$temp_file"
-              elif [ "$target_name" == "game" ]; then
-                 if [[ "$RUNNER_OS" == "Linux" ]] && file "$temp_file" | grep -qi 'iso'; then
-                    echo "Detected ISO file, extracting contents..."
-                    7z x -y "$temp_file" -o./UnleashedRecompLib/private/
-                    rm "$temp_file"
-                 elif [[ "$url" == *.iso ]]; then
-                    echo "Detected ISO file by extension, extracting contents..."
-                    7z x -y "$temp_file" -o./UnleashedRecompLib/private/
-                    rm "$temp_file"
-                 else
-                    echo "Assuming XEX file"
-                    mv "$temp_file" ./UnleashedRecompLib/private/default.xex
-                 fi
-              else
-                 echo "Using as $target_name"
-                 mv "$temp_file" "./UnleashedRecompLib/private/$target_name"
-              fi
+            if [ -z "$url" ]; then
+              echo "Warning: No URL provided for $target_name"
+              return 0
             fi
+
+            echo "Downloading $target_name from URL (masked for safety)..."
+            echo "::add-mask::$url"
+
+            if ! wget --no-check-certificate --content-disposition -qO "$temp_file" "$url"; then
+              echo "Error: Failed to download $target_name"
+              return 1
+            fi
+
+            if [ ! -s "$temp_file" ]; then
+              echo "Error: Downloaded file for $target_name is empty!"
+              rm -f "$temp_file"
+              return 1
+            fi
+
+            # Check for archive type
+            if 7z l "$temp_file" > /dev/null 2>&1; then
+               echo "Detected archive for $target_name, extracting..."
+               if ! 7z x -y "$temp_file" -o./UnleashedRecompLib/private/; then
+                 echo "Error: Failed to extract $target_name archive"
+                 rm -f "$temp_file"
+                 return 1
+               fi
+               rm -f "$temp_file"
+            else
+               # Check for ISO or raw file
+               local file_type=$(file "$temp_file")
+               if echo "$file_type" | grep -qi "iso"; then
+                  echo "Detected ISO file for $target_name, extracting contents..."
+                  if ! 7z x -y "$temp_file" -o./UnleashedRecompLib/private/; then
+                    echo "Error: Failed to extract ISO contents"
+                    rm -f "$temp_file"
+                    return 1
+                  fi
+                  rm -f "$temp_file"
+               else
+                  case "$target_name" in
+                    game)
+                      echo "Assuming raw XEX file for game"
+                      mv "$temp_file" ./UnleashedRecompLib/private/default.xex
+                      ;;
+                    *)
+                      echo "Using raw file as $target_name"
+                      mv "$temp_file" "./UnleashedRecompLib/private/$target_name"
+                      ;;
+                  esac
+               fi
+            fi
+            return 0
           }
 
-          handle_url "$GAME_URL" "game"
-          handle_url "$UPDATE_URL" "default.xexp"
-          handle_url "$DLC_URL" "shader.ar"
+          # Download all provided URLs
+          handle_url "$GAME_URL" "game" || exit 1
+          handle_url "$UPDATE_URL" "default.xexp" || exit 1
+          handle_url "$DLC_URL" "shader.ar" || exit 1
 
           # Handle data from private repo if checked out
           if [ -d "./private" ]; then
             echo "Copying data from private repository..."
-            find ./private -maxdepth 4 -iname "default.xex" -exec cp {} ./UnleashedRecompLib/private/default.xex \; 2>/dev/null || true
-            find ./private -maxdepth 4 -iname "default.xexp" -exec cp {} ./UnleashedRecompLib/private/default.xexp \; 2>/dev/null || true
-            find ./private -maxdepth 4 -iname "shader.ar" -exec cp {} ./UnleashedRecompLib/private/shader.ar \; 2>/dev/null || true
+            find ./private -maxdepth 5 -type f -iname "default.xex" -exec cp -f {} ./UnleashedRecompLib/private/default.xex \; 2>/dev/null || true
+            find ./private -maxdepth 5 -type f -iname "default.xexp" -exec cp -f {} ./UnleashedRecompLib/private/default.xexp \; 2>/dev/null || true
+            find ./private -maxdepth 5 -type f -iname "shader.ar" -exec cp -f {} ./UnleashedRecompLib/private/shader.ar \; 2>/dev/null || true
           fi
 
-          # Final search and move to ensure files are at the root of private/
-          find ./UnleashedRecompLib/private -maxdepth 4 -iname "default.xex" -exec mv {} ./UnleashedRecompLib/private/default.xex \; 2>/dev/null || true
-          find ./UnleashedRecompLib/private -maxdepth 4 -iname "default.xexp" -exec mv {} ./UnleashedRecompLib/private/default.xexp \; 2>/dev/null || true
-          find ./UnleashedRecompLib/private -maxdepth 4 -iname "shader.ar" -exec mv {} ./UnleashedRecompLib/private/shader.ar \; 2>/dev/null || true
+          # Recursive extraction: check if we extracted an ISO or another archive
+          echo "Checking for nested archives/ISOs in ./UnleashedRecompLib/private/..."
+          # Max 5 levels of nesting
+          for i in {1..5}; do
+            local nested=$(find ./UnleashedRecompLib/private -type f \( -iname "*.iso" -o -iname "*.7z" -o -iname "*.zip" -o -iname "*.rar" \) -not -name "*.skipped" | head -n 1)
+            if [ -z "$nested" ]; then
+              break
+            fi
 
-          # Verification
+            echo "Extracting nested archive (iteration $i): $nested"
+            if 7z x -y "$nested" -o./UnleashedRecompLib/private/; then
+              rm -f "$nested"
+            else
+              echo "Warning: Failed to extract $nested, skipping..."
+              mv "$nested" "${nested}.skipped"
+            fi
+          done
+
+          # Final search and move to ensure files are at the root of private/ and lowercase
+          echo "Organizing and normalizing files in ./UnleashedRecompLib/private/..."
+
+          finalize_file() {
+            local filename="$1"
+            local target_path="./UnleashedRecompLib/private/$filename"
+
+            # Find the file case-insensitively, anywhere in private/, as a file
+            local found_file=$(find ./UnleashedRecompLib/private -type f -iname "$filename" -not -path "$target_path" -print -quit)
+
+            if [ -n "$found_file" ]; then
+              echo "Found $filename at $found_file, moving to root as $filename..."
+              mv -f "$found_file" "$target_path"
+            else
+              # If it's already at the root but with wrong case, fix it
+              local root_file=$(find ./UnleashedRecompLib/private -maxdepth 1 -type f -iname "$filename" -print -quit)
+              if [ -n "$root_file" ] && [ "$root_file" != "$target_path" ]; then
+                 echo "Fixing case for $root_file -> $target_path"
+                 mv -f "$root_file" "$target_path"
+              fi
+            fi
+          }
+
+          finalize_file "default.xex"
+          finalize_file "default.xexp"
+          finalize_file "shader.ar"
+
+          # Verification and diagnostics
+          echo "Verifying mandatory assets..."
+          missing_mandatory=0
           if [ ! -f "./UnleashedRecompLib/private/default.xex" ]; then
-            echo "Error: default.xex not found after download/checkout!"
-            false
+            echo "::error::Mandatory file default.xex not found!"
+            missing_mandatory=1
           fi
-          ls -l ./UnleashedRecompLib/private/
+          if [ ! -f "./UnleashedRecompLib/private/shader.ar" ]; then
+            echo "::error::Mandatory file shader.ar not found!"
+            missing_mandatory=1
+          fi
+
+          if [ "$missing_mandatory" -eq 1 ]; then
+            echo "Current contents of ./UnleashedRecompLib/private/ (up to depth 5):"
+            find ./UnleashedRecompLib/private/ -maxdepth 5 -not -path '*/.*'
+            exit 1
+          fi
+
+          echo "Verification successful. Contents of ./UnleashedRecompLib/private/:"
+          ls -lh ./UnleashedRecompLib/private/
 
       - name: Build APK (Android only)
         if: ${{ (inputs.os == 'android' || github.event_name == 'push') }}
