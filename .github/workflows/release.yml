@@ -240,7 +240,7 @@ jobs:
             local target_path="./UnleashedRecompLib/private/$filename"
 
             # Find the file case-insensitively, anywhere in private/, as a file
-            local found_file=$(find ./UnleashedRecompLib/private -type f -iname "$filename" | grep -vE "^$target_path$" | head -n 1)
+            local found_file=$(find ./UnleashedRecompLib/private -type f -iname "$filename" | { grep -vFx "$target_path" || true; } | head -n 1)
 
             if [ -n "$found_file" ]; then
               echo "Found $filename at $found_file, moving to root as $filename..."
