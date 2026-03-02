@@ -21,7 +21,7 @@ android {
                           "-DHOST_TOOLS_DIR=${project.rootDir}/../build_tools/bin",
                           "-DANDROID_PLATFORM=android-26",
                           "-DANDROID_ARM_NEON=ON",
-                          "-DANDROID_LTO=ON -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON"
+                          "-DANDROID_LTO=ON", "-DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON"
             }
         }
         ndk {
