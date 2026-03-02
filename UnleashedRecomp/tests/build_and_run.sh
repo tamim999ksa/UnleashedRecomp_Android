@@ -11,6 +11,7 @@ shift
 # Compile the test with any additional source files passed
 g++ -std=c++20 \
     -DFMT_HEADER_ONLY \
+    -DZSTD_DISABLE_ASM \
     -I$ROOT_DIR \
     -I$ROOT_DIR/UnleashedRecomp \
     -I$ROOT_DIR/UnleashedRecomp/kernel \
@@ -18,6 +19,7 @@ g++ -std=c++20 \
     -I$ROOT_DIR/tools/XenonRecomp/XenonUtils \
     -I$ROOT_DIR/tools/XenonRecomp/thirdparty/simde \
     -I$ROOT_DIR/tools/XenonRecomp/thirdparty/fmt/include \
+    -I$ROOT_DIR/tools/XenosRecomp/thirdparty/zstd/lib \
     -I$ROOT_DIR/tools/XenonRecomp/thirdparty/xxHash \
     -I$ROOT_DIR/thirdparty/ankerl/unordered_dense/include \
     -I$ROOT_DIR/thirdparty/boost/include \
