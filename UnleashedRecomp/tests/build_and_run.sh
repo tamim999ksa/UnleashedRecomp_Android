@@ -10,12 +10,19 @@ shift
 
 # Compile the test with any additional source files passed
 g++ -std=c++20 \
+    -DFMT_HEADER_ONLY \
     -I$ROOT_DIR \
     -I$ROOT_DIR/UnleashedRecomp \
     -I$ROOT_DIR/UnleashedRecomp/kernel \
     -I$ROOT_DIR/UnleashedRecomp/cpu \
     -I$ROOT_DIR/tools/XenonRecomp/XenonUtils \
     -I$ROOT_DIR/tools/XenonRecomp/thirdparty/simde \
+    -I$ROOT_DIR/tools/XenonRecomp/thirdparty/fmt/include \
+    -I$ROOT_DIR/tools/XenonRecomp/thirdparty/xxHash \
+    -I$ROOT_DIR/thirdparty/ankerl/unordered_dense/include \
+    -I$ROOT_DIR/thirdparty/boost/include \
+    -I$ROOT_DIR/thirdparty/magic_enum/include \
+    -I$ROOT_DIR/thirdparty/SDL/include \
     -D_GNU_SOURCE \
     -Wno-psabi \
     "$MAIN_TEST_FILE" "$@" -o test_binary

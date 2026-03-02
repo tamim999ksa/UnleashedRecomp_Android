@@ -4,7 +4,7 @@ if (WIN32)
     option(XENOS_RECOMP_DXIL "Generate DXIL shader cache" ON)
 endif()
 
-find_package(TBB REQUIRED)
+find_package(TBB CONFIG REQUIRED)
 
 set(SMOLV_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../thirdparty/smol-v/source")
 

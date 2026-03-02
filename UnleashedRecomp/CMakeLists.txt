@@ -1,5 +1,7 @@
 project("UnleashedRecomp")
 
+find_package(TBB CONFIG REQUIRED)
+
 
 
 if (ANDROID AND CMAKE_CROSSCOMPILING)
@@ -24,7 +26,7 @@ function(BIN2C)
     cmake_parse_arguments(BIN2C_ARGS "" "TARGET_OBJ;SOURCE_FILE;DEST_FILE;ARRAY_NAME;COMPRESSION_TYPE" "" ${ARGN})
 
 
-find_package(TBB REQUIRED)
+
 
     if(NOT BIN2C_ARGS_TARGET_OBJ)
         message(FATAL_ERROR "TARGET_OBJ not specified.")
@@ -283,6 +285,15 @@ GenerateVersionSources(
     SHOW_BUILD_TYPE ${SHOW_GIT_INFO_AND_BUILD_TYPE}
 )
 
+if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    include(CheckCXXSymbolExists)
+    check_cxx_symbol_exists(_LIBCPP_VERSION version LIBCPP)
+    if(LIBCPP)
+        # Allows using std::execution
+        add_compile_options(-fexperimental-library)
+    endif()
+endif()
+
 add_library(UnleashedRecomp SHARED ${UNLEASHED_RECOMP_CXX_SOURCES})
 set_target_properties(UnleashedRecomp PROPERTIES OUTPUT_NAME "main")
 
@@ -472,11 +483,3 @@ target_compile_features(GuestResourceTest PRIVATE cxx_std_20)
 add_test(NAME GuestResourceTest COMMAND GuestResourceTest)
 endif()
 
-if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-    include(CheckCXXSymbolExists)
-    check_cxx_symbol_exists(_LIBCPP_VERSION version LIBCPP)
-    if(LIBCPP)
-        # Allows using std::execution
-        add_compile_options(-fexperimental-library)
-    endif()
-endif()
