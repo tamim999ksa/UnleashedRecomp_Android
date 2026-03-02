@@ -22,7 +22,6 @@ reset_submodule() {
 }
 
 # Reset all submodules to ensure a clean state before applying overrides
-# This is crucial for local dev and CI idempotency
 reset_submodule "tools/XenonRecomp" "XenonRecomp"
 reset_submodule "tools/XenosRecomp" "XenosRecomp"
 reset_submodule "thirdparty/nativefiledialog-extended" "nativefiledialog-extended"

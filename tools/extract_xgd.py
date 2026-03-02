@@ -65,22 +65,6 @@ def extract_xgd(iso_path, output_dir):
                 dir_data = f.read(dir_size)
 
                 # Each directory is a binary search tree. Each node is 14 bytes + name.
-                # Format:
-                # 0x00: Left Child index (uint16)
-                # 0x02: Right Child index (uint16)
-                # 0x04: Data Sector (uint32)
-                # 0x08: Data Size (uint32)
-                # 0x0C: Attributes (uint8)
-                # 0x0D: Name Length (uint8)
-                # 0x0E: Name (char[name_len])
-
-                # The indices are node indices within the same directory entry list.
-                # Nodes are 4-byte aligned. Each node index is (offset / 4).
-
-                # To simplify and ensure we don't miss anything, we'll scan the whole directory buffer.
-                # Valid nodes must have a non-zero name length and valid child pointers.
-
-                # Use a set to track processed offsets to avoid infinite loops if BST is corrupted
                 processed_offsets = set()
                 pending_node_indices = [0] # Root of the directory tree is always node 0
 
@@ -119,10 +103,6 @@ def extract_xgd(iso_path, output_dir):
                             queue.append((full_rel_path, sector, size))
                     else: # File
                         print(f"Found {full_rel_path} ({size} bytes)...")
-                        # We only care about mandatory files, but for robustness we'll extract them.
-                        # Flatten to root of output_dir OR keep structure?
-                        # release.yml's finalize_file handles flat/lowercase but structure is safer.
-
                         out_full_path = os.path.join(output_dir, full_rel_path)
                         os.makedirs(os.path.dirname(out_full_path), exist_ok=True)
 

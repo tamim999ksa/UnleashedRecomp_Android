@@ -86,9 +86,6 @@ def extract_stfs(file_path, output_dir):
 
                         while remaining > 0:
                             # Calculate physical offset
-                            # STFS uses 170 data blocks followed by a hash block,
-                            # then 170*170 data blocks followed by a level 1 hash block, etc.
-                            # The file system starts at 0xC000.
                             phys_block = current_block + (current_block // 170) + (current_block // 28900)
                             offset = 0xC000 + phys_block * 0x1000
 
@@ -133,8 +130,6 @@ def extract_stfs(file_path, output_dir):
 
             if extracted_count == 0 and overall_success:
                 print("No files found in STFS package file table.")
-                # We return True here if the table was simply empty but valid
-                # But usually an empty STFS is not useful.
                 return False
 
             if not overall_success:
