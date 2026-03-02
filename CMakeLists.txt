@@ -24,7 +24,12 @@ endif()
 set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 
 project("UnleashedRecomp-ALL")
-find_package(TBB CONFIG REQUIRED)
+
+# Try to find TBB via CONFIG (vcpkg) or system packages
+find_package(TBB CONFIG)
+if(NOT TBB_FOUND)
+    find_package(TBB REQUIRED)
+endif()
 
 enable_testing()
 

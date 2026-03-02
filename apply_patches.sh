@@ -55,4 +55,9 @@ else
     false
 fi
 
+# Ensure DXC binaries are executable (git submodules may lose permissions)
+echo "Setting executable permissions for DXC binaries..."
+find tools/XenosRecomp/thirdparty/dxc-bin/bin -type f -name "dxc-linux" -exec chmod +x {} +
+find tools/XenosRecomp/thirdparty/dxc-bin/bin -type f -name "dxc-macos" -exec chmod +x {} +
+
 echo "=== Overrides applied successfully ==="

@@ -8,6 +8,17 @@ cd "$(dirname "$0")"
 OUTPUT_BIN_DIR="$(pwd)/build_tools/bin"
 mkdir -p "$OUTPUT_BIN_DIR"
 
+# Detect architecture
+ARCH=$(uname -m)
+if [ "$ARCH" == "x86_64" ] || [ "$ARCH" == "amd64" ]; then
+    DXC_ARCH="x64"
+elif [ "$ARCH" == "aarch64" ] || [ "$ARCH" == "arm64" ]; then
+    DXC_ARCH="arm64"
+else
+    echo "Unsupported architecture: $ARCH"
+    false
+fi
+
 # Apply all patches
 if [ -f "./apply_patches.sh" ]; then
     ./apply_patches.sh
@@ -73,13 +84,14 @@ copy_tool "XenosRecomp"
 
 cd ../..
 
-# Copy libdxcompiler.so
-cp tools/XenosRecomp/thirdparty/dxc-bin/lib/x64/libdxcompiler.so "$OUTPUT_BIN_DIR/"
-echo "Copied libdxcompiler.so"
+# Copy libdxcompiler.so and libdxil.so from the correct architecture directory
+cp "tools/XenosRecomp/thirdparty/dxc-bin/lib/$DXC_ARCH/libdxcompiler.so" "$OUTPUT_BIN_DIR/"
+echo "Copied libdxcompiler.so ($DXC_ARCH)"
 
-# Copy libdxil.so
-cp tools/XenosRecomp/thirdparty/dxc-bin/lib/x64/libdxil.so "$OUTPUT_BIN_DIR/"
-echo "Copied libdxil.so"
+if [ -f "tools/XenosRecomp/thirdparty/dxc-bin/lib/$DXC_ARCH/libdxil.so" ]; then
+    cp "tools/XenosRecomp/thirdparty/dxc-bin/lib/$DXC_ARCH/libdxil.so" "$OUTPUT_BIN_DIR/"
+    echo "Copied libdxil.so ($DXC_ARCH)"
+fi
 
 echo "Build tools ready in $OUTPUT_BIN_DIR"
 ls -l "$OUTPUT_BIN_DIR"

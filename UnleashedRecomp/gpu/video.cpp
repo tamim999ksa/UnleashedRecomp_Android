@@ -7454,8 +7454,9 @@ static void PipelineTaskConsumerThread()
                 for (auto vertexElements : g_vertexDeclarationCache)
                     CreateVertexDeclarationWithoutAddRef(reinterpret_cast<GuestVertexElement*>(vertexElements));
 
-                for (auto pipelineState : g_pipelineStateCache)
+                for (const auto& templateState : g_pipelineStateCache)
                 {
+                    auto pipelineState = templateState;
                     // The hashes were reinterpret casted to pointers in the cache.
                     pipelineState.vertexShader = FindShaderCacheEntry(reinterpret_cast<XXH64_hash_t>(pipelineState.vertexShader))->guestShader;
 
