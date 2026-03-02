@@ -1,20 +1,22 @@
 project("UnleashedRecompLib")
 
 set(MISSING_ASSETS "")
-if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/private/default.xex")
-    list(APPEND MISSING_ASSETS "default.xex")
-endif()
+if(NOT BUILD_TOOLS_ONLY)
+    if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/private/default.xex")
+        list(APPEND MISSING_ASSETS "default.xex")
+    endif()
 
-if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/private/shader.ar")
-    list(APPEND MISSING_ASSETS "shader.ar")
-endif()
+    if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/private/shader.ar")
+        list(APPEND MISSING_ASSETS "shader.ar")
+    endif()
 
-if(MISSING_ASSETS)
-    message(FATAL_ERROR "\n\n[UnleashedRecomp] ERROR: Missing original game assets in UnleashedRecompLib/private/:\n"
-                        "  ${MISSING_ASSETS}\n\n"
-                        "To fix this:\n"
-                        "1. Local build: Place the original game files in UnleashedRecompLib/private/\n"
-                        "2. GitHub Actions: Ensure \"game_url\" and \"dlc_url\" inputs are provided correctly.\n\n")
+    if(MISSING_ASSETS)
+        message(FATAL_ERROR "\n\n[UnleashedRecomp] ERROR: Missing original game assets in UnleashedRecompLib/private/:\n"
+                            "  ${MISSING_ASSETS}\n\n"
+                            "To fix this:\n"
+                            "1. Local build: Place the original game files in UnleashedRecompLib/private/\n"
+                            "2. GitHub Actions: Ensure \"game_url\" and \"dlc_url\" inputs are provided correctly.\n\n")
+    endif()
 endif()
 
 add_compile_options(

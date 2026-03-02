@@ -10,7 +10,7 @@ mkdir -p "$OUTPUT_BIN_DIR"
 
 # Detect architecture
 ARCH=$(uname -m)
-if [ "$ARCH" == "x86_64" ] || [ "$ARCH" == "amd64" ]; then
+if [ "$ARCH" == "x86_64" ] || [ "$ARCH" == "amd64" ] || [ "$ARCH" == "x64" ]; then
     DXC_ARCH="x64"
 elif [ "$ARCH" == "aarch64" ] || [ "$ARCH" == "arm64" ]; then
     DXC_ARCH="arm64"
@@ -21,11 +21,25 @@ fi
 
 # Apply all patches
 if [ -f "./apply_patches.sh" ]; then
+    chmod +x apply_patches.sh
     ./apply_patches.sh
 else
     echo "Error: apply_patches.sh not found!"
     false
 fi
+
+# Install function using absolute path
+copy_tool() {
+    local tool_name=$1
+    local tool_path=$(find . -name "$tool_name" -type f -executable | head -n 1)
+    if [ -n "$tool_path" ]; then
+        cp "$tool_path" "$OUTPUT_BIN_DIR/"
+        echo "Copied $tool_name to $OUTPUT_BIN_DIR"
+    else
+        echo "Error: Could not find executable for $tool_name"
+        false
+    fi
+}
 
 echo "=== Building GCC compatible tools ==="
 rm -rf build_tools/build_gcc
@@ -41,19 +55,6 @@ cmake ../.. -DCMAKE_BUILD_TYPE=Release -DBUILD_TOOLS_ONLY=ON
 # Build
 cmake --build . --target file_to_c fshasher x_decompress bc_diff --parallel 2
 
-# Install function using absolute path
-copy_tool() {
-    local tool_name=$1
-    local tool_path=$(find . -name "$tool_name" -type f -executable | head -n 1)
-    if [ -n "$tool_path" ]; then
-        cp "$tool_path" "$OUTPUT_BIN_DIR/"
-        echo "Copied $tool_name to $OUTPUT_BIN_DIR"
-    else
-        echo "Error: Could not find executable for $tool_name"
-        false
-    fi
-}
-
 copy_tool "file_to_c"
 copy_tool "fshasher"
 copy_tool "x_decompress"
@@ -62,9 +63,6 @@ copy_tool "bc_diff"
 cd ../..
 
 echo "=== Building host tools (XenonRecomp/XenosRecomp) ==="
-# XenonUtils requires MSVC extensions which we enable via CMakeLists.txt patch.
-# We use g++ to avoid segmentation faults in fmt caused by Clang compilation.
-
 rm -rf build_tools/build_clang
 mkdir -p build_tools/build_clang
 cd build_tools/build_clang

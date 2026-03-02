@@ -192,6 +192,8 @@ jobs:
           fi
 
           # Recursive extraction: check if we extracted an ISO, another archive, or STFS container
+            echo "Current contents of ./UnleashedRecompLib/private/ before finalization:"
+            ls -R ./UnleashedRecompLib/private/
           echo "Checking for nested archives/ISOs/STFS in ./UnleashedRecompLib/private/..."
           # Max 5 levels of nesting
           for i in {1..5}; do
@@ -204,14 +206,26 @@ jobs:
 
             echo "Processing nested item (iteration $i): $nested"
 
+            # Use extension to decide extractor
+            filename=$(basename "$nested")
+            extension="${filename##*.}"
+            is_iso=0
+            if [ "$extension" == "iso" ] || [ "$extension" == "ISO" ]; then
+                is_iso=1
+            fi
+
             if 7z x -y "$nested" -o./UnleashedRecompLib/private/ > /dev/null 2>&1; then
               echo "Successfully extracted with 7z: $nested"
               mv "$nested" "${nested}.extracted"
-            elif python3 tools/extract_stfs.py "$nested" ./UnleashedRecompLib/private/; then
+            elif [ "$is_iso" -eq 0 ] && python3 tools/extract_stfs.py "$nested" ./UnleashedRecompLib/private/; then
               echo "Successfully extracted with extract_stfs.py: $nested"
               mv "$nested" "${nested}.extracted"
             else
-              echo "Warning: Failed to extract $nested, skipping..."
+              if [ "$is_iso" -eq 1 ]; then
+                 echo "Warning: 7z failed to extract ISO $nested. It might be an XGD (Xbox Game Disc) image which requires specialized tools like extract-xiso."
+              else
+                 echo "Warning: Failed to extract $nested, skipping..."
+              fi
               mv "$nested" "${nested}.skipped"
             fi
           done
@@ -219,6 +233,8 @@ jobs:
           # Final search and move to ensure files are at the root of private/ and lowercase
           echo "Organizing and normalizing files in ./UnleashedRecompLib/private/..."
 
+          echo "Current contents of ./UnleashedRecompLib/private/ before finalization:"
+          ls -R ./UnleashedRecompLib/private/
           finalize_file() {
             local filename="$1"
             local target_path="./UnleashedRecompLib/private/$filename"
