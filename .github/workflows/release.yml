@@ -127,7 +127,7 @@ jobs:
           DLC_URL: ${{ inputs.dlc_url }}
         run: |
           # Verify critical dependencies
-          for cmd in 7z wget python3 extract-xiso; do
+          for cmd in 7z wget python3; do
             if ! command -v $cmd &> /dev/null; then
               echo "::error::Required command '$cmd' not found!"
               false
@@ -192,11 +192,14 @@ jobs:
             success=0
             # Order: extract-xiso (ISO) -> extract_xgd.py (XGD fallback) -> extract_stfs.py -> 7z
             if [[ "$nested" =~ \.[Ii][Ss][Oo]$ ]]; then
-               echo "Attempting extract-xiso for: $nested"
-               if extract-xiso -x "$nested" -d ./UnleashedRecompLib/private/ ; then
-                 echo "Successfully extracted with extract-xiso: $nested"
-                 success=1
-               elif python3 tools/extract_xgd.py "$nested" ./UnleashedRecompLib/private/ ; then
+               if command -v extract-xiso &> /dev/null; then
+                 echo "Attempting extract-xiso for: $nested"
+                 if extract-xiso -x "$nested" -d ./UnleashedRecompLib/private/ ; then
+                   echo "Successfully extracted with extract-xiso: $nested"
+                   success=1
+                 fi
+               fi
+               if [ "$success" -eq 0 ] && python3 tools/extract_xgd.py "$nested" ./UnleashedRecompLib/private/ ; then
                  echo "Successfully extracted with extract_xgd.py: $nested"
                  success=1
                fi
