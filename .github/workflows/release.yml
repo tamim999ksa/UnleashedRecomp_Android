@@ -73,7 +73,7 @@ jobs:
 
       - name: Setup Android SDK (Android only)
         if: ${{ (inputs.os == 'android' || github.event_name == 'push') }}
-        uses: android-actions/setup-android@v3.2.1
+        uses: android-actions/setup-android@v4
 
       - name: Install Android NDK (Android only)
         if: ${{ (inputs.os == 'android' || github.event_name == 'push') }}
@@ -178,10 +178,11 @@ jobs:
 
           # Recursive extraction: check for archives, ISOs, or STFS containers
           echo "Checking for archives/ISOs/STFS in ./UnleashedRecompLib/private/..."
+          ls -R ./UnleashedRecompLib/private/
           # Max 5 levels of nesting
           for i in {1..5}; do
             # Find files that look like archives, STFS, or our downloads
-            nested=$(find ./UnleashedRecompLib/private -type f \( -iname "*.iso" -o -iname "*.7z" -o -iname "*.zip" -o -iname "*.rar" -o -iname "TU_*" -o -iname "*.tar*" -o -iname "download_*" -o -iregex ".*/[0-9A-F]{8,42}" \) -not -name "*.skipped" -not -name "*.extracted" | head -n 1)
+            nested=$(find ./UnleashedRecompLib/private -type f \( -iname "*.iso" -o -iname "*.7z" -o -iname "*.zip" -o -iname "*.rar" -o -iname "TU_*" -o -iname "*.tar*" -o -iname "download_*" -o -iregex ".*/[0-9A-F]\{8,42\}" \) -not -name "*.skipped" -not -name "*.extracted" | head -n 1)
 
             if [ -z "$nested" ]; then
               break
@@ -191,16 +192,16 @@ jobs:
 
             success=0
             # Try 7z first
-            if 7z x -y "$nested" -o./UnleashedRecompLib/private/ > /dev/null 2>&1; then
+            if 7z x -y "$nested" -o./UnleashedRecompLib/private/ ; then
               echo "Successfully extracted with 7z: $nested"
               success=1
             # Then try XGD extractor (ISO)
-            elif python3 tools/extract_xgd.py "$nested" ./UnleashedRecompLib/private/ > /dev/null 2>&1;
+            elif python3 tools/extract_xgd.py "$nested" ./UnleashedRecompLib/private/ ;
             then
               echo "Successfully extracted with extract_xgd.py: $nested"
               success=1
             # Then try STFS extractor
-            elif python3 tools/extract_stfs.py "$nested" ./UnleashedRecompLib/private/ > /dev/null 2>&1;
+            elif python3 tools/extract_stfs.py "$nested" ./UnleashedRecompLib/private/ ;
             then
               echo "Successfully extracted with extract_stfs.py: $nested"
               success=1
@@ -224,7 +225,7 @@ jobs:
 
               # Find all candidates case-insensitively
             local candidates=$(find ./UnleashedRecompLib/private -type f -iname "$filename" | { grep -vFx "$target_path" || true; })
-            local candidate_count=$(echo "$candidates" | grep -c / || true)
+            local candidate_count=$(echo "$candidates" | grep -v "^$" | wc -l || true)
 
             if [ "$candidate_count" -gt 0 ]; then
             local found_file=""
@@ -257,6 +258,7 @@ jobs:
 
           finalize_file "default.xex"
           finalize_file "default.xexp"
+          ls -R ./UnleashedRecompLib/private/
           finalize_file "shader.ar"
 
           # Verification and diagnostics
@@ -280,6 +282,7 @@ jobs:
           echo "Final contents of ./UnleashedRecompLib/private/:"
           find ./UnleashedRecompLib/private/ -maxdepth 5 -not -path "*/.*"
           echo "Verification successful. Contents of ./UnleashedRecompLib/private/:"
+          sha256sum ./UnleashedRecompLib/private/default.xex ./UnleashedRecompLib/private/shader.ar
           ls -lh ./UnleashedRecompLib/private/
       - name: Build APK (Android only)
         if: ${{ (inputs.os == 'android' || github.event_name == 'push') }}
