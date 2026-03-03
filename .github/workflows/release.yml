@@ -103,7 +103,7 @@ jobs:
 
           # Recursive extraction
           for i in {1..15}; do
-            nested=$(find ./UnleashedRecompLib/private -type f \( -iname "*.iso" -o -iname "*.7z" -o -iname "*.zip" -o -iname "*.rar" -o -iname "TU_*" -o -iname "*.tar*" -o -iname "download_*" -o -iregex ".*/[0-9A-F]\\{8,42\\}" \) -not -name "*.skipped" | head -n 1)
+            nested=$(find ./UnleashedRecompLib/private -type f \( -iname "*.iso" -o -iname "*.7z" -o -iname "*.zip" -o -iname "*.rar" -o -iname "TU_*" -o -iname "*.tar*" -o -iname "download_*" -o -iregex ".*/[0-9a-fA-F]\\{8,42\\}" \) -not -name "*.skipped" | head -n 1)
             if [ -z "$nested" ]; then break; fi
             success=0
             if [[ "$nested" =~ \.[Ii][Ss][Oo]$ ]]; then
@@ -172,6 +172,26 @@ jobs:
         with:
           name: prepared-assets
           path: ./UnleashedRecompLib/private/
+
+      - name: Setup Java
+        if: env.OS == 'android'
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          cache: 'gradle'
+
+      - name: Setup Android SDK
+        if: env.OS == 'android'
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android NDK
+        if: env.OS == 'android'
+        run: echo y | sdkmanager "ndk;29.0.14206865"
+
+      - name: Bootstrap vcpkg
+        if: env.OS == 'android' || env.OS == 'linux'
+        run: ./thirdparty/vcpkg/bootstrap-vcpkg.sh
 
       - name: Setup Linux Dependencies
         if: runner.os == 'Linux'
