@@ -34,14 +34,25 @@ def extract_xgd(iso_path, output_dir):
 
     try:
         with open(iso_path, 'rb') as f:
-            data = f.read(min(file_size, 1024 * 1024))
+            # Read up to 64MB to cover XGD3 partition offsets
+            data = f.read(min(file_size, 64 * 1024 * 1024))
             gdfx_offset = -1
-            for offset in range(0, len(data) - 20, 0x800):
-                if data[offset:offset+20] == GDFX_MAGIC:
-                    gdfx_offset = offset
+
+            # Check common offsets first for speed
+            for off in [0x10000, 0x12000, 0x2080000]:
+                if off + 20 <= len(data) and data[off:off+20] == GDFX_MAGIC:
+                    gdfx_offset = off
                     break
 
             if gdfx_offset == -1:
+                # Sector-aligned scan fallback
+                for offset in range(0, len(data) - 20, 0x800):
+                    if data[offset:offset+20] == GDFX_MAGIC:
+                        gdfx_offset = offset
+                        break
+
+            if gdfx_offset == -1:
+                # Last resort: find anywhere in the buffer
                 gdfx_offset = data.find(GDFX_MAGIC)
 
             if gdfx_offset == -1:

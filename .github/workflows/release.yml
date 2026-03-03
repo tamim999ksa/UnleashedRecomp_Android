@@ -138,7 +138,7 @@ jobs:
           handle_url() {
             local url="$1"
             local target_name="$2"
-            local temp_file="${{ runner.temp }}/$(basename "$target_name")_data"
+            local dest_file="./UnleashedRecompLib/private/download_${target_name}"
 
             if [ -z "$url" ]; then
               echo "Warning: No URL provided for $target_name"
@@ -148,48 +148,18 @@ jobs:
             echo "Downloading $target_name from URL (masked for safety)..."
             echo "::add-mask::$url"
 
-            if ! wget --no-check-certificate --content-disposition --tries=3 --retry-connrefused --waitretry=5 -qO "$temp_file" "$url"; then
+            if ! wget --no-check-certificate --content-disposition --tries=3 --retry-connrefused --waitretry=5 -qO "$dest_file" "$url"; then
               echo "Error: Failed to download $target_name"
               return 1
             fi
 
-            if [ ! -s "$temp_file" ]; then
+            if [ ! -s "$dest_file" ]; then
               echo "Error: Downloaded file for $target_name is empty!"
-              rm -f "$temp_file"
+              rm -f "$dest_file"
               return 1
             fi
 
-            # Check for archive type
-            if 7z l "$temp_file" > /dev/null 2>&1; then
-               echo "Detected archive for $target_name, extracting..."
-               if ! 7z x -y "$temp_file" -o./UnleashedRecompLib/private/; then
-                 echo "Error: Failed to extract $target_name archive"
-                 rm -f "$temp_file"
-                 return 1
-               fi
-               rm -f "$temp_file"
-            else
-               # Check for ISO or raw file
-               local file_type=$(file "$temp_file")
-               if echo "$file_type" | grep -qi "iso"; then
-                  echo "Detected ISO file for $target_name, extracting contents..."
-                  if ! 7z x -y "$temp_file" -o./UnleashedRecompLib/private/; then
-                    echo "Warning: Failed to extract ISO contents cleanly, proceeding anyway..."
-                  fi
-                  rm -f "$temp_file"
-               else
-                  case "$target_name" in
-                    game)
-                      echo "Assuming raw XEX file for game"
-                      mv "$temp_file" ./UnleashedRecompLib/private/default.xex
-                      ;;
-                    *)
-                      echo "Using raw file as $target_name"
-                      mv "$temp_file" "./UnleashedRecompLib/private/$target_name"
-                      ;;
-                  esac
-               fi
-            fi
+            echo "Successfully downloaded $target_name to $dest_file"
             return 0
           }
 
@@ -206,45 +176,40 @@ jobs:
             find ./private -maxdepth 5 -type f -iname "shader.ar" -exec cp -f {} ./UnleashedRecompLib/private/shader.ar \; 2>/dev/null || true
           fi
 
-          # Recursive extraction: check if we extracted an ISO, another archive, or STFS container
-            echo "Current contents of ./UnleashedRecompLib/private/ before finalization:"
-          ls -R ./UnleashedRecompLib/private/
-          echo "Checking for nested archives/ISOs/STFS in ./UnleashedRecompLib/private/..."
+          # Recursive extraction: check for archives, ISOs, or STFS containers
+          echo "Checking for archives/ISOs/STFS in ./UnleashedRecompLib/private/..."
           # Max 5 levels of nesting
           for i in {1..5}; do
-            # Find files that look like archives or STFS
-            nested=$(find ./UnleashedRecompLib/private -type f \( -iname "*.iso" -o -iname "*.7z" -o -iname "*.zip" -o -iname "*.rar" -o -iname "TU_*" -o -iname "*.tar*" -o -iregex ".*/[0-9A-F]{8,42}" \) -not -name "*.skipped" -not -name "*.extracted" | head -n 1)
+            # Find files that look like archives, STFS, or our downloads
+            nested=$(find ./UnleashedRecompLib/private -type f \( -iname "*.iso" -o -iname "*.7z" -o -iname "*.zip" -o -iname "*.rar" -o -iname "TU_*" -o -iname "*.tar*" -o -iname "download_*" -o -iregex ".*/[0-9A-F]{8,42}" \) -not -name "*.skipped" -not -name "*.extracted" | head -n 1)
 
             if [ -z "$nested" ]; then
               break
             fi
 
-            echo "Processing nested item (iteration $i): $nested"
-            ls -R ./UnleashedRecompLib/private/
+            echo "Processing item (iteration $i): $nested"
 
-            # Use extension to decide extractor
-            filename=$(basename "$nested")
-            extension="${filename##*.}"
-            is_iso=0
-            if [ "$extension" == "iso" ] || [ "$extension" == "ISO" ]; then
-                is_iso=1
+            success=0
+            # Try 7z first
+            if 7z x -y "$nested" -o./UnleashedRecompLib/private/ > /dev/null 2>&1; then
+              echo "Successfully extracted with 7z: $nested"
+              success=1
+            # Then try XGD extractor (ISO)
+            elif python3 tools/extract_xgd.py "$nested" ./UnleashedRecompLib/private/ > /dev/null 2>&1;
+            then
+              echo "Successfully extracted with extract_xgd.py: $nested"
+              success=1
+            # Then try STFS extractor
+            elif python3 tools/extract_stfs.py "$nested" ./UnleashedRecompLib/private/ > /dev/null 2>&1;
+            then
+              echo "Successfully extracted with extract_stfs.py: $nested"
+              success=1
             fi
 
-            if 7z x -y "$nested" -o./UnleashedRecompLib/private/; then
-              echo "Successfully extracted with 7z: $nested"
-              mv "$nested" "${nested}.extracted"
-            elif [ "$is_iso" -eq 1 ] && python3 tools/extract_xgd.py "$nested" ./UnleashedRecompLib/private/; then
-              echo "Successfully extracted with extract_xgd.py: $nested"
-              mv "$nested" "${nested}.extracted"
-            elif [ "$is_iso" -eq 0 ] && python3 tools/extract_stfs.py "$nested" ./UnleashedRecompLib/private/; then
-              echo "Successfully extracted with extract_stfs.py: $nested"
+            if [ "$success" -eq 1 ]; then
               mv "$nested" "${nested}.extracted"
             else
-              if [ "$is_iso" -eq 1 ]; then
-                 echo "Warning: 7z and extract_xgd.py failed to extract ISO $nested. It might be corrupted or an unsupported format."
-              else
-                 echo "Warning: Failed to extract $nested, skipping..."
-              fi
+              echo "Warning: Failed to extract $nested with any tool, skipping..."
               mv "$nested" "${nested}.skipped"
             fi
           done
@@ -312,6 +277,8 @@ jobs:
             exit 1
           fi
 
+          echo "Final contents of ./UnleashedRecompLib/private/:"
+          find ./UnleashedRecompLib/private/ -maxdepth 5 -not -path "*/.*"
           echo "Verification successful. Contents of ./UnleashedRecompLib/private/:"
           ls -lh ./UnleashedRecompLib/private/
       - name: Build APK (Android only)
