@@ -1,7 +1,0 @@
-Fix release.yml and TBB dependencies
-
-- Replaced 'yes | sdkmanager' with 'echo y | sdkmanager' to fix CI broken pipe.
-- Added libtbb-dev and libcurl4-openssl-dev to runner setup.
-- Added tbb to vcpkg.json and configured CMake to link TBB::tbb.
-- Added -fexperimental-library for Clang parallel algorithms support.
-- Fixed missing <iterator> includes in several headers.

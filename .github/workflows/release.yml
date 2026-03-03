@@ -127,7 +127,7 @@ jobs:
           DLC_URL: ${{ inputs.dlc_url }}
         run: |
           # Verify critical dependencies
-          for cmd in 7z wget python3; do
+          for cmd in 7z wget python3 extract-xiso; do
             if ! command -v $cmd &> /dev/null; then
               echo "::error::Required command '$cmd' not found!"
               false
@@ -141,25 +141,25 @@ jobs:
             local dest_file="./UnleashedRecompLib/private/download_${target_name}"
 
             if [ -z "$url" ]; then
-              echo "Warning: No URL provided for $target_name"
+              echo "Warning: No URL provided for ${target_name}"
               return 0
             fi
 
-            echo "Downloading $target_name from URL (masked for safety)..."
-            echo "::add-mask::$url"
+            echo "Downloading ${target_name} from URL (masked for safety)..."
+            echo "::add-mask::${url}"
 
-            if ! wget --no-check-certificate --content-disposition --tries=3 --retry-connrefused --waitretry=5 -qO "$dest_file" "$url"; then
-              echo "Error: Failed to download $target_name"
+            if ! wget --no-check-certificate --content-disposition --tries=3 --retry-connrefused --waitretry=5 -qO "${dest_file}" "${url}"; then
+              echo "Error: Failed to download ${target_name}"
               return 1
             fi
 
-            if [ ! -s "$dest_file" ]; then
-              echo "Error: Downloaded file for $target_name is empty!"
-              rm -f "$dest_file"
+            if [ ! -s "${dest_file}" ]; then
+              echo "Error: Downloaded file for ${target_name} is empty!"
+              rm -f "${dest_file}"
               return 1
             fi
 
-            echo "Successfully downloaded $target_name to $dest_file"
+            echo "Successfully downloaded ${target_name} to ${dest_file}"
             return 0
           }
 
@@ -178,11 +178,10 @@ jobs:
 
           # Recursive extraction: check for archives, ISOs, or STFS containers
           echo "Checking for archives/ISOs/STFS in ./UnleashedRecompLib/private/..."
-          ls -R ./UnleashedRecompLib/private/
-          # Max 5 levels of nesting
-          for i in {1..25}; do
+          # Max 15 iterations for deep nesting
+          for i in {1..15}; do
             # Find files that look like archives, STFS, or our downloads
-            nested=$(find ./UnleashedRecompLib/private -type f \( -iname "*.iso" -o -iname "*.7z" -o -iname "*.zip" -o -iname "*.rar" -o -iname "TU_*" -o -iname "*.tar*" -o -iname "download_*" -o -iregex ".*/[0-9A-F]\{8,42\}" \) -not -name "*.skipped" -not -name "*.extracted" | head -n 1)
+            nested=$(find ./UnleashedRecompLib/private -type f \( -iname "*.iso" -o -iname "*.7z" -o -iname "*.zip" -o -iname "*.rar" -o -iname "TU_*" -o -iname "*.tar*" -o -iname "download_*" -o -iregex ".*/[0-9A-F]\\{8,42\\}" \) -not -name "*.skipped" | head -n 1)
 
             if [ -z "$nested" ]; then
               break
@@ -191,10 +190,16 @@ jobs:
             echo "Processing item (iteration $i): $nested"
 
             success=0
-            # Try specialized extractors first to avoid 7z incorrectly "succeeding" on ISOs/STFS (extracting only Video partition)
-            if python3 tools/extract_xgd.py "$nested" ./UnleashedRecompLib/private/ ; then
-              echo "Successfully extracted with extract_xgd.py: $nested"
-              success=1
+            # Order: extract-xiso (ISO) -> extract_xgd.py (XGD fallback) -> extract_stfs.py -> 7z
+            if [[ "$nested" =~ \.[Ii][Ss][Oo]$ ]]; then
+               echo "Attempting extract-xiso for: $nested"
+               if extract-xiso -x "$nested" -d ./UnleashedRecompLib/private/ ; then
+                 echo "Successfully extracted with extract-xiso: $nested"
+                 success=1
+               elif python3 tools/extract_xgd.py "$nested" ./UnleashedRecompLib/private/ ; then
+                 echo "Successfully extracted with extract_xgd.py: $nested"
+                 success=1
+               fi
             elif python3 tools/extract_stfs.py "$nested" ./UnleashedRecompLib/private/ ; then
               echo "Successfully extracted with extract_stfs.py: $nested"
               success=1
@@ -204,82 +209,62 @@ jobs:
             fi
 
             if [ "$success" -eq 1 ]; then
-              mv "$nested" "${nested}.extracted"
+              echo "Cleaning up extracted source: $nested"
+              rm -f "$nested"
             else
               echo "Warning: Failed to extract $nested with any tool, skipping..."
               mv "$nested" "${nested}.skipped"
             fi
           done
 
-          # Final search and move to ensure files are at the root of private/ and lowercase
-          echo "Organizing and normalizing files in ./UnleashedRecompLib/private/..."
+          # Final search and move to ensure ALL files are correctly positioned and lowercase
+          echo "Organizing, flattening, and normalizing ALL files in ./UnleashedRecompLib/private/..."
 
-          echo "Current contents of ./UnleashedRecompLib/private/ before finalization:"
-          finalize_file() {
-            local filename="$1"
-            local target_path="./UnleashedRecompLib/private/$filename"
-
-              # Find all candidates case-insensitively
-            local candidates=$(find ./UnleashedRecompLib/private -type f -iname "$filename" | { grep -vFx "$target_path" || true; })
-            local candidate_count=$(echo "$candidates" | grep -v "^$" | wc -l || true)
-
-            if [ "$candidate_count" -gt 0 ]; then
-            local found_file=""
-            if [ "$candidate_count" -gt 1 ]; then
-            echo "Warning: Multiple candidates for $filename found:"
-            echo "$candidates"
-              # Prioritization: Prefer files NOT in 'game' or 'base' folders (likely TUs)
-              found_file=$(echo "$candidates" | grep -vE "/(game|base)/" | head -n 1)
-            if [ -z "$found_file" ]; then
-              found_file=$(echo "$candidates" | head -n 1)
+          # 1. Locate the actual game root (where default.xex is)
+          game_root=$(find ./UnleashedRecompLib/private -name "default.xex" -o -name "DEFAULT.XEX" | head -n 1)
+          if [ -n "$game_root" ]; then
+            game_dir=$(dirname "$game_root")
+            if [ "$game_dir" != "./UnleashedRecompLib/private" ]; then
+              echo "Game root found at $game_dir, moving contents to ./UnleashedRecompLib/private/"
+              # Move everything from the discovered game dir to the expected private/ root
+              # Preserve structure relative to game_dir
+              cp -rn "$game_dir"/* ./UnleashedRecompLib/private/ 2>/dev/null || true
             fi
-            echo "Selected: $found_file"
+          fi
+
+          # 2. Convert everything to lowercase and remove spaces for compatibility
+          # Also remove any empty directories to keep things clean
+          find ./UnleashedRecompLib/private -depth -not -name "*.skipped" | while read -r src; do
+            if [ -d "$src" ]; then
+              # Delete if empty
+              rmdir "$src" 2>/dev/null || true
             else
-              found_file="$candidates"
+              dir=$(dirname "$src")
+              base=$(basename "$src")
+              # Lowercase and remove spaces
+              new_base=$(echo "$base" | tr '[:upper:]' '[:lower:]' | tr -d ' ')
+              if [ "$base" != "$new_base" ]; then
+                mv -f "$src" "$dir/$new_base" 2>/dev/null || true
+              fi
             fi
+          done
 
-            if [ -n "$found_file" ]; then
-            echo "Moving $found_file to root as $filename..."
-            mv -f "$found_file" "$target_path"
-            fi
-            fi
-
-              # If it's already at the root but with wrong case, fix it
-            local root_file=$(find ./UnleashedRecompLib/private -maxdepth 1 -type f -iname "$filename" | head -n 1)
-            if [ -n "$root_file" ] && [ "$root_file" != "$target_path" ]; then
-            echo "Fixing case for $root_file -> $target_path"
-            mv -f "$root_file" "$target_path"
-            fi
-          }
-
-          finalize_file "default.xex"
-          finalize_file "default.xexp"
-          ls -R ./UnleashedRecompLib/private/
-          finalize_file "shader.ar"
-
-          # Verification and diagnostics
-          echo "Verifying mandatory assets..."
-          missing_mandatory=0
+          # Verification
+          echo "Verifying assets..."
           if [ ! -f "./UnleashedRecompLib/private/default.xex" ]; then
-            echo "::error::Mandatory file default.xex not found!"
-            missing_mandatory=1
+            echo "::error::Critical asset default.xex missing!"
+            find ./UnleashedRecompLib/private/ -maxdepth 2
+            exit 1
           fi
           if [ ! -f "./UnleashedRecompLib/private/shader.ar" ]; then
-            echo "::error::Mandatory file shader.ar not found!"
-            missing_mandatory=1
-          fi
-
-          if [ "$missing_mandatory" -eq 1 ]; then
-            echo "Current contents of ./UnleashedRecompLib/private/ (up to depth 5):"
-            find ./UnleashedRecompLib/private/ -maxdepth 5 -not -path '*/.*'
+            echo "::error::Critical asset shader.ar missing!"
+            find ./UnleashedRecompLib/private/ -maxdepth 2
             exit 1
           fi
 
           echo "Final contents of ./UnleashedRecompLib/private/:"
-          find ./UnleashedRecompLib/private/ -maxdepth 5 -not -path "*/.*"
-          echo "Verification successful. Contents of ./UnleashedRecompLib/private/:"
+          ls -R ./UnleashedRecompLib/private/
           sha256sum ./UnleashedRecompLib/private/default.xex ./UnleashedRecompLib/private/shader.ar
-          ls -lh ./UnleashedRecompLib/private/
       - name: Build APK (Android only)
         if: ${{ (inputs.os == 'android' || github.event_name == 'push') }}
         working-directory: android

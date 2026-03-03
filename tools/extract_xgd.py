@@ -34,26 +34,43 @@ def extract_xgd(iso_path, output_dir):
 
     try:
         with open(iso_path, 'rb') as f:
-            # Read up to 64MB to cover XGD3 partition offsets
-            data = f.read(min(file_size, 64 * 1024 * 1024))
+            # Read up to 1GB to cover various partition offsets (XGD3, large padding, etc.)
+            search_limit = min(file_size, 1024 * 1024 * 1024)
+            print(f"Searching for GDFX magic in the first {search_limit / (1024*1024):.1f} MB...")
+
+            # Read in chunks to avoid massive memory usage
+            chunk_size = 64 * 1024 * 1024
             gdfx_offset = -1
 
-            # Check common offsets first for speed
-            for off in [0x10000, 0x12000, 0x2080000]:
-                if off + 20 <= len(data) and data[off:off+20] == GDFX_MAGIC:
-                    gdfx_offset = off
-                    break
+            for base_offset in range(0, search_limit, chunk_size):
+                current_chunk_size = min(chunk_size, search_limit - base_offset)
+                if current_chunk_size < 20: break
 
-            if gdfx_offset == -1:
-                # Sector-aligned scan fallback
+                f.seek(base_offset)
+                data = f.read(current_chunk_size)
+
+                # Check common offsets first in the first chunk
+                if base_offset == 0:
+                    for off in [0x10000, 0x12000, 0x2080000]:
+                        if off + 20 <= len(data) and data[off:off+20] == GDFX_MAGIC:
+                            gdfx_offset = off
+                            break
+
+                if gdfx_offset != -1: break
+
+                # Sector-aligned scan in this chunk
                 for offset in range(0, len(data) - 20, 0x800):
                     if data[offset:offset+20] == GDFX_MAGIC:
-                        gdfx_offset = offset
+                        gdfx_offset = base_offset + offset
                         break
 
-            if gdfx_offset == -1:
-                # Last resort: find anywhere in the buffer
-                gdfx_offset = data.find(GDFX_MAGIC)
+                if gdfx_offset != -1: break
+
+                # Last resort: find anywhere in the chunk (may be slow but thorough)
+                idx = data.find(GDFX_MAGIC)
+                if idx != -1:
+                    gdfx_offset = base_offset + idx
+                    break
 
             if gdfx_offset == -1:
                 print("Error: Could not find GDFX magic.")
@@ -94,6 +111,10 @@ def extract_xgd(iso_path, output_dir):
                     else:
                         if size > 0: files_to_extract.append((sector, size, full_rel_path))
 
+            if not files_to_extract:
+                print("Warning: No files found in GDFX partition.")
+                return False
+
             print(f"Found {len(files_to_extract)} files. Extracting in parallel...")
             extracted_count = 0
             with concurrent.futures.ThreadPoolExecutor() as executor:
@@ -101,15 +122,20 @@ def extract_xgd(iso_path, output_dir):
                 for future in concurrent.futures.as_completed(futures):
                     fname, success, error = future.result()
                     if success:
-                        print(f"Successfully extracted {fname}")
+                        # Only print important files to avoid log flooding
+                        if any(x in fname.lower() for x in ["default.xex", "shader.ar", ".ar", ".xex"]):
+                            print(f"Successfully extracted: {fname}")
                         extracted_count += 1
                     else:
                         print(f"Error extracting {fname}: {error}")
 
-            return extracted_count == len(files_to_extract)
+            print(f"Extraction finished: {extracted_count}/{len(files_to_extract)} files.")
+            return extracted_count > 0
 
     except Exception as e:
         print(f"Critical error: {e}")
+        import traceback
+        traceback.print_exc()
         return False
 
 if __name__ == "__main__":
