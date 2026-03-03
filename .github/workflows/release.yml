@@ -1,5 +1,3 @@
-# Release Workflow
-
 name: Release
 
 on:
@@ -31,12 +29,134 @@ on:
         type: string
 
 jobs:
-  build:
-    runs-on: ${{ (inputs.os == 'windows') && 'windows-latest' || 'ubuntu-24.04' }}
+  prepare-assets:
+    name: Prepare Assets
+    runs-on: ubuntu-24.04
     env:
       ASSET_REPO: ${{ secrets.ASSET_REPO }}
       ASSET_REPO_TOKEN: ${{ secrets.ASSET_REPO_TOKEN }}
+    outputs:
+      has_assets: ${{ steps.check-assets.outputs.has_assets }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
+      - name: Checkout Private Repository
+        if: ${{ env.ASSET_REPO != '' }}
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ secrets.ASSET_REPO }}
+          token: ${{ secrets.ASSET_REPO_TOKEN }}
+          path: private
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y p7zip-full wget cmake build-essential libcurl4-openssl-dev
+
+      - name: Setup extract-xiso
+        run: |
+          git clone https://github.com/XboxDev/extract-xiso.git
+          cd extract-xiso
+          # Patch extract-xiso to ignore EEXIST
+          sed -i "s|if ( ( err = mkdir( dir->filename, 0755 ) ) ) mkdir_err( dir->filename );|if ( ( err = mkdir( dir->filename, 0755 ) ) ) { if ( errno != EEXIST ) mkdir_err( dir->filename ); else err = 0; }|" extract-xiso.c
+          sed -i "s|if ( ( err = mkdir( iso_name, 0755 ) ) ) mkdir_err( iso_name );|if ( ( err = mkdir( iso_name, 0755 ) ) ) { if ( errno != EEXIST ) mkdir_err( iso_name ); else err = 0; }|" extract-xiso.c
+          mkdir build && cd build
+          cmake .. -DCMAKE_BUILD_TYPE=Release
+          make -j$(nproc)
+          sudo make install
+
+      - name: Download Data
+        if: ${{ github.event_name == 'workflow_dispatch' || env.ASSET_REPO != '' }}
+        env:
+          GAME_URL: ${{ inputs.game_url }}
+          UPDATE_URL: ${{ inputs.update_url }}
+          DLC_URL: ${{ inputs.dlc_url }}
+        run: |
+          mkdir -p ./UnleashedRecompLib/private
+
+          handle_url() {
+            local url="$1"
+            local target_name="$2"
+            local dest_file="./UnleashedRecompLib/private/download_${target_name}"
+            if [ -z "$url" ]; then return 0; fi
+            echo "::add-mask::${url}"
+            wget --no-check-certificate --content-disposition --tries=3 --retry-connrefused --waitretry=5 -qO "${dest_file}" "${url}"
+          }
+
+          handle_url "$GAME_URL" "game"
+          handle_url "$UPDATE_URL" "default.xexp"
+          handle_url "$DLC_URL" "shader.ar"
+
+          if [ -d "./private" ]; then
+            find ./private -maxdepth 5 -type f -iname "default.xex" -exec cp -f {} ./UnleashedRecompLib/private/default.xex \; 2>/dev/null || true
+            find ./private -maxdepth 5 -type f -iname "default.xexp" -exec cp -f {} ./UnleashedRecompLib/private/default.xexp \; 2>/dev/null || true
+            find ./private -maxdepth 5 -type f -iname "shader.ar" -exec cp -f {} ./UnleashedRecompLib/private/shader.ar \; 2>/dev/null || true
+          fi
+
+          # Recursive extraction
+          for i in {1..15}; do
+            nested=$(find ./UnleashedRecompLib/private -type f \( -iname "*.iso" -o -iname "*.7z" -o -iname "*.zip" -o -iname "*.rar" -o -iname "TU_*" -o -iname "*.tar*" -o -iname "download_*" -o -iregex ".*/[0-9A-F]\\{8,42\\}" \) -not -name "*.skipped" | head -n 1)
+            if [ -z "$nested" ]; then break; fi
+            success=0
+            if [[ "$nested" =~ \.[Ii][Ss][Oo]$ ]]; then
+               extract-xiso -x "$nested" -d ./UnleashedRecompLib/private/ && success=1 || (python3 tools/extract_xgd.py "$nested" ./UnleashedRecompLib/private/ && success=1)
+            elif python3 tools/extract_stfs.py "$nested" ./UnleashedRecompLib/private/ ; then
+              success=1
+            elif 7z x -y "$nested" -o./UnleashedRecompLib/private/ ; then
+              success=1
+            fi
+            if [ "$success" -eq 1 ]; then rm -f "$nested"; else mv "$nested" "${nested}.skipped"; fi
+          done
+
+          # Normalize
+          game_root=$(find ./UnleashedRecompLib/private -name "default.xex" -o -name "DEFAULT.XEX" | head -n 1)
+          if [ -n "$game_root" ]; then
+            game_dir=$(dirname "$game_root")
+            if [ "$game_dir" != "./UnleashedRecompLib/private" ]; then
+              cp -rn "$game_dir"/* ./UnleashedRecompLib/private/ 2>/dev/null || true
+            fi
+          fi
+
+          find ./UnleashedRecompLib/private -depth -not -name "*.skipped" | while read -r src; do
+            if [ -d "$src" ]; then rmdir "$src" 2>/dev/null || true; else
+              dir=$(dirname "$src"); base=$(basename "$src"); new_base=$(echo "$base" | tr '[:upper:]' '[:lower:]' | tr -d ' ')
+              if [ "$base" != "$new_base" ]; then mv -f "$src" "$dir/$new_base" 2>/dev/null || true; fi
+            fi
+          done
+
+      - name: Check Assets and Upload
+        id: check-assets
+        run: |
+          if [ -f "./UnleashedRecompLib/private/default.xex" ] && [ -f "./UnleashedRecompLib/private/shader.ar" ]; then
+            echo "has_assets=true" >> $GITHUB_OUTPUT
+            echo "Assets found, uploading..."
+          else
+            echo "has_assets=false" >> $GITHUB_OUTPUT
+            echo "Warning: Mandatory assets missing."
+          fi
+
+      - name: Upload Prepared Assets
+        if: steps.check-assets.outputs.has_assets == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: prepared-assets
+          path: ./UnleashedRecompLib/private/
+          retention-days: 1
+
+  build:
+    name: Build (${{ inputs.os || 'android' }})
+    needs: prepare-assets
+    runs-on: ${{ (inputs.os == 'windows') && 'windows-latest' || 'ubuntu-24.04' }}
+    env:
+      OS: ${{ inputs.os || 'android' }}
     defaults:
       run:
         shell: bash
@@ -46,306 +166,71 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Checkout Private Repository
-        if: ${{ runner.os == 'Linux' && env.ASSET_REPO != '' }}
-        uses: actions/checkout@v4
+      - name: Download Prepared Assets
+        if: needs.prepare-assets.outputs.has_assets == 'true'
+        uses: actions/download-artifact@v4
         with:
-          repository: ${{ env.ASSET_REPO }}
-          token: ${{ env.ASSET_REPO_TOKEN }}
-          path: ./private
+          name: prepared-assets
+          path: ./UnleashedRecompLib/private/
 
-      - name: Setup System (Linux/Android)
-        if: ${{ runner.os == 'Linux' }}
+      - name: Setup Linux Dependencies
+        if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y patchelf p7zip-full wget file ccache libtbb-dev libcurl4-openssl-dev
-          # Memory optimizations for the build runner
-          sudo sysctl -w vm.swappiness=10
-          sudo sysctl -w vm.vfs_cache_pressure=50
+          sudo apt-get install -y libtbb-dev libcurl4-openssl-dev patchelf p7zip-full
 
-      - name: Set up JDK (Android only)
-        if: ${{ (inputs.os == 'android' || github.event_name == 'push') }}
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'temurin'
-          java-version: '17'
-          cache: 'gradle'
-
-      - name: Setup Android SDK (Android only)
-        if: ${{ (inputs.os == 'android' || github.event_name == 'push') }}
-        uses: android-actions/setup-android@v3
-
-      - name: Install Android NDK (Android only)
-        if: ${{ (inputs.os == 'android' || github.event_name == 'push') }}
-        run: echo y | sdkmanager "ndk;29.0.14206865"
-
-      - name: Apply Patches
-        if: ${{ runner.os == 'Linux' }}
+      - name: Setup Build Tools
         run: |
-          chmod +x apply_patches.sh
-          ./apply_patches.sh
-
-      - name: Cache vcpkg (Linux/Windows)
-        if: ${{ inputs.os != '' || github.event_name == 'push' }}
-        uses: actions/cache@v4
-        with:
-          path: |
-            ./thirdparty/vcpkg/downloads
-            ./thirdparty/vcpkg/packages
-          key: vcpkg-${{ inputs.os || 'android' }}-${{ hashFiles('vcpkg.json') }}
-
-      - name: Bootstrap vcpkg (Linux/Windows)
-        if: ${{ inputs.os != '' || github.event_name == 'push' }}
-        run: |
-          if [ "$RUNNER_OS" == "Windows" ]; then
-            ./thirdparty/vcpkg/bootstrap-vcpkg.bat
-          else
-            ./thirdparty/vcpkg/bootstrap-vcpkg.sh
-          fi
-
-      - name: Cache Host Tools
-        id: cache-host-tools
-        if: ${{ runner.os == 'Linux' }}
-        uses: actions/cache@v4
-        with:
-          path: build_tools/bin
-          key: host-tools-${{ runner.os }}-${{ hashFiles('tools/**', 'build_tools.sh', 'apply_patches.sh', 'build_overrides/**') }}
-
-      - name: Build Host Tools
-        if: ${{ runner.os == 'Linux' && steps.cache-host-tools.outputs.cache-hit != 'true' }}
-        run: |
-          chmod +x build_tools.sh
-          # Ensure dxc-linux is executable for build_tools.sh
-          find tools/XenosRecomp/thirdparty/dxc-bin/bin -type f -name "dxc-linux" -exec chmod +x {} +
+          chmod +x ./build_tools.sh
           ./build_tools.sh
 
-      - name: Build extract-xiso
-        if: ${{ runner.os == "Linux" }}
+      - name: Apply Patches
         run: |
-          git clone https://github.com/XboxDev/extract-xiso.git
-          cd extract-xiso
-          # Patch to ignore EEXIST on mkdir
-          sed -i "s|if ( ( err = mkdir( dir->filename, 0755 ) ) ) mkdir_err( dir->filename );|if ( ( err = mkdir( dir->filename, 0755 ) ) ) { if ( errno != EEXIST ) mkdir_err( dir->filename ); else err = 0; }|" extract-xiso.c
-          sed -i "s|if ( ( err = mkdir( iso_name, 0755 ) ) ) mkdir_err( iso_name );|if ( ( err = mkdir( iso_name, 0755 ) ) ) { if ( errno != EEXIST ) mkdir_err( iso_name ); else err = 0; }|" extract-xiso.c
-          mkdir build && cd build
-          cmake .. -DCMAKE_BUILD_TYPE=Release
-          make -j$(nproc)
-          sudo make install
+          chmod +x ./apply_patches.sh
+          ./apply_patches.sh
 
-      - name: Download Data
-        if: ${{ runner.os == 'Linux' && (github.event_name == 'workflow_dispatch' || env.ASSET_REPO != '') }}
-        env:
-          GAME_URL: ${{ inputs.game_url }}
-          UPDATE_URL: ${{ inputs.update_url }}
-          DLC_URL: ${{ inputs.dlc_url }}
-        run: |
-          # Verify critical dependencies
-          for cmd in 7z wget python3 extract-xiso; do
-            if ! command -v $cmd &> /dev/null; then
-              echo "::error::Required command '$cmd' not found!"
-              false
-            fi
-          done
-          mkdir -p ./UnleashedRecompLib/private
-
-          handle_url() {
-            local url="$1"
-            local target_name="$2"
-            local dest_file="./UnleashedRecompLib/private/download_${target_name}"
-
-            if [ -z "$url" ]; then
-              echo "Warning: No URL provided for ${target_name}"
-              return 0
-            fi
-
-            echo "Downloading ${target_name} from URL (masked for safety)..."
-            echo "::add-mask::${url}"
-
-            if ! wget --no-check-certificate --content-disposition --tries=3 --retry-connrefused --waitretry=5 -qO "${dest_file}" "${url}"; then
-              echo "Error: Failed to download ${target_name}"
-              return 1
-            fi
-
-            if [ ! -s "${dest_file}" ]; then
-              echo "Error: Downloaded file for ${target_name} is empty!"
-              rm -f "${dest_file}"
-              return 1
-            fi
-
-            echo "Successfully downloaded ${target_name} to ${dest_file}"
-            return 0
-          }
-
-          # Download all provided URLs
-          handle_url "$GAME_URL" "game" || exit 1
-          handle_url "$UPDATE_URL" "default.xexp" || exit 1
-          handle_url "$DLC_URL" "shader.ar" || exit 1
-
-          # Handle data from private repo if checked out
-          if [ -d "./private" ]; then
-            echo "Copying data from private repository..."
-            find ./private -maxdepth 5 -type f -iname "default.xex" -exec cp -f {} ./UnleashedRecompLib/private/default.xex \; 2>/dev/null || true
-            find ./private -maxdepth 5 -type f -iname "default.xexp" -exec cp -f {} ./UnleashedRecompLib/private/default.xexp \; 2>/dev/null || true
-            find ./private -maxdepth 5 -type f -iname "shader.ar" -exec cp -f {} ./UnleashedRecompLib/private/shader.ar \; 2>/dev/null || true
-          fi
-
-          # Recursive extraction: check for archives, ISOs, or STFS containers
-          echo "Checking for archives/ISOs/STFS in ./UnleashedRecompLib/private/..."
-          # Max 15 iterations for deep nesting
-          for i in {1..15}; do
-            # Find files that look like archives, STFS, or our downloads
-            nested=$(find ./UnleashedRecompLib/private -type f \( -iname "*.iso" -o -iname "*.7z" -o -iname "*.zip" -o -iname "*.rar" -o -iname "TU_*" -o -iname "*.tar*" -o -iname "download_*" -o -iregex ".*/[0-9A-F]\\{8,42\\}" \) -not -name "*.skipped" | head -n 1)
-
-            if [ -z "$nested" ]; then
-              break
-            fi
-
-            echo "Processing item (iteration $i): $nested"
-
-            success=0
-            # Order: extract-xiso (ISO) -> extract_xgd.py (XGD fallback) -> extract_stfs.py -> 7z
-            if [[ "$nested" =~ \.[Ii][Ss][Oo]$ ]]; then
-               echo "Attempting extract-xiso for: $nested"
-               if extract-xiso -x "$nested" -d ./UnleashedRecompLib/private/ ; then
-                 echo "Successfully extracted with extract-xiso: $nested"
-                 success=1
-               elif python3 tools/extract_xgd.py "$nested" ./UnleashedRecompLib/private/ ; then
-                 echo "Successfully extracted with extract_xgd.py: $nested"
-                 success=1
-               fi
-            elif python3 tools/extract_stfs.py "$nested" ./UnleashedRecompLib/private/ ; then
-              echo "Successfully extracted with extract_stfs.py: $nested"
-              success=1
-            elif 7z x -y "$nested" -o./UnleashedRecompLib/private/ ; then
-              echo "Successfully extracted with 7z: $nested"
-              success=1
-            fi
-
-            if [ "$success" -eq 1 ]; then
-              echo "Cleaning up extracted source: $nested"
-              rm -f "$nested"
-            else
-              echo "Warning: Failed to extract $nested with any tool, skipping..."
-              mv "$nested" "${nested}.skipped"
-            fi
-          done
-
-          # Final search and move to ensure ALL files are correctly positioned and lowercase
-          echo "Organizing, flattening, and normalizing ALL files in ./UnleashedRecompLib/private/..."
-
-          # 1. Locate the actual game root (where default.xex is)
-          game_root=$(find ./UnleashedRecompLib/private -name "default.xex" -o -name "DEFAULT.XEX" | head -n 1)
-          if [ -n "$game_root" ]; then
-            game_dir=$(dirname "$game_root")
-            if [ "$game_dir" != "./UnleashedRecompLib/private" ]; then
-              echo "Game root found at $game_dir, moving contents to ./UnleashedRecompLib/private/"
-              # Move everything from the discovered game dir to the expected private/ root
-              # Preserve structure relative to game_dir
-              cp -rn "$game_dir"/* ./UnleashedRecompLib/private/ 2>/dev/null || true
-            fi
-          fi
-
-          # 2. Convert everything to lowercase and remove spaces for compatibility
-          # Also remove any empty directories to keep things clean
-          find ./UnleashedRecompLib/private -depth -not -name "*.skipped" | while read -r src; do
-            if [ -d "$src" ]; then
-              # Delete if empty
-              rmdir "$src" 2>/dev/null || true
-            else
-              dir=$(dirname "$src")
-              base=$(basename "$src")
-              # Lowercase and remove spaces
-              new_base=$(echo "$base" | tr '[:upper:]' '[:lower:]' | tr -d ' ')
-              if [ "$base" != "$new_base" ]; then
-                mv -f "$src" "$dir/$new_base" 2>/dev/null || true
-              fi
-            fi
-          done
-
-          # Verification
-          echo "Verifying assets..."
-          if [ ! -f "./UnleashedRecompLib/private/default.xex" ]; then
-            echo "::error::Critical asset default.xex missing!"
-            find ./UnleashedRecompLib/private/ -maxdepth 2
-            exit 1
-          fi
-          if [ ! -f "./UnleashedRecompLib/private/shader.ar" ]; then
-            echo "::error::Critical asset shader.ar missing!"
-            find ./UnleashedRecompLib/private/ -maxdepth 2
-            exit 1
-          fi
-
-          echo "Final contents of ./UnleashedRecompLib/private/:"
-          ls -R ./UnleashedRecompLib/private/
-          sha256sum ./UnleashedRecompLib/private/default.xex ./UnleashedRecompLib/private/shader.ar
-      - name: Build APK (Android only)
-        if: ${{ (inputs.os == 'android' || github.event_name == 'push') }}
+      - name: Build APK (Android)
+        if: env.OS == 'android'
         working-directory: android
         run: |
           chmod +x gradlew
           export ANDROID_NDK_HOME=${ANDROID_SDK_ROOT}/ndk/29.0.14206865
-          # Memory optimization for Gradle
           export GRADLE_OPTS="-Xmx4096m -Dorg.gradle.daemon=false -Dorg.gradle.parallel=true -Dorg.gradle.workers.max=$(nproc)"
           ./gradlew assembleRelease --stacktrace --max-workers=1
 
-      - name: Archive APK (Android only)
-        if: ${{ (inputs.os == 'android' || github.event_name == 'push') }}
-        run: |
-          mkdir -p output/apk
-          cp android/app/build/outputs/apk/release/app-release.apk output/apk/
-
-      - name: Upload APK (Android only)
-        if: ${{ (inputs.os == 'android' || github.event_name == 'push') }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: UnleashedRecomp-Android-APK
-          path: output/apk/app-release.apk
-
       - name: Build Linux
-        if: ${{ (inputs.os == 'linux') }}
+        if: env.OS == 'linux'
         run: |
-          echo "Building for Linux"
-          mkdir -p build_linux
-          cd build_linux
-
+          mkdir -p build_linux && cd build_linux
           cmake .. -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_TOOLCHAIN_FILE="../thirdparty/vcpkg/scripts/buildsystems/vcpkg.cmake" \
             -DHOST_TOOLS_DIR="../build_tools/bin"
-
           cmake --build . --config Release --parallel $(nproc)
 
       - name: Build Windows
-        if: ${{ (inputs.os == 'windows') }}
+        if: env.OS == 'windows'
         run: |
-          echo "Building for Windows"
-          # On Windows we build host tools as part of the main build as they are native
-          mkdir -p build_windows
-          cd build_windows
-
+          mkdir -p build_windows && cd build_windows
           cmake .. -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_TOOLCHAIN_FILE="../thirdparty/vcpkg/scripts/buildsystems/vcpkg.cmake"
-
           cmake --build . --config Release --parallel
 
-      - name: Upload Artifacts (Linux/Windows)
-        if: ${{ inputs.os == 'linux' || inputs.os == 'windows' }}
+      - name: Upload Android APK
+        if: env.OS == 'android'
         uses: actions/upload-artifact@v4
         with:
-          name: UnleashedRecomp-${{ inputs.os }}
+          name: UnleashedRecomp-Android-APK
+          path: android/app/build/outputs/apk/release/app-release.apk
+
+      - name: Upload Desktop Artifacts
+        if: env.OS == 'linux' || env.OS == 'windows'
+        uses: actions/upload-artifact@v4
+        with:
+          name: UnleashedRecomp-${{ env.OS }}
           path: |
-            build_${{ inputs.os }}/Release/*
-            build_${{ inputs.os }}/bin/*
-            build_${{ inputs.os }}/*.exe
-            build_${{ inputs.os }}/${{ inputs.os == 'linux' && 'UnleashedRecomp' || '' }}
-            !build_${{ inputs.os }}/**/*.o
-            !build_${{ inputs.os }}/**/*.a
-
-      - name: Cleanup
-        run: |
-          echo 'Cleaning up temporary files'
-          rm -rf output
-
-      - name: Notify Success
-        if: success() 
-        run: |
-          echo 'Build and release successful!'
+            build_${{ env.OS }}/Release/*
+            build_${{ env.OS }}/bin/*
+            build_${{ env.OS }}/*.exe
+            build_${{ env.OS }}/${{ env.OS == 'linux' && 'UnleashedRecomp' || '' }}
+            !build_${{ env.OS }}/**/*.o
+            !build_${{ env.OS }}/**/*.a
