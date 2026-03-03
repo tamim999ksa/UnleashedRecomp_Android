@@ -73,7 +73,7 @@ jobs:
 
       - name: Setup Android SDK (Android only)
         if: ${{ (inputs.os == 'android' || github.event_name == 'push') }}
-        uses: android-actions/setup-android@v4
+        uses: android-actions/setup-android@v3
 
       - name: Install Android NDK (Android only)
         if: ${{ (inputs.os == 'android' || github.event_name == 'push') }}
