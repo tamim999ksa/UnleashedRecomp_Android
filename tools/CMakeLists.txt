@@ -1,4 +1,9 @@
 if (ANDROID AND DEFINED HOST_TOOLS_DIR)
+    # Disable programs and shared libs for thirdparty tools when building for Android
+    set(ZSTD_BUILD_PROGRAMS OFF CACHE BOOL "" FORCE)
+    set(ZSTD_BUILD_SHARED OFF CACHE BOOL "" FORCE)
+    set(XXHASH_BUILD_XXHSUM OFF CACHE BOOL "" FORCE)
+
     add_executable(file_to_c IMPORTED GLOBAL)
     set_property(TARGET file_to_c PROPERTY IMPORTED_LOCATION "${HOST_TOOLS_DIR}/file_to_c")
 
@@ -22,9 +27,6 @@ if (ANDROID AND DEFINED HOST_TOOLS_DIR)
     # Manually add XenosRecomp thirdparty to satisfy dependencies (e.g. zstd)
     # but do NOT add XenosRecomp executable because it fails to link on Android.
     set(XENOS_RECOMP_THIRDPARTY_ROOT "${UNLEASHED_RECOMP_TOOLS_ROOT}/XenosRecomp/thirdparty")
-    set(ZSTD_BUILD_PROGRAMS OFF CACHE BOOL "" FORCE)
-    set(ZSTD_BUILD_SHARED OFF CACHE BOOL "" FORCE)
-    set(XXHASH_BUILD_XXHSUM OFF CACHE BOOL "" FORCE)
     add_subdirectory(${XENOS_RECOMP_THIRDPARTY_ROOT})
 else()
     add_subdirectory(${UNLEASHED_RECOMP_TOOLS_ROOT}/bc_diff)
