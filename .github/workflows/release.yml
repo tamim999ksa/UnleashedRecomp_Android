@@ -84,53 +84,70 @@ jobs:
 
           handle_url() {
             local url="$1"
-            local target_name="$2"
-            local dest_file="./UnleashedRecompLib/private/download_${target_name}"
             if [ -z "$url" ]; then return 0; fi
             echo "::add-mask::${url}"
-            wget --no-check-certificate --content-disposition --tries=3 --retry-connrefused --waitretry=5 -qO "${dest_file}" "${url}"
+            # Use --content-disposition to preserve original filenames
+            wget --no-check-certificate --content-disposition --tries=3 --retry-connrefused --waitretry=5 -q -P ./UnleashedRecompLib/private/ "${url}"
           }
 
-          handle_url "$GAME_URL" "game"
-          handle_url "$UPDATE_URL" "default.xexp"
-          handle_url "$DLC_URL" "shader.ar"
+          handle_url "$GAME_URL"
+          handle_url "$UPDATE_URL"
+          handle_url "$DLC_URL"
 
           if [ -d "./private" ]; then
-            find ./private -maxdepth 5 -type f -iname "default.xex" -exec cp -f {} ./UnleashedRecompLib/private/default.xex \; 2>/dev/null || true
-            find ./private -maxdepth 5 -type f -iname "default.xexp" -exec cp -f {} ./UnleashedRecompLib/private/default.xexp \; 2>/dev/null || true
-            find ./private -maxdepth 5 -type f -iname "shader.ar" -exec cp -f {} ./UnleashedRecompLib/private/shader.ar \; 2>/dev/null || true
+            cp -rv private/* ./UnleashedRecompLib/private/ 2>/dev/null || true
           fi
 
           # Recursive extraction
           for i in {1..15}; do
-            nested=$(find ./UnleashedRecompLib/private -type f \( -iname "*.iso" -o -iname "*.7z" -o -iname "*.zip" -o -iname "*.rar" -o -iname "TU_*" -o -iname "*.tar*" -o -iname "download_*" -o -iregex ".*/[0-9a-fA-F]\\{8,42\\}" \) -not -name "*.skipped" | head -n 1)
+            nested=$(find ./UnleashedRecompLib/private -type f \( -iname "*.iso" -o -iname "*.7z" -o -iname "*.zip" -o -iname "*.rar" -o -iname "TU_*" -o -iname "*.tar*" -o -iregex ".*/[0-9a-fA-F]\\{8,42\\}" \) -not -name "*.skipped" -not -name "*.extracted" | head -n 1)
             if [ -z "$nested" ]; then break; fi
+
+            filename=$(basename "$nested")
+            extension="${filename##*.}"
+            is_iso=0
+            if [[ "$extension" =~ ^(iso|ISO)$ ]]; then is_iso=1; fi
+
             success=0
-            if [[ "$nested" =~ \.[Ii][Ss][Oo]$ ]]; then
-               extract-xiso -x "$nested" -d ./UnleashedRecompLib/private/ && success=1 || (python3 tools/extract_xgd.py "$nested" ./UnleashedRecompLib/private/ && success=1)
-            elif python3 tools/extract_stfs.py "$nested" ./UnleashedRecompLib/private/ ; then
+            # Try 7z first for generic archives, then specialized tools
+            if 7z x -y "$nested" -o./UnleashedRecompLib/private/ > /dev/null 2>&1; then
               success=1
-            elif 7z x -y "$nested" -o./UnleashedRecompLib/private/ ; then
+            elif [ "$is_iso" -eq 1 ] && (extract-xiso -x "$nested" -d ./UnleashedRecompLib/private/ || python3 tools/extract_xgd.py "$nested" ./UnleashedRecompLib/private/); then
+              success=1
+            elif [ "$is_iso" -eq 0 ] && python3 tools/extract_stfs.py "$nested" ./UnleashedRecompLib/private/; then
               success=1
             fi
+
             if [ "$success" -eq 1 ]; then rm -f "$nested"; else mv "$nested" "${nested}.skipped"; fi
           done
 
-          # Normalize
-          game_root=$(find ./UnleashedRecompLib/private -name "default.xex" -o -name "DEFAULT.XEX" | head -n 1)
-          if [ -n "$game_root" ]; then
-            game_dir=$(dirname "$game_root")
-            if [ "$game_dir" != "./UnleashedRecompLib/private" ]; then
-              cp -rn "$game_dir"/* ./UnleashedRecompLib/private/ 2>/dev/null || true
+          # Robust Normalization
+          finalize_file() {
+            local filename="$1"
+            local target_path="./UnleashedRecompLib/private/$filename"
+            local candidates=$(find ./UnleashedRecompLib/private -type f -iname "$filename" | { grep -vFx "$target_path" || true; })
+            local candidate_count=$(echo "$candidates" | grep -v "^$" | wc -l || true)
+            if [ "$candidate_count" -gt 0 ]; then
+                local found_file=""
+                if [ "$candidate_count" -gt 1 ]; then
+                    found_file=$(echo "$candidates" | grep -vE "/(game|base)/" | head -n 1)
+                    if [ -z "$found_file" ]; then found_file=$(echo "$candidates" | head -n 1); fi
+                else
+                    found_file="$candidates"
+                fi
+                if [ -n "$found_file" ]; then mv -f "$found_file" "$target_path"; fi
             fi
-          fi
+            # Case fix for root files
+            local root_file=$(find ./UnleashedRecompLib/private -maxdepth 1 -type f -iname "$filename" | head -n 1)
+            if [ -n "$root_file" ] && [ "$root_file" != "$target_path" ]; then mv -f "$root_file" "$target_path"; fi
+          }
 
-          find ./UnleashedRecompLib/private -depth -not -name "*.skipped" | while read -r src; do
-            if [ -d "$src" ]; then rmdir "$src" 2>/dev/null || true; else
-              dir=$(dirname "$src"); base=$(basename "$src"); new_base=$(echo "$base" | tr '[:upper:]' '[:lower:]' | tr -d ' ')
-              if [ "$base" != "$new_base" ]; then mv -f "$src" "$dir/$new_base" 2>/dev/null || true; fi
-            fi
-          done
+          finalize_file "default.xex"
+          finalize_file "default.xexp"
+          finalize_file "shader.ar"
+
+          # Cleanup empty directories
+          find ./UnleashedRecompLib/private -depth -type d -empty -delete 2>/dev/null || true
 
       - name: Check Assets and Upload
         id: check-assets
@@ -140,7 +157,12 @@ jobs:
             echo "Assets found, uploading..."
           else
             echo "has_assets=false" >> $GITHUB_OUTPUT
-            echo "Warning: Mandatory assets missing."
+            if [ "${{ github.event_name }}" == "workflow_dispatch" ] || [ "${{ env.ASSET_REPO }}" != "" ]; then
+              echo "Error: Mandatory assets (default.xex, shader.ar) missing after extraction."
+              false
+            else
+              echo "Warning: Mandatory assets missing."
+            fi
           fi
 
       - name: Upload Prepared Assets
@@ -154,6 +176,7 @@ jobs:
   build:
     name: Build (${{ inputs.os || 'android' }})
     needs: prepare-assets
+    if: needs.prepare-assets.outputs.has_assets == 'true' || github.event_name == 'push'
     runs-on: ${{ (inputs.os == 'windows') && 'windows-latest' || 'ubuntu-24.04' }}
     env:
       OS: ${{ inputs.os || 'android' }}
@@ -172,6 +195,17 @@ jobs:
         with:
           name: prepared-assets
           path: ./UnleashedRecompLib/private/
+
+      - name: Cache vcpkg
+        if: env.OS == 'android' || env.OS == 'linux'
+        uses: actions/cache@v4
+        with:
+          path: |
+            ./thirdparty/vcpkg/downloads
+            ./thirdparty/vcpkg/packages
+          key: vcpkg-${{ env.OS }}-${{ hashFiles('vcpkg.json') }}
+          restore-keys: |
+              vcpkg-${{ env.OS }}-
 
       - name: Setup Java
         if: env.OS == 'android'
@@ -212,10 +246,12 @@ jobs:
       - name: Build APK (Android)
         if: env.OS == 'android'
         working-directory: android
+        env:
+          CMAKE_BUILD_PARALLEL_LEVEL: 1
         run: |
           chmod +x gradlew
           export ANDROID_NDK_HOME=${ANDROID_SDK_ROOT}/ndk/29.0.14206865
-          export GRADLE_OPTS="-Xmx4096m -Dorg.gradle.daemon=false -Dorg.gradle.parallel=true -Dorg.gradle.workers.max=$(nproc)"
+          export GRADLE_OPTS="-Xmx4096m -Dorg.gradle.daemon=false -Dorg.gradle.parallel=true -Dorg.gradle.workers.max=1"
           ./gradlew assembleRelease --stacktrace --max-workers=1
 
       - name: Build Linux
