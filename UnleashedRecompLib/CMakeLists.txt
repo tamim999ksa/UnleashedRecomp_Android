@@ -26,7 +26,9 @@ add_compile_options(
 if (WIN32)
     add_compile_options(/fp:strict)
 else()
+    if(NOT ANDROID)
     add_compile_options(-ffp-model=strict)
+endif()
 endif()
 
 set(UNLEASHED_RECOMP_PPC_RECOMPILED_SOURCES 
