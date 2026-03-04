@@ -1,4 +1,6 @@
+#ifndef ANDROID
 #include <execution>
+#endif
 #include <atomic>
 #include "installer.h"
 
@@ -426,7 +428,11 @@ bool Installer::computeTotalSize(std::span<const FilePair> filePairs,
   std::atomic<bool> success{true};
   std::atomic<uint64_t> localTotalSize{0};
 
+#ifndef ANDROID
   std::for_each(std::execution::par_unseq, filePairs.begin(), filePairs.end(),
+#else
+  std::for_each(filePairs.begin(), filePairs.end(),
+#endif
                 [&](const FilePair &pair) {
                   if (!success.load(std::memory_order_relaxed)) {
                     return;

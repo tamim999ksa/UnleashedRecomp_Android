@@ -38,6 +38,18 @@ jobs:
     outputs:
       has_assets: ${{ steps.check-assets.outputs.has_assets }}
     steps:
+      - name: Free Disk Space (Ubuntu)
+        if: runner.os == 'Linux'
+        run: |
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /opt/ghc
+          sudo rm -rf "/usr/local/share/boost"
+          sudo rm -rf "$AGENT_TOOLSDIRECTORY"
+          sudo docker image prune --all --force
+          sudo apt-get clean
+
+
       - name: Checkout Code
         uses: actions/checkout@v4
         with:
@@ -72,6 +84,8 @@ jobs:
           cmake .. -DCMAKE_BUILD_TYPE=Release
           make -j$(nproc)
           sudo make install
+          cd ../..
+          rm -rf extract-xiso
 
       - name: Download Data
         if: ${{ github.event_name == 'workflow_dispatch' || env.ASSET_REPO != '' }}

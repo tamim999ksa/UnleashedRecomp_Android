@@ -25,7 +25,7 @@ add_compile_options(
 
 if (WIN32)
     add_compile_options(/fp:strict)
-else()
+elseif(NOT ANDROID)
     add_compile_options(-ffp-model=strict)
 endif()
 
