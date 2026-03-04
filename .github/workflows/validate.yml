@@ -15,6 +15,7 @@ jobs:
     name: Build Android
     runs-on: ubuntu-24.04
     env:
+      CMAKE_BUILD_PARALLEL_LEVEL: 1
       ASSET_REPO: ${{ secrets.ASSET_REPO }}
       ASSET_REPO_TOKEN: ${{ secrets.ASSET_REPO_TOKEN }}
     steps:
@@ -28,6 +29,17 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y patchelf p7zip-full wget file ccache libtbb-dev libcurl4-openssl-dev
 
+
+      - name: Setup extract-xiso
+        run: |
+          git clone https://github.com/XboxDev/extract-xiso.git
+          cd extract-xiso
+          sed -i "s|if ( ( err = mkdir( dir->filename, 0755 ) ) ) mkdir_err( dir->filename );|if ( ( err = mkdir( dir->filename, 0755 ) ) ) { if ( errno == EEXIST ) err = 0; else mkdir_err( dir->filename ); }|" extract-xiso.c
+          sed -i "s|if ( ( err = mkdir( iso_name, 0755 ) ) ) mkdir_err( iso_name );|if ( ( err = mkdir( iso_name, 0755 ) ) ) { if ( errno == EEXIST ) err = 0; else mkdir_err( iso_name ); }|" extract-xiso.c
+          mkdir build && cd build
+          cmake .. -DCMAKE_BUILD_TYPE=Release
+          make -j$(nproc)
+          sudo make install
       - name: Check Secrets
         if: env.ASSET_REPO == ''
         run: echo "ASSET_REPO secret is missing. Skipping Android build steps."
@@ -72,6 +84,10 @@ jobs:
           chmod +x apply_patches.sh
           ./apply_patches.sh
 
+      - name: Setup Linux Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libtbb-dev libcurl4-openssl-dev patchelf p7zip-full
       - name: Run Build Tools
         run: |
           chmod +x ./build_tools.sh
@@ -81,39 +97,73 @@ jobs:
         if: env.ASSET_REPO != ''
         run: |
           mkdir -p ./UnleashedRecompLib/private
-
-          if [ -d "./private" ] && [ "$(ls -A ./private)" ]; then
-            echo "Listing private directory contents for debugging:"
-            find ./private -maxdepth 3
-
-            echo "Searching for default.xex..."
-            find ./private -maxdepth 4 -iname "default.xex" -exec cp {} ./UnleashedRecompLib/private/default.xex \; 2>/dev/null || true
-
-            echo "Searching for default.xexp..."
-            find ./private -maxdepth 4 -iname "default.xexp" -exec cp {} ./UnleashedRecompLib/private/default.xexp \; 2>/dev/null || true
-
-            echo "Searching for shader.ar..."
-            find ./private -maxdepth 4 -iname "shader.ar" -exec cp {} ./UnleashedRecompLib/private/shader.ar \; 2>/dev/null || true
-          else
-            echo "Private directory is empty or does not exist."
+          if [ -d "./private" ]; then
+            cp -rv private/* ./UnleashedRecompLib/private/ 2>/dev/null || true
           fi
 
-          if [ ! -f "./UnleashedRecompLib/private/default.xex" ]; then
-            echo "Error: default.xex not found in UnleashedRecompLib/private/ or ASSET_REPO."
-            # Using false instead of exit to avoid shell block issues in this environment
+          # Recursive extraction
+          for i in {1..15}; do
+            nested=$(find ./UnleashedRecompLib/private -type f \( -iname "*.iso" -o -iname "*.7z" -o -iname "*.zip" -o -iname "*.rar" -o -iname "TU_*" -o -iname "*.tar*" -o -iregex ".*/[0-9a-fA-F]\\{8,42\\}" \) -not -name "*.skipped" -not -name "*.extracted" | head -n 1)
+            if [ -z "$nested" ]; then break; fi
+
+            filename=$(basename "$nested")
+            extension="${filename##*.}"
+            is_iso=0
+            if [[ "$extension" =~ ^(iso|ISO)$ ]]; then is_iso=1; fi
+
+            success=0
+            if 7z x -y "$nested" -o./UnleashedRecompLib/private/ > /dev/null 2>&1; then
+              success=1
+            elif [ "$is_iso" -eq 1 ] && (extract-xiso -x "$nested" -d ./UnleashedRecompLib/private/ || python3 tools/extract_xgd.py "$nested" ./UnleashedRecompLib/private/); then
+              success=1
+            elif [ "$is_iso" -eq 0 ] && python3 tools/extract_stfs.py "$nested" ./UnleashedRecompLib/private/; then
+              success=1
+            fi
+
+            if [ "$success" -eq 1 ]; then rm -f "$nested"; else mv "$nested" "${nested}.skipped"; fi
+          done
+
+          # Robust Normalization
+          finalize_file() {
+            local filename="$1"
+            local target_path="./UnleashedRecompLib/private/$filename"
+            local candidates=$(find ./UnleashedRecompLib/private -type f -iname "$filename" | { grep -vFx "$target_path" || true; })
+            local candidate_count=$(echo "$candidates" | grep -v "^$" | wc -l || true)
+            if [ "$candidate_count" -gt 0 ]; then
+                local found_file=""
+                if [ "$candidate_count" -gt 1 ]; then
+                    found_file=$(echo "$candidates" | grep -vE "/(game|base)/" | head -n 1)
+                    if [ -z "$found_file" ]; then found_file=$(echo "$candidates" | head -n 1); fi
+                else
+                    found_file="$candidates"
+                fi
+                if [ -n "$found_file" ]; then mv -f "$found_file" "$target_path"; fi
+            fi
+            # Case fix for root files
+            local root_file=$(find ./UnleashedRecompLib/private -maxdepth 1 -type f -iname "$filename" | head -n 1)
+            if [ -n "$root_file" ] && [ "$root_file" != "$target_path" ]; then mv -f "$root_file" "$target_path"; fi
+          }
+
+          finalize_file "default.xex"
+          finalize_file "default.xexp"
+          finalize_file "shader.ar"
+
+          if [ -f "./UnleashedRecompLib/private/default.xex" ] && [ -f "./UnleashedRecompLib/private/shader.ar" ]; then
+            echo "Assets found."
+          else
+            echo "Error: Mandatory assets (default.xex, shader.ar) missing after extraction."
             false
           fi
 
-          echo "Assets prepared successfully."
-          ls -l ./UnleashedRecompLib/private/
-
+          # Cleanup empty directories
+          find ./UnleashedRecompLib/private -depth -type d -empty -delete 2>/dev/null || true
       - name: Build Debug APK
         if: env.ASSET_REPO != ''
         working-directory: ./android
         run: |
           chmod +x gradlew
           export ANDROID_NDK_HOME=${ANDROID_SDK_ROOT}/ndk/29.0.14206865
-          ./gradlew assembleDebug
+          ./gradlew assembleDebug --max-workers=1
 
       - name: Upload Debug Artifact
         if: env.ASSET_REPO != ''
@@ -128,7 +178,7 @@ jobs:
         run: |
           chmod +x gradlew
           export ANDROID_NDK_HOME=${ANDROID_SDK_ROOT}/ndk/29.0.14206865
-          ./gradlew assembleRelease
+          ./gradlew assembleRelease --max-workers=1
 
       - name: Upload Release Artifact
         if: env.ASSET_REPO != ''

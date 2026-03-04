@@ -46,8 +46,8 @@ if [ -d "private" ]; then
 
     # Recursive extraction (Max 5 levels)
     echo "Checking for nested archives/ISOs/STFS in ./UnleashedRecompLib/private/..."
-    for i in {1..5}; do
-        nested=$(find ./UnleashedRecompLib/private -type f \( -iname "*.iso" -o -iname "*.7z" -o -iname "*.zip" -o -iname "*.rar" -o -iname "TU_*" -o -iname "*.tar*" -o -iregex ".*/[0-9A-F]\{8,42\}" \) -not -name "*.skipped" -not -name "*.extracted" | head -n 1)
+    for i in {1..15}; do
+        nested=$(find ./UnleashedRecompLib/private -type f \( -iname "*.iso" -o -iname "*.7z" -o -iname "*.zip" -o -iname "*.rar" -o -iname "TU_*" -o -iname "*.tar*" -o -iregex ".*/[0-9a-fA-F]\{8,42\}" \) -not -name "*.skipped" -not -name "*.extracted" | head -n 1)
 
         if [ -z "$nested" ]; then
             break
