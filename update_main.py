@@ -24,15 +24,17 @@ recompiled_shader_new = """struct RecompiledShader
 content = content.replace(recompiled_shader_old, recompiled_shader_new)
 
 # Replace loop and add helper
-helper_func = """
-static void writeByteArray(std::ofstream& out, const std::string& name, const std::vector<uint8_t>& data)
+helper_func = r"""
+static void writeByteArray(std::ostream& out, const std::string& name, const std::vector<uint8_t>& data)
 {
     fmt::print(out, "const uint8_t {}[] = {{", name);
+    fmt::print(out, "\n\t\"");
     for (size_t i = 0; i < data.size(); ++i)
     {
-        if (i % 16 == 0) fmt::print(out, "\n\t");
-        fmt::print(out, "0x{:02X}, ", data[i]);
+        if (i > 0 && i % 4096 == 0) fmt::print(out, "\"\n\t\"");
+        fmt::print(out, "\\x{:02x}", data[i]);
     }
+    fmt::print(out, "\"");
     fmt::println(out, "\n}};");
 }
 """
