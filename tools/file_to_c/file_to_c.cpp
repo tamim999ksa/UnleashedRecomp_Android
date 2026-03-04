@@ -25,6 +25,7 @@
 #include <algorithm>
 #include <filesystem>
 #include <fstream>
+#include <iomanip>
 #include <cstdio>
 #include <vector>
 #include <zstd.h>
@@ -102,12 +103,14 @@ int main(int argc, const char** argv) {
         output_c_file << "extern unsigned char " << array_name << "[" << contents_to_write.size() << "];\n";
         output_c_file << "unsigned char " << array_name << "[" << contents_to_write.size() << "] = {";
 
+        output_c_file << "\n\t\"";
         size_t i = 0;
         for (char x : contents_to_write) {
-            if (i % 32 == 0) output_c_file << "\n\t";
-            output_c_file << (int)(unsigned char)x << ", ";
+            if (i > 0 && i % 4096 == 0) output_c_file << "\"\n\t\"";
+            output_c_file << "\\x" << std::hex << std::setw(2) << std::setfill('0') << (int)(unsigned char)x << std::dec;
             i++;
         }
+        output_c_file << "\"";
 
         output_c_file << "\n};\n";
 

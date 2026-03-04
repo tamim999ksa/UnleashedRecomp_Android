@@ -68,7 +68,9 @@ add_compile_options(
     -Wno-tautological-undefined-compare
 )
 
-add_compile_options(-ffp-model=strict)
+if(NOT ANDROID)
+    add_compile_options(-ffp-model=strict)
+endif()
 
 add_compile_definitions(
     _DISABLE_CONSTEXPR_MUTEX_CONSTRUCTOR
@@ -289,7 +291,9 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     check_cxx_symbol_exists(_LIBCPP_VERSION version LIBCPP)
     if(LIBCPP)
         # Allows using std::execution
-        add_compile_options(-fexperimental-library)
+        if(NOT ANDROID)
+            add_compile_options(-fexperimental-library)
+        endif()
     endif()
 endif()
 
