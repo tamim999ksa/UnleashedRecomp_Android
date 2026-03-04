@@ -189,6 +189,18 @@ jobs:
         with:
           submodules: recursive
 
+
+      - name: Setup Linux Dependencies
+        if: runner.os == "Linux"
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libtbb-dev libcurl4-openssl-dev patchelf p7zip-full
+
+      - name: Setup Build Tools
+        if: runner.os == "Linux"
+        run: |
+          chmod +x ./build_tools.sh
+          ./build_tools.sh
       - name: Download Prepared Assets
         if: needs.prepare-assets.outputs.has_assets == 'true'
         uses: actions/download-artifact@v4
@@ -227,16 +239,6 @@ jobs:
         if: env.OS == 'android' || env.OS == 'linux'
         run: ./thirdparty/vcpkg/bootstrap-vcpkg.sh
 
-      - name: Setup Linux Dependencies
-        if: runner.os == 'Linux'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libtbb-dev libcurl4-openssl-dev patchelf p7zip-full
-
-      - name: Setup Build Tools
-        run: |
-          chmod +x ./build_tools.sh
-          ./build_tools.sh
 
       - name: Apply Patches
         run: |
