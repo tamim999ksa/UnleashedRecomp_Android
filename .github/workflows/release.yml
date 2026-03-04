@@ -76,9 +76,9 @@ jobs:
       - name: Download Data
         if: ${{ github.event_name == 'workflow_dispatch' || env.ASSET_REPO != '' }}
         env:
-          GAME_URL: ${{ inputs.game_url }}
-          UPDATE_URL: ${{ inputs.update_url }}
-          DLC_URL: ${{ inputs.dlc_url }}
+          GAME_URL: ${{ github.event.inputs.game_url }}
+          UPDATE_URL: ${{ github.event.inputs.update_url }}
+          DLC_URL: ${{ github.event.inputs.dlc_url }}
         run: |
           mkdir -p ./UnleashedRecompLib/private
 
@@ -180,6 +180,7 @@ jobs:
     runs-on: ${{ (inputs.os == 'windows') && 'windows-latest' || 'ubuntu-24.04' }}
     env:
       OS: ${{ inputs.os || 'android' }}
+      CMAKE_BUILD_PARALLEL_LEVEL: 1
     defaults:
       run:
         shell: bash
@@ -234,6 +235,7 @@ jobs:
           sudo apt-get install -y libtbb-dev libcurl4-openssl-dev patchelf p7zip-full
 
       - name: Setup Build Tools
+        if: runner.os == 'Linux'
         run: |
           chmod +x ./build_tools.sh
           ./build_tools.sh

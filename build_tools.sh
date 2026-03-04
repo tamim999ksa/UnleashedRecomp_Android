@@ -83,11 +83,11 @@ copy_tool "XenosRecomp"
 cd ../..
 
 # Copy libdxcompiler.so and libdxil.so from the correct architecture directory
-cp "tools/XenosRecomp/thirdparty/dxc-bin/lib/$DXC_ARCH/libdxcompiler.so" "$OUTPUT_BIN_DIR/"
+cp -v "tools/XenosRecomp/thirdparty/dxc-bin/lib/$DXC_ARCH/libdxcompiler.so" "$OUTPUT_BIN_DIR/"
 echo "Copied libdxcompiler.so ($DXC_ARCH)"
 
 if [ -f "tools/XenosRecomp/thirdparty/dxc-bin/lib/$DXC_ARCH/libdxil.so" ]; then
-    cp "tools/XenosRecomp/thirdparty/dxc-bin/lib/$DXC_ARCH/libdxil.so" "$OUTPUT_BIN_DIR/"
+    cp -v "tools/XenosRecomp/thirdparty/dxc-bin/lib/$DXC_ARCH/libdxil.so" "$OUTPUT_BIN_DIR/"
     echo "Copied libdxil.so ($DXC_ARCH)"
 fi
 

@@ -87,6 +87,6 @@ find tools/XenosRecomp/thirdparty/dxc-bin/bin -type f -name "dxc-macos" -exec ch
 
 echo "Ensuring scripts are executable..."
 chmod +x build_android.sh build_tools.sh 2>/dev/null || true
-find tools -name "*.sh" -o -name "*.py" -exec chmod +x {} + 2>/dev/null || true
+find tools UnleashedRecomp -name "*.sh" -o -name "*.py" -exec chmod +x {} + 2>/dev/null || true
 
 echo "=== Patches and overrides applied successfully ==="
