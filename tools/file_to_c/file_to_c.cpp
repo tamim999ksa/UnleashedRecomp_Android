@@ -76,9 +76,9 @@ int main(int argc, const char** argv) {
     }
 
     // Compress if requested.
-    std::vector<char> compressed_contents;
-    std::transform(compression_type.begin(), compression_type.end(), compression_type.begin(), tolower);
+    std::transform(compression_type.begin(), compression_type.end(), compression_type.begin(), ::tolower);
 
+    std::vector<char> compressed_contents;
     if (compression_type == "zstd") {
         size_t bound_size = ZSTD_compressBound(contents.size());
         compressed_contents.resize(bound_size);
@@ -102,11 +102,14 @@ int main(int argc, const char** argv) {
         output_c_file << "extern unsigned char " << array_name << "[" << contents_to_write.size() << "];\n";
         output_c_file << "unsigned char " << array_name << "[" << contents_to_write.size() << "] = {";
 
+        size_t i = 0;
         for (char x : contents_to_write) {
+            if (i % 32 == 0) output_c_file << "\n\t";
             output_c_file << (int)(unsigned char)x << ", ";
+            i++;
         }
 
-        output_c_file << "};\n";
+        output_c_file << "\n};\n";
 
         // Write decompressed size.
         if (!compressed_contents.empty()) {
@@ -134,4 +137,5 @@ int main(int argc, const char** argv) {
             "  }\n"
             "#endif\n";
     }
+    return 0;
 }

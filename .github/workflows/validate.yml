@@ -163,7 +163,7 @@ jobs:
         run: |
           chmod +x gradlew
           export ANDROID_NDK_HOME=${ANDROID_SDK_ROOT}/ndk/29.0.14206865
-          ./gradlew assembleDebug --max-workers=1
+          ./gradlew assembleDebug --max-workers=1 --no-daemon
 
       - name: Upload Debug Artifact
         if: env.ASSET_REPO != ''
@@ -178,7 +178,7 @@ jobs:
         run: |
           chmod +x gradlew
           export ANDROID_NDK_HOME=${ANDROID_SDK_ROOT}/ndk/29.0.14206865
-          ./gradlew assembleRelease --max-workers=1
+          ./gradlew assembleRelease --max-workers=1 --no-daemon
 
       - name: Upload Release Artifact
         if: env.ASSET_REPO != ''
