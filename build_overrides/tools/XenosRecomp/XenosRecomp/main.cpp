@@ -40,16 +40,16 @@ static void writeAllBytes(const char* filePath, const void* data, size_t dataSiz
 
 static void writeByteArray(std::ostream& out, const std::string& name, const std::vector<uint8_t>& data)
 {
-    fmt::print(out, "const uint8_t {}[] = {{", name);
+    fmt::print(out, "const char {}[] = ", name);
     fmt::print(out, "\n\t\"");
     for (size_t i = 0; i < data.size(); ++i)
     {
         if (i > 0 && i % 4096 == 0) fmt::print(out, "\"\n\t\"");
         fmt::print(out, "\\x{:02x}", data[i]);
     }
-    fmt::print(out, "\"");
-    fmt::println(out, "\n}};");
+    fmt::print(out, "\";\n");
 }
+
 struct RecompiledShader
 {
     std::vector<uint8_t> shaderData;
