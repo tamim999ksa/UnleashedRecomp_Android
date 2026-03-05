@@ -1,0 +1,14 @@
+I have fixed the release.yml workflow failure by addressing several issues in the host build tools:
+
+1. Fixed invalid C++ syntax in generated shader_cache.cpp. The generator was producing arrays with braced string literals (e.g., const uint8_t name[] = { "\xHH..." };), which is invalid. Updated to const char name[] = "\xHH..."; (no braces).
+2. Updated XenosRecomp CMake configuration to link TBB::tbb, which is required for parallel execution policies (std::execution::par) when using GCC on Linux.
+3. Aligned types between generator and shader_cache.h by using const char for binary caches.
+4. Updated file_to_c tool to use the correct string literal initialization for large embedded assets.
+
+I have verified that all build tools now compile and link correctly on the CI environment (Ubuntu 24.04).
+
+Please review the changes in:
+- build_overrides/tools/XenosRecomp/XenosRecomp/main.cpp
+- tools/file_to_c/file_to_c.cpp
+- tools/XenosRecomp/XenosRecomp/CMakeLists.txt
+- build_overrides/tools/XenosRecomp/XenosRecomp/CMakeLists.txt
