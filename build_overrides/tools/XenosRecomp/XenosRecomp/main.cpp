@@ -40,7 +40,7 @@ static void writeAllBytes(const char* filePath, const void* data, size_t dataSiz
 
 static void writeByteArray(std::ostream& out, const std::string& name, const std::vector<uint8_t>& data)
 {
-    fmt::print(out, "const char {}[] = ", name);
+    fmt::print(out, "extern const char {}[] = ", name);
     fmt::print(out, "\n\t\"");
     for (size_t i = 0; i < data.size(); ++i)
     {
@@ -144,7 +144,7 @@ int main(int argc, char** argv)
 
         if (totalShaders > 0) {
             fmt::println("Recompiling {} unique shaders...", totalShaders);
-            std::for_each(std::execution::par, shaders.begin(), shaders.end(), [&](auto& hashShaderPair)
+            std::for_each(std::execution::par_unseq, shaders.begin(), shaders.end(), [&](auto& hashShaderPair)
                 {
                     auto& shader = hashShaderPair.second;
                     try {
@@ -218,7 +218,7 @@ int main(int argc, char** argv)
             dxilCompressed.resize(cSize);
             dxil.clear(); dxil.shrink_to_fit();
             writeByteArray(outFile, "g_compressedDxilCache", dxilCompressed);
-            fmt::println(outFile, "const size_t g_dxilCacheCompressedSize = {};\nconst size_t g_dxilCacheDecompressedSize = {};", cSize, deSize);
+            fmt::println(outFile, "extern const size_t g_dxilCacheCompressedSize = {};\nextern const size_t g_dxilCacheDecompressedSize = {};", cSize, deSize);
         }
 #endif
 
@@ -229,10 +229,10 @@ int main(int argc, char** argv)
             spirvCompressed.resize(cSize);
             spirv.clear(); spirv.shrink_to_fit();
             writeByteArray(outFile, "g_compressedSpirvCache", spirvCompressed);
-            fmt::println(outFile, "const size_t g_spirvCacheCompressedSize = {};\nconst size_t g_spirvCacheDecompressedSize = {};", cSize, deSize);
+            fmt::println(outFile, "extern const size_t g_spirvCacheCompressedSize = {};\nextern const size_t g_spirvCacheDecompressedSize = {};", cSize, deSize);
         }
 
-        fmt::println(outFile, "const size_t g_shaderCacheEntryCount = {};", shaders.size());
+        fmt::println(outFile, "extern const size_t g_shaderCacheEntryCount = {};", shaders.size());
         outFile.close();
     }
     else
