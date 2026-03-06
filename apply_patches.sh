@@ -25,21 +25,27 @@ apply_patch_in() {
         echo "Applying $(basename "$patch_file") to $target_dir..."
         pushd "$target_dir" > /dev/null
         # Use --ignore-whitespace and --3way to be more robust
-        # Also redirect stderr to stdout to capture it in logs if check fails
         if ! git apply --ignore-whitespace --3way -p"$strip_level" --check "../../$patch_file" 2>&1; then
              # Check if already applied
              if git apply --ignore-whitespace --3way -p"$strip_level" --reverse --check "../../$patch_file" > /dev/null 2>&1; then
                  echo "Patch already applied, skipping."
+                 popd > /dev/null
+                 return 0
              else
                  echo "ERROR: Patch failed to apply to $target_dir (check conflicts)."
                  popd > /dev/null
                  return 1
              fi
         else
-            git apply --ignore-whitespace --3way -p"$strip_level" "../../$patch_file"
+            if ! git apply --ignore-whitespace --3way -p"$strip_level" "../../$patch_file"; then
+                echo "ERROR: Failed to apply patch after check passed."
+                popd > /dev/null
+                return 1
+            fi
         fi
         popd > /dev/null
     fi
+    return 0
 }
 
 main() {
@@ -61,13 +67,13 @@ main() {
 
     echo "=== Applying patches ==="
     # These patches are critical, fail early if they fail to apply
-    apply_patch_in "patches/xenon_recomp_fixes.patch" "tools/XenonRecomp" 1 || { echo "Failed to apply xenon_recomp_fixes.patch"; return 1; }
-    apply_patch_in "patches/xenon_recomp_absolute_branch.patch" "tools/XenonRecomp" 1 || { echo "Failed to apply xenon_recomp_absolute_branch.patch"; return 1; }
-    apply_patch_in "patches/xenos_recomp_fixes.patch" "tools/XenosRecomp" 1 || { echo "Failed to apply xenos_recomp_fixes.patch"; return 1; }
-    apply_patch_in "patches/nfd_android.patch" "thirdparty/nativefiledialog-extended" 1 || { echo "Failed to apply nfd_android.patch"; return 1; }
-    apply_patch_in "patches/sdl_android_fixes.patch" "thirdparty/SDL" 1 || { echo "Failed to apply sdl_android_fixes.patch"; return 1; }
-    apply_patch_in "patches/swa_input_state_fix.patch" "UnleashedRecomp/api" 1 || { echo "Failed to apply swa_input_state_fix.patch"; return 1; }
-    apply_patch_in "patches/hh_string_holder_fix.patch" "UnleashedRecomp/api" 1 || { echo "Failed to apply hh_string_holder_fix.patch"; return 1; }
+    apply_patch_in "patches/xenon_recomp_fixes.patch" "tools/XenonRecomp" 1 || return 1
+    apply_patch_in "patches/xenon_recomp_absolute_branch.patch" "tools/XenonRecomp" 1 || return 1
+    apply_patch_in "patches/xenos_recomp_fixes.patch" "tools/XenosRecomp" 1 || return 1
+    apply_patch_in "patches/nfd_android.patch" "thirdparty/nativefiledialog-extended" 1 || return 1
+    apply_patch_in "patches/sdl_android_fixes.patch" "thirdparty/SDL" 1 || return 1
+    apply_patch_in "patches/swa_input_state_fix.patch" "UnleashedRecomp/api" 1 || return 1
+    apply_patch_in "patches/hh_string_holder_fix.patch" "UnleashedRecomp/api" 1 || return 1
 
     # Root project patches
     if [ -f "patches/remove_gold_linker_flags.patch" ]; then
