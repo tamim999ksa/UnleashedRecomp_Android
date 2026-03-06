@@ -84,7 +84,7 @@ int main(int argc, const char** argv) {
         size_t bound_size = ZSTD_compressBound(contents.size());
         compressed_contents.resize(bound_size);
 
-        size_t compressed_size = ZSTD_compress(compressed_contents.data(), bound_size, contents.data(), contents.size(), ZSTD_maxCLevel());
+        size_t compressed_size = ZSTD_compress(compressed_contents.data(), bound_size, contents.data(), contents.size(), 10);
         compressed_contents.resize(compressed_size);
     }
     else if (compression_type != "none") {
