@@ -39,6 +39,8 @@ set(UNLEASHED_RECOMP_PPC_RECOMPILED_SOURCES
 foreach(i RANGE 0 339)
     list(APPEND UNLEASHED_RECOMP_PPC_RECOMPILED_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/ppc/ppc_recomp.${i}.cpp")
 endforeach()
+file(MAKE_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/ppc")
+file(MAKE_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/shader")
 
 
 # Configure optional dependency for patch file
@@ -54,8 +56,8 @@ add_custom_command(
     OUTPUT 
         "${CMAKE_CURRENT_SOURCE_DIR}/private/default_patched.xex"
         ${UNLEASHED_RECOMP_PPC_RECOMPILED_SOURCES}
-    COMMAND 
-        $<TARGET_FILE:XenonRecompHost> "${CMAKE_CURRENT_SOURCE_DIR}/config/SWA.toml" "${UNLEASHED_RECOMP_TOOLS_ROOT}/XenonRecomp/XenonUtils/ppc_context.h"
+    COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_CURRENT_SOURCE_DIR}/ppc"
+    COMMAND $<TARGET_FILE:XenonRecompHost> "${CMAKE_CURRENT_SOURCE_DIR}/config/SWA.toml" "${UNLEASHED_RECOMP_TOOLS_ROOT}/XenonRecomp/XenonUtils/ppc_context.h"
     DEPENDS 
         "${CMAKE_CURRENT_SOURCE_DIR}/private/default.xex"
         ${DEFAULT_XEXP_DEP}
@@ -66,8 +68,8 @@ add_custom_command(
 add_custom_command(
     OUTPUT
         "${CMAKE_CURRENT_SOURCE_DIR}/private/shader_decompressed.ar"
-    COMMAND
-        $<TARGET_FILE:x_decompress> "${CMAKE_CURRENT_SOURCE_DIR}/private/shader.ar" "${CMAKE_CURRENT_SOURCE_DIR}/private/shader_decompressed.ar"
+    COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_CURRENT_SOURCE_DIR}/private"
+    COMMAND $<TARGET_FILE:x_decompress> "${CMAKE_CURRENT_SOURCE_DIR}/private/shader.ar" "${CMAKE_CURRENT_SOURCE_DIR}/private/shader_decompressed.ar"
     DEPENDS
         "${CMAKE_CURRENT_SOURCE_DIR}/private/shader.ar"
 )
@@ -83,8 +85,8 @@ file(GLOB XENOS_RECOMP_SOURCES
 add_custom_command(
     OUTPUT
         "${CMAKE_CURRENT_SOURCE_DIR}/shader/shader_cache.cpp"
-    COMMAND
-        $<TARGET_FILE:XenosRecompHost> "${CMAKE_CURRENT_SOURCE_DIR}/private" "${CMAKE_CURRENT_SOURCE_DIR}/shader/shader_cache.cpp" "${XENOS_RECOMP_INCLUDE}"
+    COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_CURRENT_SOURCE_DIR}/shader"
+    COMMAND $<TARGET_FILE:XenosRecompHost> "${CMAKE_CURRENT_SOURCE_DIR}/private" "${CMAKE_CURRENT_SOURCE_DIR}/shader/shader_cache.cpp" "${XENOS_RECOMP_INCLUDE}"
     DEPENDS
         "${CMAKE_CURRENT_SOURCE_DIR}/private/default_patched.xex"
         "${CMAKE_CURRENT_SOURCE_DIR}/private/shader_decompressed.ar"
