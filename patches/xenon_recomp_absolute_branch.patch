@@ -50,6 +50,7 @@ index 8beb23c..8dd3831 100644
 --- a/XenonTests/CMakeLists.txt
 +++ b/XenonTests/CMakeLists.txt
 @@ -10,6 +10,7 @@ if(TEST_FILES)
+     target_link_libraries(XenonTests
          PUBLIC
              XenonUtils
              fmt::fmt
