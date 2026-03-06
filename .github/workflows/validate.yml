@@ -63,7 +63,12 @@ jobs:
         uses: android-actions/setup-android@v3
 
       - name: Install Android NDK
-        run: echo y | sdkmanager "ndk;29.0.14206865"
+        run: |
+          # Use a specific version of cmdline-tools to avoid XML version mismatch
+          # and ensure we use the correct sdkmanager
+          echo y | sdkmanager --licenses
+          sdkmanager "platform-tools" "cmdline-tools;latest"
+          echo y | sdkmanager "ndk;29.0.14206865"
 
       - name: Cache vcpkg
         uses: actions/cache@v4
