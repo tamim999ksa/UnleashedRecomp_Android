@@ -144,38 +144,38 @@ int main(int argc, char** argv)
 
         if (totalShaders > 0) {
             fmt::println("Recompiling {} unique shaders...", totalShaders);
-            std::for_each(std::execution::par_unseq, shaders.begin(), shaders.end(), [&](auto& hashShaderPair)
-                {
-                    auto& shader = hashShaderPair.second;
-                    try {
-                        thread_local ShaderRecompiler recompiler;
-                        recompiler = {};
-                        recompiler.recompile(shader.data, include);
+            for (auto& [hash, shader] : shaders)
+            {
+                try {
+                    ShaderRecompiler recompiler;
+                    recompiler.recompile(shader.data, include);
 
-                        shader.specConstantsMask = recompiler.specConstantsMask;
+                    shader.specConstantsMask = recompiler.specConstantsMask;
 
-                        thread_local DxcCompiler dxcCompiler;
+                    DxcCompiler dxcCompiler;
 #ifdef XENOS_RECOMP_DXIL
-                        shader.dxil = dxcCompiler.compile(recompiler.out, recompiler.isPixelShader, recompiler.specConstantsMask != 0, false);
-                        if (shader.dxil) {
-                             assert(*(reinterpret_cast<uint32_t *>(shader.dxil->GetBufferPointer()) + 1) != 0 && "DXIL was not signed properly!");
-                        }
+                    shader.dxil = dxcCompiler.compile(recompiler.out, recompiler.isPixelShader, recompiler.specConstantsMask != 0, false);
+                    if (shader.dxil) {
+                         assert(*(reinterpret_cast<uint32_t *>(shader.dxil->GetBufferPointer()) + 1) != 0 && "DXIL was not signed properly!");
+                    }
 #endif
-                        IDxcBlob* spirv = dxcCompiler.compile(recompiler.out, recompiler.isPixelShader, false, true);
-                        if (spirv) {
-                            smolv::Encode(spirv->GetBufferPointer(), spirv->GetBufferSize(), shader.spirv, smolv::kEncodeFlagStripDebugInfo);
-                            spirv->Release();
-                        }
-                    } catch (...) {}
+                    IDxcBlob* spirv = dxcCompiler.compile(recompiler.out, recompiler.isPixelShader, false, true);
+                    if (spirv) {
+                        smolv::Encode(spirv->GetBufferPointer(), spirv->GetBufferSize(), shader.spirv, smolv::kEncodeFlagStripDebugInfo);
+                        spirv->Release();
+                    }
+                } catch (...) {
+                    fmt::println(stderr, "Warning: Failed to recompile shader with hash 0x{:X}", hash);
+                }
 
-                    shader.shaderData.clear();
-                    shader.shaderData.shrink_to_fit();
-                    shader.data = nullptr;
+                shader.shaderData.clear();
+                shader.shaderData.shrink_to_fit();
+                shader.data = nullptr;
 
-                    size_t currentProgress = ++progress;
-                    if ((currentProgress % 100) == 0 || (currentProgress == totalShaders))
-                        fmt::println("Progress: {}/{} ({:.1f}%)", currentProgress, totalShaders, currentProgress / float(totalShaders) * 100.0f);
-                });
+                uint32_t currentProgress = ++progress;
+                if ((currentProgress % 100) == 0 || (currentProgress == totalShaders))
+                    fmt::println("Progress: {}/{} ({:.1f}%)", currentProgress, totalShaders, currentProgress / float(totalShaders) * 100.0f);
+            }
         }
 
         fmt::println("Serializing shader cache...");
