@@ -208,7 +208,7 @@ int main(int argc, char** argv)
 
         fmt::println(outFile, "}};");
 
-        int level = ZSTD_maxCLevel();
+        int level = 10;
 
 #ifdef XENOS_RECOMP_DXIL
         if (!dxil.empty()) {
