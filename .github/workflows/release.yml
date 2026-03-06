@@ -202,7 +202,7 @@ jobs:
   build:
     name: Build (${{ inputs.os || 'android' }})
     needs: prepare-assets
-    if: needs.prepare-assets.outputs.has_assets == 'true' || github.event_name == 'push'
+    if: needs.prepare-assets.outputs.has_assets == 'true'
     runs-on: ${{ (inputs.os == 'windows') && 'windows-latest' || 'ubuntu-24.04' }}
     env:
       OS: ${{ inputs.os || 'android' }}
@@ -248,7 +248,12 @@ jobs:
 
       - name: Install Android NDK
         if: env.OS == 'android'
-        run: echo y | sdkmanager "ndk;29.0.14206865"
+        run: |
+          # Use a specific version of cmdline-tools to avoid XML version mismatch
+          # and ensure we use the correct sdkmanager
+          echo y | sdkmanager --licenses
+          sdkmanager "platform-tools" "cmdline-tools;latest"
+          echo y | sdkmanager "ndk;29.0.14206865"
 
       - name: Bootstrap vcpkg
         if: env.OS == 'android' || env.OS == 'linux'
