@@ -41,6 +41,10 @@ static void writeAllBytes(const char* filePath, const void* data, size_t dataSiz
 static void writeByteArray(std::ostream& out, const std::string& name, const std::vector<uint8_t>& data)
 {
     fmt::print(out, "extern const char {}[] = ", name);
+    if (data.empty()) {
+        fmt::print(out, "\"\\x00\";\n");
+        return;
+    }
     fmt::print(out, "\n\t\"");
     for (size_t i = 0; i < data.size(); ++i)
     {
@@ -144,6 +148,13 @@ int main(int argc, char** argv)
 
         if (totalShaders > 0) {
             fmt::println("Recompiling {} unique shaders...", totalShaders);
+            DxcCompiler dxcCompiler;
+            // Check if DXC is available
+            if (dxcCompiler.dxcCompiler == nullptr) {
+                fmt::println(stderr, "Error: Failed to initialize DXC compiler. Make sure libdxcompiler.so/dxcompiler.dll is in the executable directory.");
+                return 1;
+            }
+
             for (auto& [hash, shader] : shaders)
             {
                 try {
@@ -152,7 +163,6 @@ int main(int argc, char** argv)
 
                     shader.specConstantsMask = recompiler.specConstantsMask;
 
-                    DxcCompiler dxcCompiler;
 #ifdef XENOS_RECOMP_DXIL
                     shader.dxil = dxcCompiler.compile(recompiler.out, recompiler.isPixelShader, recompiler.specConstantsMask != 0, false);
                     if (shader.dxil) {
@@ -192,7 +202,7 @@ int main(int argc, char** argv)
 
         for (auto& [hash, shader] : shaders)
         {
-            fmt::println(outFile, "\t{{ 0x{:X}, {}, {}, {}, {}, {} }},",
+            fmt::println(outFile, "\t{{ 0x{:X}, {}, {}, {}, {}, {}, nullptr }},",
                 hash, dxil.size(), (shader.dxil != nullptr) ? shader.dxil->GetBufferSize() : 0, spirv.size(), shader.spirv.size(), shader.specConstantsMask);
 
             if (shader.dxil != nullptr)
@@ -210,27 +220,29 @@ int main(int argc, char** argv)
 
         int level = 10;
 
-#ifdef XENOS_RECOMP_DXIL
-        if (!dxil.empty()) {
-            size_t deSize = dxil.size();
-            std::vector<uint8_t> dxilCompressed(ZSTD_compressBound(deSize));
-            size_t cSize = ZSTD_compress(dxilCompressed.data(), dxilCompressed.size(), dxil.data(), deSize, level);
-            dxilCompressed.resize(cSize);
+        size_t dxilDeSize = dxil.size();
+        size_t dxilCSize = 0;
+        std::vector<uint8_t> dxilCompressed;
+        if (dxilDeSize > 0) {
+            dxilCompressed.resize(ZSTD_compressBound(dxilDeSize));
+            dxilCSize = ZSTD_compress(dxilCompressed.data(), dxilCompressed.size(), dxil.data(), dxilDeSize, level);
+            dxilCompressed.resize(dxilCSize);
             dxil.clear(); dxil.shrink_to_fit();
-            writeByteArray(outFile, "g_compressedDxilCache", dxilCompressed);
-            fmt::println(outFile, "extern const size_t g_dxilCacheCompressedSize = {};\nextern const size_t g_dxilCacheDecompressedSize = {};", cSize, deSize);
         }
-#endif
+        writeByteArray(outFile, "g_compressedDxilCache", dxilCompressed);
+        fmt::println(outFile, "extern const size_t g_dxilCacheCompressedSize = {};\nextern const size_t g_dxilCacheDecompressedSize = {};", dxilCSize, dxilDeSize);
 
-        if (!spirv.empty()) {
-            size_t deSize = spirv.size();
-            std::vector<uint8_t> spirvCompressed(ZSTD_compressBound(deSize));
-            size_t cSize = ZSTD_compress(spirvCompressed.data(), spirvCompressed.size(), spirv.data(), deSize, level);
-            spirvCompressed.resize(cSize);
+        size_t spirvDeSize = spirv.size();
+        size_t spirvCSize = 0;
+        std::vector<uint8_t> spirvCompressed;
+        if (spirvDeSize > 0) {
+            spirvCompressed.resize(ZSTD_compressBound(spirvDeSize));
+            spirvCSize = ZSTD_compress(spirvCompressed.data(), spirvCompressed.size(), spirv.data(), spirvDeSize, level);
+            spirvCompressed.resize(spirvCSize);
             spirv.clear(); spirv.shrink_to_fit();
-            writeByteArray(outFile, "g_compressedSpirvCache", spirvCompressed);
-            fmt::println(outFile, "extern const size_t g_spirvCacheCompressedSize = {};\nextern const size_t g_spirvCacheDecompressedSize = {};", cSize, deSize);
         }
+        writeByteArray(outFile, "g_compressedSpirvCache", spirvCompressed);
+        fmt::println(outFile, "extern const size_t g_spirvCacheCompressedSize = {};\nextern const size_t g_spirvCacheDecompressedSize = {};", spirvCSize, spirvDeSize);
 
         fmt::println(outFile, "extern const size_t g_shaderCacheEntryCount = {};", shaders.size());
         outFile.close();

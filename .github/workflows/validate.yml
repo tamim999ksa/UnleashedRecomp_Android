@@ -131,22 +131,30 @@ jobs:
           # Robust Normalization
           finalize_file() {
             local filename="$1"
+            echo "Finalizing $filename..."
             local target_path="./UnleashedRecompLib/private/$filename"
             local candidates=$(find ./UnleashedRecompLib/private -type f -iname "$filename" | { grep -vFx "$target_path" || true; })
-            local candidate_count=$(echo "$candidates" | grep -v "^$" | wc -l || true)
+            local candidate_count=$(printf "%s" "$candidates" | grep -v "^$" | wc -l || true)
             if [ "$candidate_count" -gt 0 ]; then
+                echo "Found $candidate_count candidates for $filename"
                 local found_file=""
                 if [ "$candidate_count" -gt 1 ]; then
-                    found_file=$(echo "$candidates" | grep -vE "/(game|base)/" | head -n 1)
-                    if [ -z "$found_file" ]; then found_file=$(echo "$candidates" | head -n 1); fi
+                    found_file=$(printf "%s" "$candidates" | grep -vE "/(game|base)/" | head -n 1)
+                    if [ -z "$found_file" ]; then found_file=$(printf "%s" "$candidates" | head -n 1); fi
                 else
                     found_file="$candidates"
                 fi
-                if [ -n "$found_file" ]; then mv -f "$found_file" "$target_path"; fi
+                if [ -n "$found_file" ]; then
+                    echo "Moving $found_file to $target_path"
+                    mv -f "$found_file" "$target_path"
+                fi
             fi
             # Case fix for root files
             local root_file=$(find ./UnleashedRecompLib/private -maxdepth 1 -type f -iname "$filename" | head -n 1)
-            if [ -n "$root_file" ] && [ "$root_file" != "$target_path" ]; then mv -f "$root_file" "$target_path"; fi
+            if [ -n "$root_file" ] && [ "$root_file" != "$target_path" ]; then
+                echo "Correcting case: $root_file -> $target_path"
+                mv -f "$root_file" "$target_path"
+            fi
           }
 
           finalize_file "default.xex"
@@ -167,7 +175,7 @@ jobs:
         working-directory: ./android
         run: |
           chmod +x gradlew
-          export ANDROID_NDK_HOME=${ANDROID_SDK_ROOT}/ndk/29.0.14206865
+          export ANDROID_NDK_HOME=${ANDROID_HOME}/ndk/29.0.14206865
           ./gradlew assembleDebug --max-workers=1 --no-daemon
 
       - name: Upload Debug Artifact
@@ -182,7 +190,7 @@ jobs:
         working-directory: ./android
         run: |
           chmod +x gradlew
-          export ANDROID_NDK_HOME=${ANDROID_SDK_ROOT}/ndk/29.0.14206865
+          export ANDROID_NDK_HOME=${ANDROID_HOME}/ndk/29.0.14206865
           ./gradlew assembleRelease --max-workers=1 --no-daemon
 
       - name: Upload Release Artifact
