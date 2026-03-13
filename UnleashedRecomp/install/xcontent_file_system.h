@@ -13,6 +13,8 @@
 
 #include <filesystem>
 #include <map>
+#include <string>
+#include <vector>
 #include <ankerl/unordered_dense.h>
 
 #include "virtual_file_system.h"

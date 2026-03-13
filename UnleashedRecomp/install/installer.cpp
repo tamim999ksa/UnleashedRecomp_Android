@@ -1,5 +1,7 @@
 #include <cctype>
 #include <algorithm>
+#include <memory>
+#include <system_error>
 #ifndef ANDROID
 #include <execution>
 #endif

@@ -1,4 +1,6 @@
 #include <mutex>
+#include <string>
+#include <vector>
 #include <algorithm>
 #include <cstring>
 #include "video.h"

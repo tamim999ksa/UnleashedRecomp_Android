@@ -1,5 +1,8 @@
 #pragma once
 #include <utility>
+#include <string>
+#include <vector>
+#include <memory>
 
 #include <span>
 #include <set>

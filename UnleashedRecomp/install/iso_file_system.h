@@ -12,6 +12,8 @@
 #pragma once
 
 #include <filesystem>
+#include <string>
+#include <tuple>
 #include <ankerl/unordered_dense.h>
 
 #include "virtual_file_system.h"

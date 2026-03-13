@@ -1,6 +1,10 @@
 #pragma once
 
 #include <filesystem>
+#include <string>
+#include <string_view>
+#include <fstream>
+#include <memory>
 
 #include "virtual_file_system.h"
 

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <mutex>
+
 #ifdef _WIN32
 
 struct Mutex : CRITICAL_SECTION
