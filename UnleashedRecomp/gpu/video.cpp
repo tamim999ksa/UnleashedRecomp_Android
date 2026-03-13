@@ -1,3 +1,4 @@
+#include <mutex>
 #include <algorithm>
 #include <cstring>
 #include "video.h"

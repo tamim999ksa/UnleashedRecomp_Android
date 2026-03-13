@@ -1,3 +1,4 @@
+#include <cctype>
 #include <algorithm>
 #ifndef ANDROID
 #include <execution>
