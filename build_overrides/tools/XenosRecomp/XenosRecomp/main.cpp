@@ -1,3 +1,5 @@
+#include <string_view>
+#include <cstddef>
 #include <fstream>
 #include <filesystem>
 #include <vector>

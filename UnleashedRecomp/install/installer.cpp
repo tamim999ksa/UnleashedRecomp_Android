@@ -1,7 +1,10 @@
-#include <cctype>
 #include <algorithm>
+#include <cctype>
+#include <fstream>
+#include <functional>
 #include <memory>
 #include <system_error>
+#include <utility>
 #ifndef ANDROID
 #include <execution>
 #endif
@@ -55,7 +58,7 @@ static const std::string OldExtension = ".old";
 static const std::string TempExtension = ".tmp";
 
 static std::string fromU8(const std::u8string &str) {
-  return std::string(str.begin(), str.end());
+  return std::string(reinterpret_cast<const char*>(str.data()), str.size());
 }
 
 static std::string fromPath(const std::filesystem::path &path) {
