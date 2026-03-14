@@ -1,3 +1,9 @@
+#include <mutex>
+#include <string>
+#include <vector>
+#include <utility>
+#include <memory>
+#include <atomic>
 #include <algorithm>
 #include <cstring>
 #include "video.h"

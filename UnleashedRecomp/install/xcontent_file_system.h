@@ -10,6 +10,10 @@
  */
 
 #pragma once
+#include <filesystem>
+#include <map>
+#include <string>
+#include <vector>
 
 #include <filesystem>
 #include <map>
