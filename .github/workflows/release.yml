@@ -39,7 +39,7 @@ jobs:
       has_assets: ${{ steps.check-assets.outputs.has_assets }}
     steps:
       - name: Maximize build space
-        if: runner.os == "Linux"
+        if: runner.os == 'Linux'
         uses: easimon/maximize-build-space@master
         with:
           swap-size-mb: 4096
@@ -89,9 +89,9 @@ jobs:
       - name: Download Data
         if: ${{ github.event_name == 'workflow_dispatch' || env.ASSET_REPO != '' }}
         env:
-          GAME_URL: ${{ github.event.inputs.game_url }}
-          UPDATE_URL: ${{ github.event.inputs.update_url }}
-          DLC_URL: ${{ github.event.inputs.dlc_url }}
+          GAME_URL: ${{ github.event.inputs && github.event.inputs.game_url }}
+          UPDATE_URL: ${{ github.event.inputs && github.event.inputs.update_url }}
+          DLC_URL: ${{ github.event.inputs && github.event.inputs.dlc_url }}
         run: |
           mkdir -p ./UnleashedRecompLib/private
 
@@ -199,19 +199,19 @@ jobs:
           retention-days: 1
 
   build:
-    name: Build (${{ github.event.inputs.os || 'android' }})
+    name: Build (${{ github.event.inputs && github.event.inputs.os || 'android' }})
     needs: prepare-assets
     if: needs.prepare-assets.outputs.has_assets == 'true'
-    runs-on: ${{ (github.event.inputs.os == 'windows') && 'windows-latest' || 'ubuntu-24.04' }}
+    runs-on: ${{ (github.event.inputs && github.event.inputs.os == 'windows') && 'windows-latest' || 'ubuntu-24.04' }}
     env:
-      OS: ${{ github.event.inputs.os || 'android' }}
+      OS: ${{ github.event.inputs && github.event.inputs.os || 'android' }}
       CMAKE_BUILD_PARALLEL_LEVEL: 1
     defaults:
       run:
         shell: bash
     steps:
       - name: Maximize build space
-        if: runner.os == "Linux"
+        if: runner.os == 'Linux'
         uses: easimon/maximize-build-space@master
         with:
           swap-size-mb: 4096
