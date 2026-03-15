@@ -199,12 +199,12 @@ jobs:
           retention-days: 1
 
   build:
-    name: Build (${{ inputs.os || 'android' }})
+    name: Build (${{ github.event.inputs.os || 'android' }})
     needs: prepare-assets
     if: needs.prepare-assets.outputs.has_assets == 'true'
-    runs-on: ${{ (inputs.os == 'windows') && 'windows-latest' || 'ubuntu-24.04' }}
+    runs-on: ${{ (github.event.inputs.os == 'windows') && 'windows-latest' || 'ubuntu-24.04' }}
     env:
-      OS: ${{ inputs.os || 'android' }}
+      OS: ${{ github.event.inputs.os || 'android' }}
       CMAKE_BUILD_PARALLEL_LEVEL: 1
     defaults:
       run:
