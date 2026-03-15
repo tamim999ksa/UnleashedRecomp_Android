@@ -6,8 +6,6 @@
 #include <string_view>
 #include <system_error>
 
-#include <filesystem>
-
 #include "virtual_file_system.h"
 
 struct DirectoryFileSystem : VirtualFileSystem

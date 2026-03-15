@@ -6,21 +6,12 @@
 #include <functional>
 #include <list>
 #include <memory>
+#include <set>
 #include <span>
 #include <string>
 #include <thread>
 #include <utility>
 #include <vector>
-
-#include <span>
-#include <set>
-#include <array>
-#include <cstdint>
-#include <list>
-#include <filesystem>
-#include <functional>
-#include <chrono>
-#include <thread>
 
 #include "virtual_file_system.h"
 #include <xex_patcher.h>
