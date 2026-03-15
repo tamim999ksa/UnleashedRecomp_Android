@@ -9,6 +9,8 @@ on:
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   build-android:
@@ -18,7 +20,18 @@ jobs:
       CMAKE_BUILD_PARALLEL_LEVEL: 1
       ASSET_REPO: ${{ secrets.ASSET_REPO }}
       ASSET_REPO_TOKEN: ${{ secrets.ASSET_REPO_TOKEN }}
+      ANDROID_HOME: ${{ github.workspace }}/android-sdk
+      ANDROID_SDK_ROOT: ${{ github.workspace }}/android-sdk
     steps:
+      - name: Maximize build space
+        uses: easimon/maximize-build-space@master
+        with:
+          swap-size-mb: 4096
+          remove-dotnet: "true"
+          remove-android: "true"
+          remove-haskell: "true"
+          remove-codeql: "true"
+          remove-docker-images: "true"
       - name: Checkout Repository
         uses: actions/checkout@v4
         with:
@@ -66,7 +79,7 @@ jobs:
         run: |
           # Use a specific version of cmdline-tools to avoid XML version mismatch
           # and ensure we use the correct sdkmanager
-          echo y | sdkmanager --licenses
+          echo y | ${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager --licenses || echo y | sdkmanager --licenses
           sdkmanager "platform-tools" "cmdline-tools;latest"
           echo y | sdkmanager "ndk;29.0.14206865"
 
@@ -108,7 +121,7 @@ jobs:
 
           # Recursive extraction
           for i in {1..15}; do
-            nested=$(find ./UnleashedRecompLib/private -type f \( -iname "*.iso" -o -iname "*.7z" -o -iname "*.zip" -o -iname "*.rar" -o -iname "TU_*" -o -iname "*.tar*" -o -iregex ".*/[0-9a-fA-F]\\{8,42\\}" \) -not -name "*.skipped" -not -name "*.extracted" | head -n 1)
+            nested=$(find ./UnleashedRecompLib/private -type f \( -iname "*.iso" -o -iname "*.7z" -o -iname "*.zip" -o -iname "*.rar" -o -iname "TU_*" -o -iname "*.tar*" -o -iregex ".*/[0-9a-fA-F]\{8,42\}" \) -not -name "*.skipped" -not -name "*.extracted" | head -n 1)
             if [ -z "$nested" ]; then break; fi
 
             filename=$(basename "$nested")
@@ -117,7 +130,7 @@ jobs:
             if [[ "$extension" =~ ^(iso|ISO)$ ]]; then is_iso=1; fi
 
             success=0
-            if 7z x -y "$nested" -o./UnleashedRecompLib/private/ > /dev/null 2>&1; then
+            if 7z x -y "$nested" -o./UnleashedRecompLib/private/; then
               success=1
             elif [ "$is_iso" -eq 1 ] && (extract-xiso -x "$nested" -d ./UnleashedRecompLib/private/ || python3 tools/extract_xgd.py "$nested" ./UnleashedRecompLib/private/); then
               success=1
@@ -133,7 +146,7 @@ jobs:
             local filename="$1"
             echo "Finalizing $filename..."
             local target_path="./UnleashedRecompLib/private/$filename"
-            local candidates=$(find ./UnleashedRecompLib/private -type f -iname "$filename" | { grep -vFx "$target_path" || true; })
+            local candidates=$(find ./UnleashedRecompLib/private -type f -iname "$filename" | { grep -vFx "$target_path" || true; } || true)
             local candidate_count=$(printf "%s" "$candidates" | grep -v "^$" | wc -l || true)
             if [ "$candidate_count" -gt 0 ]; then
                 echo "Found $candidate_count candidates for $filename"
