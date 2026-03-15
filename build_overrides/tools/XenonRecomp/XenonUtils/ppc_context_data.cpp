@@ -1,4 +1,4 @@
-#include <cstdint>
+#define PPC_CONFIG_H_INCLUDED
 #include "ppc_context.h"
 
 const uint8_t VectorMaskL[] =
