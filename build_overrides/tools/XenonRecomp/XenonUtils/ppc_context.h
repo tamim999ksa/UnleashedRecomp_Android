@@ -1,3 +1,4 @@
+#include <cstdint>
 #ifndef PPC_CONTEXT_H_INCLUDED
 #define PPC_CONTEXT_H_INCLUDED
 
