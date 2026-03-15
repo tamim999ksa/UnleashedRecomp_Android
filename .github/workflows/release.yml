@@ -218,7 +218,7 @@ jobs:
         with:
           swap-size-mb: 4096
           remove-dotnet: "true"
-          remove-android: "false"
+          remove-android: "true"
           remove-haskell: "true"
           remove-codeql: "true"
           remove-docker-images: "true"
@@ -255,14 +255,19 @@ jobs:
 
       - name: Setup Android SDK
         if: env.OS == 'android'
+        env:
+          ANDROID_HOME: ${{ github.workspace }}/android-sdk
+          ANDROID_SDK_ROOT: ${{ github.workspace }}/android-sdk
         uses: android-actions/setup-android@v3
 
       - name: Install Android NDK
         if: env.OS == 'android'
         run: |
+          export ANDROID_HOME=${{ github.workspace }}/android-sdk
+          export ANDROID_SDK_ROOT=${{ github.workspace }}/android-sdk
           # Use a specific version of cmdline-tools to avoid XML version mismatch
           # and ensure we use the correct sdkmanager
-          echo y | sdkmanager --licenses
+          echo y | ${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager --licenses || echo y | sdkmanager --licenses
           sdkmanager "platform-tools" "cmdline-tools;latest"
           echo y | sdkmanager "ndk;29.0.14206865"
 
@@ -292,6 +297,8 @@ jobs:
         working-directory: android
         env:
           CMAKE_BUILD_PARALLEL_LEVEL: 1
+          ANDROID_HOME: ${{ github.workspace }}/android-sdk
+          ANDROID_SDK_ROOT: ${{ github.workspace }}/android-sdk
         run: |
           chmod +x gradlew
           export ANDROID_NDK_HOME=${ANDROID_HOME}/ndk/29.0.14206865
