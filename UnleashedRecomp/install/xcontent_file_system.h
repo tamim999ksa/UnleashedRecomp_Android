@@ -11,16 +11,12 @@
 
 #pragma once
 #include <filesystem>
-#include <map>
 #include <string>
 #include <vector>
-
-#include <filesystem>
-#include <map>
+#include <memory>
 #include <ankerl/unordered_dense.h>
 
 #include "virtual_file_system.h"
-
 #include <memory_mapped_file.h>
 
 enum class XContentVolumeType

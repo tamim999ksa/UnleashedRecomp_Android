@@ -38,17 +38,16 @@ jobs:
     outputs:
       has_assets: ${{ steps.check-assets.outputs.has_assets }}
     steps:
-      - name: Free Disk Space (Ubuntu)
-        if: runner.os == 'Linux'
-        run: |
-          sudo rm -rf /usr/share/dotnet
-          sudo rm -rf /usr/local/lib/android
-          sudo rm -rf /opt/ghc
-          sudo rm -rf "/usr/local/share/boost"
-          sudo rm -rf "$AGENT_TOOLSDIRECTORY"
-          sudo docker image prune --all --force
-          sudo apt-get clean
-
+      - name: Maximize build space
+        if: runner.os == "Linux"
+        uses: easimon/maximize-build-space@master
+        with:
+          swap-size-mb: 4096
+          remove-dotnet: "true"
+          remove-android: "false"
+          remove-haskell: "true"
+          remove-codeql: "true"
+          remove-docker-images: "true"
 
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -211,6 +210,16 @@ jobs:
       run:
         shell: bash
     steps:
+      - name: Maximize build space
+        if: runner.os == "Linux"
+        uses: easimon/maximize-build-space@master
+        with:
+          swap-size-mb: 4096
+          remove-dotnet: "true"
+          remove-android: "false"
+          remove-haskell: "true"
+          remove-codeql: "true"
+          remove-docker-images: "true"
       - name: Checkout Code
         uses: actions/checkout@v4
         with:
@@ -285,7 +294,7 @@ jobs:
           chmod +x gradlew
           export ANDROID_NDK_HOME=${ANDROID_HOME}/ndk/29.0.14206865
           export GRADLE_OPTS="-Xmx4096m -Dorg.gradle.daemon=false -Dorg.gradle.parallel=true -Dorg.gradle.workers.max=1"
-          ./gradlew assembleRelease --stacktrace --max-workers=1 --no-daemon
+          ./gradlew assembleRelease --stacktrace --max-workers=1 --stacktrace --no-daemon
 
       - name: Build Linux
         if: env.OS == 'linux'

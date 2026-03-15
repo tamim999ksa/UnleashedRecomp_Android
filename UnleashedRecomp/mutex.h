@@ -1,5 +1,5 @@
-#include <mutex>
 #pragma once
+#include <mutex>
 
 #ifdef _WIN32
 

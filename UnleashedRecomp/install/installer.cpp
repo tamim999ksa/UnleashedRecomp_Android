@@ -12,8 +12,6 @@
 #include "installer.h"
 
 #include <picosha2.h>
-#include <fstream>
-#include <functional>
 #include <vector>
 #include <filesystem>
 #include <thread>
