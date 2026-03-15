@@ -8,6 +8,7 @@ add_library(XenonUtils
     "xex_patcher.cpp"
     "memory_mapped_file.cpp"
     "mmio.cpp"
+    "ppc_context_data.cpp"
     "${THIRDPARTY_ROOT}/libmspack/libmspack/mspack/lzxd.c"
     "${THIRDPARTY_ROOT}/tiny-AES-c/aes.c"
 )
