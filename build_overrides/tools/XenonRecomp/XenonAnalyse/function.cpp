@@ -42,7 +42,7 @@ Function Function::Analyze(const void* code, size_t size, size_t base)
 {
     Function fn{ base, 0 };
 
-    if (*((uint32_t*)code + 1) == 0x04000048) // shifted ptr tail call
+    if (size >= 8 && ByteSwap(((const uint32_t*)code)[1]) == 0x04000048) // shifted ptr tail call
     {
         fn.size = 0x8;
         return fn;

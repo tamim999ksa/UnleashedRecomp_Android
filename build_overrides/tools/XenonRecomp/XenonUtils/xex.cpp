@@ -336,7 +336,7 @@ Image Xex2LoadImage(const uint8_t* data, size_t dataSize)
                     auto name = names->find(originalData->originalData.ordinal);
                     if (name != names->end())
                     {
-                        image.symbols.emplace(name->second, descriptors[im].firstThunk, sizeof(thunk), Symbol_Function);
+                        image.symbols.emplace(name->second, descriptors[im].firstThunk, (size_t)sizeof(thunk), Symbol_Function);
                     }
 
                     memcpy(originalThunk, thunk, sizeof(thunk));
