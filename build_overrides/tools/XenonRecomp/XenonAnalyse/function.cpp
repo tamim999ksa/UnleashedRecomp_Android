@@ -41,21 +41,26 @@ size_t Function::SearchBlock(size_t address) const
 Function Function::Analyze(const void* code, size_t size, size_t base)
 {
     Function fn{ base, 0 };
+    const auto* dataStart = (const uint32_t*)code;
+    if (size >= 8 && dataStart[1] == 0x48000004) { fn.size = 0x8;     if (fn.size == 0 && data > dataStart) fn.size = 4;
+    return fn;
+}
+    Function fn{ base, 0 };
 
-    if (size >= 8 && *((uint32_t*)code + 1) == 0x04000048) // shifted ptr tail call
+    if (*((uint32_t*)code + 1) == 0x04000048) // shifted ptr tail call
     {
         fn.size = 0x8;
-        return fn;
-    }
+            if (fn.size == 0 && data > dataStart) fn.size = 4;
+    return fn;
+}
 
     auto& blocks = fn.blocks;
     blocks.reserve(8);
     blocks.emplace_back();
 
-    const auto* dataStart = (const uint32_t*)code;
-    const auto* dataEnd = (const uint32_t*)((const uint8_t*)code + size);
-    const uint32_t* data = dataStart;
-
+    const auto* data = (uint32_t*)code;
+    const auto* dataStart = data;
+    const auto* dataEnd = (uint32_t*)((uint8_t*)code + size);
     std::vector<size_t> blockStack{};
     blockStack.reserve(32);
     blockStack.emplace_back();
@@ -63,7 +68,7 @@ Function Function::Analyze(const void* code, size_t size, size_t base)
     #define RESTORE_DATA() if (!blockStack.empty()) data = (dataStart + ((blocks[blockStack.back()].base + blocks[blockStack.back()].size) / sizeof(*data))) - 1; // continue adds one
 
     // TODO: Branch fallthrough
-    for (; data < dataEnd ; ++data)
+    for (; data <= dataEnd ; ++data)
     {
         const size_t addr = base + ((data - dataStart) * sizeof(*data));
         if (blockStack.empty())
@@ -243,12 +248,6 @@ Function Function::Analyze(const void* code, size_t size, size_t base)
         // pick the block furthest away
         fn.size = std::max(fn.size, block.base + block.size);
     }
-
-    // Safety check: ensure progress if data was consumed
-    if (fn.size == 0 && data > dataStart)
-    {
-        fn.size = 4;
-    }
-
+        if (fn.size == 0 && data > dataStart) fn.size = 4;
     return fn;
 }

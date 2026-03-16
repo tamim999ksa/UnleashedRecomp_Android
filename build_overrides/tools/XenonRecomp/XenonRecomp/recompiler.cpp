@@ -254,16 +254,14 @@ void Recompiler::Analyse()
     std::sort(functions.begin(), functions.end(), [](auto& lhs, auto& rhs) { return lhs.base < rhs.base; });
 }
 
-bool Recompiler::Recompile(const RecompileArgs& args)
-{
-    const Function& fn = args.fn;
-    uint32_t base = args.base;
-    const ppc_insn& insn = args.insn;
-    const uint32_t* data = args.data;
-    std::unordered_map<uint32_t, RecompilerSwitchTable>::iterator& switchTable = args.switchTable;
-    RecompilerLocalVariables& localVariables = args.localVariables;
-    CSRState& csrState = args.csrState;
-
+bool Recompiler::Recompile(
+    const Function& fn,
+    uint32_t base,
+    const ppc_insn& insn,
+    const uint32_t* data,
+    std::unordered_map<uint32_t, RecompilerSwitchTable>::iterator& switchTable,
+    RecompilerLocalVariables& localVariables,
+    CSRState& csrState)
 {
     println("\t// {} {}", insn.opcode->name, insn.op_str);
 
@@ -2429,7 +2427,7 @@ bool Recompiler::Recompile(const Function& fn)
             if (insn.opcode->id == PPC_INST_BCTR && (*(data - 1) == 0x07008038 || *(data - 1) == 0x00000060) && switchTable == config.switchTables.end())
                 fmt::println("Found a switch jump table at {:X} with no switch table entry present", base);
 
-            if (!Recompile({ fn, base, insn, data, switchTable, localVariables, csrState }))
+            if (!Recompile(fn, base, insn, data, switchTable, localVariables, csrState))
             {
                 fmt::println("Unrecognized instruction at 0x{:X}: {}", base, insn.opcode->name);
                 allRecompiled = false;

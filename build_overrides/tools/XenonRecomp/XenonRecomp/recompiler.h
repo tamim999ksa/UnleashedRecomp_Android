@@ -47,6 +47,8 @@ struct Recompiler
     size_t cppFileIndex = 0;
     RecompilerConfig config;
 
+    Recompiler(Image& image, const RecompilerConfig& config);
+
     bool LoadConfig(const std::string_view& configFilePath);
 
     template<class... Args>
@@ -63,6 +65,8 @@ struct Recompiler
     }
 
     void Analyse();
+
+    bool RecompileInstruction(const RecompileArgs& args);
 
     bool Recompile(const RecompileArgs& args);
 
