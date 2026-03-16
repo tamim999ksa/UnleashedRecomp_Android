@@ -62,7 +62,7 @@ Function Function::Analyze(const void* code, size_t size, size_t base)
     #define RESTORE_DATA() if (!blockStack.empty()) data = (dataStart + ((blocks[blockStack.back()].base + blocks[blockStack.back()].size) / sizeof(*data))) - 1; // continue adds one
 
     // TODO: Branch fallthrough
-    for (; data <= dataEnd ; ++data)
+    for (; data < dataEnd ; ++data)
     {
         const size_t addr = base + ((data - dataStart) * sizeof(*data));
         if (blockStack.empty())

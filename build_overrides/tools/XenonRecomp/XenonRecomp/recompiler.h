@@ -52,7 +52,7 @@ struct Recompiler
     template<class... Args>
     void print(fmt::format_string<Args...> fmt, Args&&... args)
     {
-        fmt::vformat_to(std::back_inserter(out), fmt.get(), fmt::make_format_args(args...));
+        fmt::vformat_to(std::back_inserter(out), fmt.get(), fmt.make_format_args(args...));
     }
 
     template<class... Args>
