@@ -17,7 +17,8 @@ public:
         if (it != begin())
         {
             it = std::prev(it);
-            if (address >= it->address && address < it->address + it->size)
+            // Match if address is within range, OR if it exactly matches the start (for 0-sized symbols)
+            if ((address >= it->address && address < it->address + it->size) || (address == it->address))
             {
                 return it;
             }
@@ -37,7 +38,7 @@ public:
         if (it != begin())
         {
             it = std::prev(it);
-            if (address >= it->address && address < it->address + it->size)
+            if ((address >= it->address && address < it->address + it->size) || (address == it->address))
             {
                 return it;
             }

@@ -211,7 +211,7 @@ void Recompiler::Analyse()
             {
                 size_t address = base + (data - section.data) + PPC_BI(insn);
 
-                if (address >= section.base && address < section.base + section.size && image.symbols.find(address) == image.symbols.end())
+                if (address >= section.base && address < section.base + section.size && (image.symbols.find(address) == image.symbols.end() || image.symbols.find(address)->type != Symbol_Function))
                 {
                     auto data = section.data + address - section.base;
                     auto& fn = functions.emplace_back(Function::Analyze(data, section.base + section.size - address, address));
@@ -246,8 +246,14 @@ void Recompiler::Analyse()
                 auto& fn = functions.emplace_back(Function::Analyze(data, dataEnd - data, base));
                 image.symbols.emplace(fmt::format("sub_{:X}", fn.base), fn.base, fn.size, Symbol_Function);
 
-                base += fn.size;
-                data += fn.size;
+                size_t advanced = std::max<size_t>(fn.size, 4);
+                base += advanced;
+                data += advanced;
+            }
+
+            if ((base % 0x10000) == 0)
+            {
+                fmt::println("Scanning section... {:X} / {:X}", base, dataEnd - section.data + section.base);
             }
         }
     }
