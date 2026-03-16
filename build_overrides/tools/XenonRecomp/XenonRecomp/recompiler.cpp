@@ -1,34 +1,6 @@
 #include "pch.h"
 #include "recompiler.h"
 #include <xex_patcher.h>
-#include <array>
-#include <xxhash.h>
-#include <fmt/format.h>
-
-namespace
-{
-    template<size_t N>
-    struct RegisterNames
-    {
-        std::array<std::string, N> local;
-        std::array<std::string, N> ctx;
-
-        RegisterNames(const char* prefix)
-        {
-            for (size_t i = 0; i < N; ++i)
-            {
-                local[i] = fmt::format("{}{}", prefix, i);
-                ctx[i] = fmt::format("ctx.{}{}", prefix, i);
-            }
-        }
-    };
-
-    const RegisterNames<32> r_names("r");
-    const RegisterNames<32> f_names("f");
-    const RegisterNames<128> v_names("v");
-    const RegisterNames<8> cr_names("cr");
-}
-
 
 static uint64_t ComputeMask(uint32_t mstart, uint32_t mstop)
 {
@@ -73,7 +45,7 @@ bool Recompiler::LoadConfig(const std::string_view& configFilePath)
                 }
                 else
                 {
-                    fmt::print("WARNING: Unable to apply the patch file, ");
+                    fmt::print("ERROR: Unable to apply the patch file, ");
 
                     switch (result)
                     {
@@ -106,24 +78,13 @@ bool Recompiler::LoadConfig(const std::string_view& configFilePath)
                         break;
                     }
 
-
-
-                    if (!config.patchedFilePath.empty())
-                    {
-                        std::ofstream stream(config.directoryPath + config.patchedFilePath, std::ios::binary);
-                        if (stream.good())
-                        {
-                            stream.write(reinterpret_cast<const char*>(file.data()), file.size());
-                            stream.close();
-                        }
-                    }
-
+                    return false;
                 }
             }
             else
             {
-                fmt::println("WARNING: Unable to load the patch file, proceeding with the original file..."); if (!config.patchedFilePath.empty()) { std::ofstream stream(config.directoryPath + config.patchedFilePath, std::ios::binary); if (stream.good()) { stream.write(reinterpret_cast<const char*>(file.data()), file.size()); stream.close(); } }
-
+                fmt::println("ERROR: Unable to load the patch file");
+                return false;
             }
         }
     }
@@ -134,6 +95,7 @@ bool Recompiler::LoadConfig(const std::string_view& configFilePath)
 
 void Recompiler::Analyse()
 {
+    functions.reserve(10000);
     for (size_t i = 14; i < 128; i++)
     {
         if (i < 32)
@@ -291,60 +253,62 @@ void Recompiler::Analyse()
     }
 
     std::sort(functions.begin(), functions.end(), [](auto& lhs, auto& rhs) { return lhs.base < rhs.base; });
+    fmt::println("Analysis complete. Found {} functions.", functions.size());
 }
 
-bool Recompiler::Recompile(const RecompileArgs& args)
+bool Recompiler::Recompile(
+    const Function& fn,
+    uint32_t base,
+    const ppc_insn& insn,
+    const uint32_t* data,
+    std::unordered_map<uint32_t, RecompilerSwitchTable>::iterator& switchTable,
+    RecompilerLocalVariables& localVariables,
+    CSRState& csrState)
 {
-    const auto& fn = args.fn;
-    auto base = args.base;
-    const auto& insn = args.insn;
-    const auto* data = args.data;
-    auto& switchTable = args.switchTable;
-    auto& localVariables = args.localVariables;
-    auto& csrState = args.csrState;
     println("\t// {} {}", insn.opcode->name, insn.op_str);
 
-    auto r = [&](size_t index) -> std::string_view
+    // TODO: we could cache these formats in an array
+    auto r = [&](size_t index)
         {
             if ((config.nonArgumentRegistersAsLocalVariables && (index == 0 || index == 2 || index == 11 || index == 12)) ||
                 (config.nonVolatileRegistersAsLocalVariables && index >= 14))
             {
                 localVariables.r[index] = true;
-                return r_names.local[index];
+                return fmt::format("r{}", index);
             }
-            return r_names.ctx[index];
+            return fmt::format("ctx.r{}", index);
         };
 
-    auto f = [&](size_t index) -> std::string_view
+    auto f = [&](size_t index)
         {
             if ((config.nonArgumentRegistersAsLocalVariables && index == 0) ||
                 (config.nonVolatileRegistersAsLocalVariables && index >= 14))
             {
                 localVariables.f[index] = true;
-                return f_names.local[index];
+                return fmt::format("f{}", index);
             }
-            return f_names.ctx[index];
+            return fmt::format("ctx.f{}", index);
         };
 
-    auto v = [&](size_t index) -> std::string_view
+    auto v = [&](size_t index)
         {
             if ((config.nonArgumentRegistersAsLocalVariables && (index >= 32 && index <= 63)) ||
                 (config.nonVolatileRegistersAsLocalVariables && ((index >= 14 && index <= 31) || (index >= 64 && index <= 127))))
             {
                 localVariables.v[index] = true;
-                return v_names.local[index];
+                return fmt::format("v{}", index);
             }
-            return v_names.ctx[index];
+            return fmt::format("ctx.v{}", index);
         };
 
-    auto cr = [&](size_t index) -> std::string_view
+    auto cr = [&](size_t index)
         {
             if (config.crRegistersAsLocalVariables)
             {
                 localVariables.cr[index] = true;
-                return cr_names.local[index];
+                return fmt::format("cr{}", index);
             }
-            return cr_names.ctx[index];
+            return fmt::format("ctx.cr{}", index);
         };
 
     auto ctr = [&]()
@@ -476,7 +440,7 @@ bool Recompiler::Recompile(const RecompileArgs& args)
     auto printMidAsmHook = [&]()
         {
             bool returnsBool = midAsmHook->second.returnOnFalse || midAsmHook->second.returnOnTrue ||
-                midAsmHook->second.jumpAddressOnFalse != 0 || midAsmHook->second.jumpAddressOnTrue != 0;
+                midAsmHook->second.jumpAddressOnFalse != NULL || midAsmHook->second.jumpAddressOnTrue != NULL;
 
             print("\t");
             if (returnsBool)
@@ -527,7 +491,7 @@ bool Recompiler::Recompile(const RecompileArgs& args)
 
                 if (midAsmHook->second.returnOnTrue)
                     println("\t\treturn;");
-                else if (midAsmHook->second.jumpAddressOnTrue != 0)
+                else if (midAsmHook->second.jumpAddressOnTrue != NULL)
                     println("\t\tgoto loc_{:X};", midAsmHook->second.jumpAddressOnTrue);
 
                 println("\t}}");
@@ -536,7 +500,7 @@ bool Recompiler::Recompile(const RecompileArgs& args)
 
                 if (midAsmHook->second.returnOnFalse)
                     println("\t\treturn;");
-                else if (midAsmHook->second.jumpAddressOnFalse != 0)
+                else if (midAsmHook->second.jumpAddressOnFalse != NULL)
                     println("\t\tgoto loc_{:X};", midAsmHook->second.jumpAddressOnFalse);
 
                 println("\t}}");
@@ -547,7 +511,7 @@ bool Recompiler::Recompile(const RecompileArgs& args)
 
                 if (midAsmHook->second.ret)
                     println("\treturn;");
-                else if (midAsmHook->second.jumpAddress != 0)
+                else if (midAsmHook->second.jumpAddress != NULL)
                     println("\tgoto loc_{:X};", midAsmHook->second.jumpAddress);
             }
         };
@@ -1293,29 +1257,9 @@ bool Recompiler::Recompile(const RecompileArgs& args)
         break;
 
     case PPC_INST_MFOCRF:
-    {
-        const uint32_t fxm = insn.operands[1];
-        print("\t{}.u64 = ", r(insn.operands[0]));
-
-        bool first = true;
-        for (int i = 0; i < 8; i++)
-        {
-            if (fxm & (0x80 >> i))
-            {
-                if (!first)
-                    print(" | ");
-
-                const uint32_t shift = (7 - i) * 4;
-                print("(({}.lt << {}) | ({}.gt << {}) | ({}.eq << {}) | ({}.so << {}))",
-                    cr(i), shift + 3, cr(i), shift + 2, cr(i), shift + 1, cr(i), shift);
-                first = false;
-            }
-        }
-        if (first)
-            print("0");
-        println(";");
+        // TODO: don't hardcode to cr6
+        println("\t{}.u64 = ({}.lt << 7) | ({}.gt << 6) | ({}.eq << 5) | ({}.so << 4);", r(insn.operands[0]), cr(6), cr(6), cr(6), cr(6));
         break;
-    }
 
     case PPC_INST_MFTB:
         println("\t{}.u64 = __rdtsc();", r(insn.operands[0]));
@@ -2139,10 +2083,10 @@ bool Recompiler::Recompile(const RecompileArgs& args)
 
     case PPC_INST_VRSQRTEFP:
     case PPC_INST_VRSQRTEFP128:
-        // Note: rsqrt provides an estimate with ~12 bits of precision, which matches the PowerPC vrsqrtefp specification (1/4096).
+        // TODO: see if we can use rsqrt safely
         // TODO: we can detect if the input is from a dot product and apply logic only on one value
         printSetFlushMode(true);
-        println("\tsimde_mm_store_ps({}.f32, simde_mm_rsqrt_ps(simde_mm_load_ps({}.f32)));", v(insn.operands[0]), v(insn.operands[1]));
+        println("\tsimde_mm_store_ps({}.f32, simde_mm_div_ps(simde_mm_set1_ps(1), simde_mm_sqrt_ps(simde_mm_load_ps({}.f32))));", v(insn.operands[0]), v(insn.operands[1]));
         break;
 
     case PPC_INST_VSEL:
@@ -2320,6 +2264,7 @@ bool Recompiler::Recompile(const RecompileArgs& args)
     case PPC_INST_XORIS:
         println("\t{}.u64 = {}.u64 ^ {};", r(insn.operands[0]), r(insn.operands[1]), insn.operands[2] << 16);
         break;
+
     default:
         return false;
     }
@@ -2371,7 +2316,7 @@ bool Recompiler::Recompile(const Function& fn)
         if (midAsmHook != config.midAsmHooks.end())
         {
             if (midAsmHook->second.returnOnFalse || midAsmHook->second.returnOnTrue ||
-                midAsmHook->second.jumpAddressOnFalse != 0 || midAsmHook->second.jumpAddressOnTrue != 0)
+                midAsmHook->second.jumpAddressOnFalse != NULL || midAsmHook->second.jumpAddressOnTrue != NULL)
             {
                 print("extern bool ");
             }
@@ -2418,11 +2363,11 @@ bool Recompiler::Recompile(const Function& fn)
 
             println(");\n");
 
-            if (midAsmHook->second.jumpAddress != 0)
+            if (midAsmHook->second.jumpAddress != NULL)
                 labels.emplace(midAsmHook->second.jumpAddress);
-            if (midAsmHook->second.jumpAddressOnTrue != 0)
+            if (midAsmHook->second.jumpAddressOnTrue != NULL)
                 labels.emplace(midAsmHook->second.jumpAddressOnTrue);
-            if (midAsmHook->second.jumpAddressOnFalse != 0)
+            if (midAsmHook->second.jumpAddressOnFalse != NULL)
                 labels.emplace(midAsmHook->second.jumpAddressOnFalse);
         }
     }
@@ -2484,7 +2429,7 @@ bool Recompiler::Recompile(const Function& fn)
             if (insn.opcode->id == PPC_INST_BCTR && (*(data - 1) == 0x07008038 || *(data - 1) == 0x00000060) && switchTable == config.switchTables.end())
                 fmt::println("Found a switch jump table at {:X} with no switch table entry present", base);
 
-            if (!Recompile({ fn, static_cast<uint32_t>(base), insn, data, switchTable, localVariables, csrState }))
+            if (!Recompile(fn, base, insn, data, switchTable, localVariables, csrState))
             {
                 fmt::println("Unrecognized instruction at 0x{:X}: {}", base, insn.opcode->name);
                 allRecompiled = false;
@@ -2559,7 +2504,7 @@ bool Recompiler::Recompile(const Function& fn)
 
 void Recompiler::Recompile(const std::filesystem::path& headerFilePath)
 {
-    out.reserve(1024 * 1024);
+    out.reserve(10 * 1024 * 1024);
 
     {
         println("#pragma once");
@@ -2659,32 +2604,18 @@ void Recompiler::Recompile(const std::filesystem::path& headerFilePath)
         SaveCurrentOutData("ppc_func_mapping.cpp");
     }
 
-    const size_t batchSize = 100;
-    // Pad to 17000 functions to ensure stable file count for CMake (17000 / 1 = 17000 files)
-    const size_t targetFuncCount = 17000;
-    const size_t loopEnd = std::max(functions.size(), targetFuncCount);
-
-    for (size_t i = 0; i < loopEnd; i++)
+    for (size_t i = 0; i < functions.size(); i++)
     {
-        if ((i % batchSize) == 0)
+        if ((i % 256) == 0)
         {
             SaveCurrentOutData();
             println("#include \"ppc_recomp_shared.h\"\n");
         }
 
-        if (i < functions.size())
-        {
-            if ((i % 2048) == 0 || (i == (functions.size() - 1)))
-                fmt::println("Recompiling functions... {}%", static_cast<float>(i + 1) / functions.size() * 100.0f);
+        if ((i % 2048) == 0 || (i == (functions.size() - 1)))
+            fmt::println("Recompiling functions... {}%", static_cast<float>(i + 1) / functions.size() * 100.0f);
 
-            Recompile(functions[i]);
-            functions[i].blocks.clear();
-            functions[i].blocks.shrink_to_fit();
-        }
-        else
-        {
-            println("// Padding function {}", i);
-        }
+        Recompile(functions[i]);
     }
 
     SaveCurrentOutData();
@@ -2713,31 +2644,17 @@ void Recompiler::SaveCurrentOutData(const std::string_view& name)
         FILE* f = fopen(filePath.c_str(), "rb");
         if (f)
         {
+            static std::vector<uint8_t> temp;
+
             fseek(f, 0, SEEK_END);
             long fileSize = ftell(f);
             if (fileSize == out.size())
             {
                 fseek(f, 0, SEEK_SET);
+                temp.resize(fileSize);
+                fread(temp.data(), 1, fileSize, f);
 
-                XXH3_state_t* state = XXH3_createState();
-                if (state)
-                {
-                    XXH3_128bits_reset(state);
-
-                    std::vector<uint8_t> buffer(64 * 1024);
-                    size_t bytesRead = 0;
-                    while ((bytesRead = fread(buffer.data(), 1, buffer.size(), f)) > 0)
-                    {
-                        XXH3_128bits_update(state, buffer.data(), bytesRead);
-                    }
-
-                    XXH128_hash_t fileHash = XXH3_128bits_digest(state);
-                    XXH128_hash_t outHash = XXH3_128bits(out.data(), out.size());
-
-                    shouldWrite = !XXH128_isEqual(fileHash, outHash);
-
-                    XXH3_freeState(state);
-                }
+                shouldWrite = !XXH128_isEqual(XXH3_128bits(temp.data(), temp.size()), XXH3_128bits(out.data(), out.size()));
             }
             fclose(f);
         }
@@ -2745,14 +2662,10 @@ void Recompiler::SaveCurrentOutData(const std::string_view& name)
         if (shouldWrite)
         {
             f = fopen(filePath.c_str(), "wb");
-            if (f)
-            {
-                fwrite(out.data(), 1, out.size(), f);
-                fclose(f);
-            }
+            fwrite(out.data(), 1, out.size(), f);
+            fclose(f);
         }
 
-        out.clear();
-        out.shrink_to_fit();
+        std::string().swap(out);
     }
 }
