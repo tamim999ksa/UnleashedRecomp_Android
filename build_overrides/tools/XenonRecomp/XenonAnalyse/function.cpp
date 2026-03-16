@@ -52,9 +52,10 @@ Function Function::Analyze(const void* code, size_t size, size_t base)
     blocks.reserve(8);
     blocks.emplace_back();
 
-    const auto* data = (uint32_t*)code;
-    const auto* dataStart = data;
-    const auto* dataEnd = (uint32_t*)((uint8_t*)code + size);
+    const auto* dataStart = (const uint32_t*)code;
+    const auto* dataEnd = (const uint32_t*)((const uint8_t*)code + size);
+    const uint32_t* data = dataStart;
+
     std::vector<size_t> blockStack{};
     blockStack.reserve(32);
     blockStack.emplace_back();
@@ -243,7 +244,7 @@ Function Function::Analyze(const void* code, size_t size, size_t base)
         fn.size = std::max(fn.size, block.base + block.size);
     }
 
-    // Ensure we always return at least 4 bytes if data was processed to prevent infinite loops
+    // Ensure we always return at least 4 bytes if any data was processed to prevent infinite loops
     if (fn.size == 0 && data > dataStart)
     {
         fn.size = 4;
