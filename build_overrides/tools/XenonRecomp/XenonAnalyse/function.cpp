@@ -45,7 +45,7 @@ Function Function::Analyze(const void* code, size_t size, size_t base)
     if (*((uint32_t*)code + 1) == 0x04000048) // shifted ptr tail call
     {
         fn.size = 0x8;
-        if (fn.size == 0 && data > dataStart) fn.size = 4; return fn;
+        return fn;
     }
 
     auto& blocks = fn.blocks;
@@ -242,5 +242,9 @@ Function Function::Analyze(const void* code, size_t size, size_t base)
         // pick the block furthest away
         fn.size = std::max(fn.size, block.base + block.size);
     }
-    if (fn.size == 0 && data > dataStart) fn.size = 4; return fn;
+    if (fn.size == 0 && data > dataStart)
+    {
+        fn.size = 4;
+    }
+    return fn;
 }
