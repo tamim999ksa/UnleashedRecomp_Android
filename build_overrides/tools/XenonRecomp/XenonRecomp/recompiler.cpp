@@ -95,7 +95,7 @@ bool Recompiler::LoadConfig(const std::string_view& configFilePath)
 
 void Recompiler::Analyse()
 {
-    functions.reserve(10000);
+    functions.reserve(50000);
     for (size_t i = 14; i < 128; i++)
     {
         if (i < 32)
@@ -234,12 +234,12 @@ void Recompiler::Analyse()
             }
 
             auto fnSymbol = image.symbols.find(base);
-            if (fnSymbol != image.symbols.end() && fnSymbol->address == base && fnSymbol->type == Symbol_Function)
+            if (fnSymbol != image.symbols.end() && fnSymbol->type == Symbol_Function)
             {
-                assert(fnSymbol->address == base);
-
-                base += fnSymbol->size;
-                data += fnSymbol->size;
+                // Correct skipping logic: skip the entire range of the existing function
+                size_t skipSize = (fnSymbol->address + fnSymbol->size) - base;
+                base += skipSize;
+                data += skipSize;
             }
             else
             {
