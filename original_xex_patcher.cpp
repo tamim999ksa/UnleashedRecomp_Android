@@ -244,13 +244,13 @@ XexPatcher::Result XexPatcher::apply(const uint8_t* xexBytes, size_t xexBytesSiz
     }
 
     // Validate patch.
-    const Xex2OptDeltaPatchDescriptor *patchDescriptor = (const Xex2OptDeltaPatchDescriptor *)(getOptHeaderPtr(patchBytes, patchBytesSize, XEX_HEADER_DELTA_PATCH_DESCRIPTOR));
+    const Xex2OptDeltaPatchDescriptor *patchDescriptor = (const Xex2OptDeltaPatchDescriptor *)(getOptHeaderPtr(patchBytes, XEX_HEADER_DELTA_PATCH_DESCRIPTOR));
     if (patchDescriptor == nullptr)
     {
         return Result::PatchFileInvalid;
     }
 
-    const Xex2OptFileFormatInfo *patchFileFormatInfo = (const Xex2OptFileFormatInfo *)(getOptHeaderPtr(patchBytes, patchBytesSize, XEX_HEADER_FILE_FORMAT_INFO));
+    const Xex2OptFileFormatInfo *patchFileFormatInfo = (const Xex2OptFileFormatInfo *)(getOptHeaderPtr(patchBytes, XEX_HEADER_FILE_FORMAT_INFO));
     if (patchFileFormatInfo == nullptr)
     {
         return Result::PatchFileInvalid;
@@ -358,7 +358,7 @@ XexPatcher::Result XexPatcher::apply(const uint8_t* xexBytes, size_t xexBytesSiz
     }
 
     // Decrypt base XEX if necessary.
-    const Xex2OptFileFormatInfo *fileFormatInfo = (const Xex2OptFileFormatInfo *)(getOptHeaderPtr(xexBytes, xexBytesSize, XEX_HEADER_FILE_FORMAT_INFO));
+    const Xex2OptFileFormatInfo *fileFormatInfo = (const Xex2OptFileFormatInfo *)(getOptHeaderPtr(xexBytes, XEX_HEADER_FILE_FORMAT_INFO));
     if (fileFormatInfo == nullptr)
     {
         return Result::XexFileInvalid;
@@ -468,7 +468,7 @@ XexPatcher::Result XexPatcher::apply(const uint8_t* xexBytes, size_t xexBytesSiz
         return Result::XexFileInvalid;
     }
 
-    Xex2OptFileFormatInfo *newFileFormatInfo = (Xex2OptFileFormatInfo *)(getOptHeaderPtr(outBytes.data(), outBytes.size(), XEX_HEADER_FILE_FORMAT_INFO));
+    Xex2OptFileFormatInfo *newFileFormatInfo = (Xex2OptFileFormatInfo *)(getOptHeaderPtr(outBytes.data(), XEX_HEADER_FILE_FORMAT_INFO));
     if (newFileFormatInfo == nullptr)
     {
         return Result::PatchFailed;
