@@ -3,7 +3,6 @@
 #include <iterator>
 #include "pch.h"
 #include "recompiler_config.h"
-#include <fmt/format.h>
 
 struct RecompilerLocalVariables
 {

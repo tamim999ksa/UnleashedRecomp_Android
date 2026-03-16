@@ -262,21 +262,15 @@ void Recompiler::Analyse()
     fmt::println("Analysis complete. Found {} functions.", functions.size());
 }
 
-bool Recompiler::Recompile(
-    const Function& fn,
-    uint32_t base,
-    const ppc_insn& insn,
-    const uint32_t* data,
-    std::unordered_map<uint32_t, RecompilerSwitchTable>::iterator& switchTable,
-    RecompilerLocalVariables& localVariables,
-    CSRState& csrState)
+bool Recompiler::Recompile(const RecompileArgs& args)
 {
-    println("\t// {} {}", insn.opcode->name, insn.op_str);
-
-    // TODO: we could cache these formats in an array
-    auto r = [&](size_t index)
-        {
-            if ((config.nonArgumentRegistersAsLocalVariables && (index == 0 || index == 2 || index == 11 || index == 12)) ||
+    const Function& fn = args.fn;
+    uint32_t base = args.base;
+    const ppc_insn& insn = args.insn;
+    const uint32_t* data = args.data;
+    std::unordered_map<uint32_t, RecompilerSwitchTable>::iterator& switchTable = args.switchTable;
+    RecompilerLocalVariables& localVariables = args.localVariables;
+    CSRState& csrState = args.csrState;
                 (config.nonVolatileRegistersAsLocalVariables && index >= 14))
             {
                 localVariables.r[index] = true;
@@ -446,7 +440,7 @@ bool Recompiler::Recompile(
     auto printMidAsmHook = [&]()
         {
             bool returnsBool = midAsmHook->second.returnOnFalse || midAsmHook->second.returnOnTrue ||
-                midAsmHook->second.jumpAddressOnFalse != NULL || midAsmHook->second.jumpAddressOnTrue != NULL;
+                midAsmHook->second.jumpAddressOnFalse != 0 || midAsmHook->second.jumpAddressOnTrue != 0;
 
             print("\t");
             if (returnsBool)
@@ -497,7 +491,7 @@ bool Recompiler::Recompile(
 
                 if (midAsmHook->second.returnOnTrue)
                     println("\t\treturn;");
-                else if (midAsmHook->second.jumpAddressOnTrue != NULL)
+                else if (midAsmHook->second.jumpAddressOnTrue != 0)
                     println("\t\tgoto loc_{:X};", midAsmHook->second.jumpAddressOnTrue);
 
                 println("\t}}");
@@ -506,7 +500,7 @@ bool Recompiler::Recompile(
 
                 if (midAsmHook->second.returnOnFalse)
                     println("\t\treturn;");
-                else if (midAsmHook->second.jumpAddressOnFalse != NULL)
+                else if (midAsmHook->second.jumpAddressOnFalse != 0)
                     println("\t\tgoto loc_{:X};", midAsmHook->second.jumpAddressOnFalse);
 
                 println("\t}}");
@@ -517,7 +511,7 @@ bool Recompiler::Recompile(
 
                 if (midAsmHook->second.ret)
                     println("\treturn;");
-                else if (midAsmHook->second.jumpAddress != NULL)
+                else if (midAsmHook->second.jumpAddress != 0)
                     println("\tgoto loc_{:X};", midAsmHook->second.jumpAddress);
             }
         };
@@ -2322,7 +2316,7 @@ bool Recompiler::Recompile(const Function& fn)
         if (midAsmHook != config.midAsmHooks.end())
         {
             if (midAsmHook->second.returnOnFalse || midAsmHook->second.returnOnTrue ||
-                midAsmHook->second.jumpAddressOnFalse != NULL || midAsmHook->second.jumpAddressOnTrue != NULL)
+                midAsmHook->second.jumpAddressOnFalse != 0 || midAsmHook->second.jumpAddressOnTrue != 0)
             {
                 print("extern bool ");
             }
@@ -2369,11 +2363,11 @@ bool Recompiler::Recompile(const Function& fn)
 
             println(");\n");
 
-            if (midAsmHook->second.jumpAddress != NULL)
+            if (midAsmHook->second.jumpAddress != 0)
                 labels.emplace(midAsmHook->second.jumpAddress);
-            if (midAsmHook->second.jumpAddressOnTrue != NULL)
+            if (midAsmHook->second.jumpAddressOnTrue != 0)
                 labels.emplace(midAsmHook->second.jumpAddressOnTrue);
-            if (midAsmHook->second.jumpAddressOnFalse != NULL)
+            if (midAsmHook->second.jumpAddressOnFalse != 0)
                 labels.emplace(midAsmHook->second.jumpAddressOnFalse);
         }
     }
@@ -2435,7 +2429,7 @@ bool Recompiler::Recompile(const Function& fn)
             if (insn.opcode->id == PPC_INST_BCTR && (*(data - 1) == 0x07008038 || *(data - 1) == 0x00000060) && switchTable == config.switchTables.end())
                 fmt::println("Found a switch jump table at {:X} with no switch table entry present", base);
 
-            if (!Recompile(fn, base, insn, data, switchTable, localVariables, csrState))
+            if (!Recompile({ fn, base, insn, data, switchTable, localVariables, csrState }))
             {
                 fmt::println("Unrecognized instruction at 0x{:X}: {}", base, insn.opcode->name);
                 allRecompiled = false;
@@ -2658,7 +2652,7 @@ void Recompiler::SaveCurrentOutData(const std::string_view& name)
             {
                 fseek(f, 0, SEEK_SET);
                 temp.resize(fileSize);
-                fread(temp.data(), 1, fileSize, f);
+                if (fread(temp.data(), 1, fileSize, f) != fileSize) { fclose(f); return; }
 
                 shouldWrite = !XXH128_isEqual(XXH3_128bits(temp.data(), temp.size()), XXH3_128bits(out.data(), out.size()));
             }
