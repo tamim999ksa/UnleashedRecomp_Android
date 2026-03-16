@@ -42,7 +42,7 @@ Function Function::Analyze(const void* code, size_t size, size_t base)
 {
     Function fn{ base, 0 };
 
-    if (size >= 8 && ByteSwap(((const uint32_t*)code)[1]) == 0x04000048) // shifted ptr tail call
+    if (*((uint32_t*)code + 1) == 0x04000048) // shifted ptr tail call
     {
         fn.size = 0x8;
         return fn;
@@ -242,5 +242,5 @@ Function Function::Analyze(const void* code, size_t size, size_t base)
         // pick the block furthest away
         fn.size = std::max(fn.size, block.base + block.size);
     }
-    if (fn.size == 0 && data > dataStart) fn.size = 4; return fn;
+    if (fn.size == 0 && data > (const uint32_t*)code) fn.size = 4; return fn;
 }
