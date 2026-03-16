@@ -237,7 +237,8 @@ void Recompiler::Analyse()
             if (fnSymbol != image.symbols.end() && fnSymbol->type == Symbol_Function)
             {
                 // Correct skipping logic: skip the entire range of the existing function
-                size_t skipSize = (fnSymbol->address + fnSymbol->size) - base;
+                // Ensure we skip at least 4 bytes if the symbol has size 0 to prevent infinite loop
+                size_t skipSize = std::max<size_t>((fnSymbol->address + fnSymbol->size) - base, 4);
                 base += skipSize;
                 data += skipSize;
             }

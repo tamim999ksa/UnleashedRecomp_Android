@@ -242,9 +242,12 @@ Function Function::Analyze(const void* code, size_t size, size_t base)
         // pick the block furthest away
         fn.size = std::max(fn.size, block.base + block.size);
     }
+
+    // Ensure we always return at least 4 bytes if data was processed to prevent infinite loops
     if (fn.size == 0 && data > dataStart)
     {
         fn.size = 4;
     }
+
     return fn;
 }
