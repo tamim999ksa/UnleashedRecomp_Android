@@ -29,8 +29,12 @@ main() {
     echo "=== Applying overrides ==="
     if [ -d "build_overrides" ]; then
         echo "Copying override files..."
-        # We copy overrides AFTER reset to ensure they are present and override submodule files
-        cp -rv build_overrides/UnleashedRecomp build_overrides/thirdparty build_overrides/tools .
+        # Safely copy only directories that exist to avoid "No such file or directory" errors
+        for dir in UnleashedRecomp thirdparty tools; do
+            if [ -d "build_overrides/$dir" ]; then
+                cp -rv "build_overrides/$dir" .
+            fi
+        done
     fi
 
     echo "=== Applying patches ==="
