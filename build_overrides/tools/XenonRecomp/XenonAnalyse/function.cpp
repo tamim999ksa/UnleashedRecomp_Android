@@ -42,7 +42,7 @@ Function Function::Analyze(const void* code, size_t size, size_t base)
 {
     Function fn{ base, 0 };
 
-    if (*((uint32_t*)code + 1) == 0x04000048) // shifted ptr tail call
+    if (size >= 8 && *((uint32_t*)code + 1) == 0x04000048) // shifted ptr tail call
     {
         fn.size = 0x8;
         return fn;
@@ -244,7 +244,7 @@ Function Function::Analyze(const void* code, size_t size, size_t base)
         fn.size = std::max(fn.size, block.base + block.size);
     }
 
-    // Ensure we always return at least 4 bytes if any data was processed to prevent infinite loops
+    // Safety check: ensure progress if data was consumed
     if (fn.size == 0 && data > dataStart)
     {
         fn.size = 4;

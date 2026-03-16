@@ -14,13 +14,37 @@ public:
         }
 
         auto it = upper_bound(address);
-        if (it != begin())
+        if (it == begin())
         {
-            it = std::prev(it);
-            // Match if address is within range, OR if it exactly matches the start (for 0-sized symbols)
-            if ((address >= it->address && address < it->address + it->size) || (address == it->address))
+            return end();
+        }
+
+        // Iterate backwards from upper_bound to find the first (closest) symbol that contains the address.
+        // multiset is sorted by address, so the first one we find moving backward is the best candidate.
+        auto curr = std::prev(it);
+        while (true)
+        {
+            if (address >= curr->address && address < curr->address + curr->size)
             {
-                return it;
+                return curr;
+            }
+            // Also handle 0-sized exact matches
+            if (address == curr->address)
+            {
+                return curr;
+            }
+
+            if (curr == begin())
+            {
+                break;
+            }
+            curr = std::prev(curr);
+
+            // Optimization: if we moved so far back that the address is significantly beyond the possible range, stop.
+            // Assuming no symbol is larger than 1MB for sanity.
+            if (address > curr->address + 1024 * 1024)
+            {
+                break;
             }
         }
 
@@ -35,12 +59,32 @@ public:
         }
 
         auto it = upper_bound(address);
-        if (it != begin())
+        if (it == begin())
         {
-            it = std::prev(it);
-            if ((address >= it->address && address < it->address + it->size) || (address == it->address))
+            return end();
+        }
+
+        auto curr = std::prev(it);
+        while (true)
+        {
+            if (address >= curr->address && address < curr->address + curr->size)
             {
-                return it;
+                return curr;
+            }
+            if (address == curr->address)
+            {
+                return curr;
+            }
+
+            if (curr == begin())
+            {
+                break;
+            }
+            curr = std::prev(curr);
+
+            if (address > curr->address + 1024 * 1024)
+            {
+                break;
             }
         }
 
