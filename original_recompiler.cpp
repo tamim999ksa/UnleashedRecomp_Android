@@ -222,17 +222,6 @@ void Recompiler::Analyse()
 
         data = section.data;
 
-        // Establish baseline ranges
-        for (auto it = image.symbols.lower_bound(section.base); it != image.symbols.end() && it->address < section.base + section.size; ++it)
-        {
-            if (it->type == Symbol_Function)
-            {
-                auto data_ptr = section.data + it->address - section.base;
-                auto& fn = functions.emplace_back(Function::Analyze(data_ptr, section.base + section.size - it->address, it->address));
-                it->size = fn.size;
-            }
-        }
-
         while (data < dataEnd)
         {
             auto invalidInstr = config.invalidInstructions.find(ByteSwap(*(uint32_t*)data));
@@ -244,25 +233,20 @@ void Recompiler::Analyse()
             }
 
             auto fnSymbol = image.symbols.find(base);
-            if (fnSymbol != image.symbols.end() && fnSymbol->type == Symbol_Function)
+            if (fnSymbol != image.symbols.end() && fnSymbol->address == base && fnSymbol->type == Symbol_Function)
             {
-                size_t skipSize = std::max<size_t>((fnSymbol->address + fnSymbol->size) - base, 4);
-                base += skipSize;
-                data += skipSize;
+                assert(fnSymbol->address == base);
+
+                base += fnSymbol->size;
+                data += fnSymbol->size;
             }
             else
             {
                 auto& fn = functions.emplace_back(Function::Analyze(data, dataEnd - data, base));
                 image.symbols.emplace(fmt::format("sub_{:X}", fn.base), fn.base, fn.size, Symbol_Function);
 
-                size_t advanced = std::max<size_t>(fn.size, 4);
-                base += advanced;
-                data += advanced;
-            }
-
-            if ((base % 0x10000) == 0)
-            {
-                fmt::println("Scanning section... {:X} / {:X} (Found {} functions)", base, section.base + section.size, (uint32_t)functions.size());
+                base += fn.size;
+                data += fn.size;
             }
         }
     }
@@ -454,7 +438,7 @@ bool Recompiler::Recompile(
     auto printMidAsmHook = [&]()
         {
             bool returnsBool = midAsmHook->second.returnOnFalse || midAsmHook->second.returnOnTrue ||
-                midAsmHook->second.jumpAddressOnFalse != 0 || midAsmHook->second.jumpAddressOnTrue != 0;
+                midAsmHook->second.jumpAddressOnFalse != NULL || midAsmHook->second.jumpAddressOnTrue != NULL;
 
             print("\t");
             if (returnsBool)
@@ -505,7 +489,7 @@ bool Recompiler::Recompile(
 
                 if (midAsmHook->second.returnOnTrue)
                     println("\t\treturn;");
-                else if (midAsmHook->second.jumpAddressOnTrue != 0)
+                else if (midAsmHook->second.jumpAddressOnTrue != NULL)
                     println("\t\tgoto loc_{:X};", midAsmHook->second.jumpAddressOnTrue);
 
                 println("\t}}");
@@ -514,7 +498,7 @@ bool Recompiler::Recompile(
 
                 if (midAsmHook->second.returnOnFalse)
                     println("\t\treturn;");
-                else if (midAsmHook->second.jumpAddressOnFalse != 0)
+                else if (midAsmHook->second.jumpAddressOnFalse != NULL)
                     println("\t\tgoto loc_{:X};", midAsmHook->second.jumpAddressOnFalse);
 
                 println("\t}}");
@@ -525,7 +509,7 @@ bool Recompiler::Recompile(
 
                 if (midAsmHook->second.ret)
                     println("\treturn;");
-                else if (midAsmHook->second.jumpAddress != 0)
+                else if (midAsmHook->second.jumpAddress != NULL)
                     println("\tgoto loc_{:X};", midAsmHook->second.jumpAddress);
             }
         };
@@ -2330,7 +2314,7 @@ bool Recompiler::Recompile(const Function& fn)
         if (midAsmHook != config.midAsmHooks.end())
         {
             if (midAsmHook->second.returnOnFalse || midAsmHook->second.returnOnTrue ||
-                midAsmHook->second.jumpAddressOnFalse != 0 || midAsmHook->second.jumpAddressOnTrue != 0)
+                midAsmHook->second.jumpAddressOnFalse != NULL || midAsmHook->second.jumpAddressOnTrue != NULL)
             {
                 print("extern bool ");
             }
@@ -2377,11 +2361,11 @@ bool Recompiler::Recompile(const Function& fn)
 
             println(");\n");
 
-            if (midAsmHook->second.jumpAddress != 0)
+            if (midAsmHook->second.jumpAddress != NULL)
                 labels.emplace(midAsmHook->second.jumpAddress);
-            if (midAsmHook->second.jumpAddressOnTrue != 0)
+            if (midAsmHook->second.jumpAddressOnTrue != NULL)
                 labels.emplace(midAsmHook->second.jumpAddressOnTrue);
-            if (midAsmHook->second.jumpAddressOnFalse != 0)
+            if (midAsmHook->second.jumpAddressOnFalse != NULL)
                 labels.emplace(midAsmHook->second.jumpAddressOnFalse);
         }
     }
@@ -2666,7 +2650,7 @@ void Recompiler::SaveCurrentOutData(const std::string_view& name)
             {
                 fseek(f, 0, SEEK_SET);
                 temp.resize(fileSize);
-                if (fread(temp.data(), 1, fileSize, f) != fileSize) { fclose(f); return; }
+                fread(temp.data(), 1, fileSize, f);
 
                 shouldWrite = !XXH128_isEqual(XXH3_128bits(temp.data(), temp.size()), XXH3_128bits(out.data(), out.size()));
             }
@@ -2680,6 +2664,6 @@ void Recompiler::SaveCurrentOutData(const std::string_view& name)
             fclose(f);
         }
 
-        std::string().swap(out);
+        out.clear();
     }
 }

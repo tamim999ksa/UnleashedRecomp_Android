@@ -1,0 +1,17 @@
+I have implemented several critical fixes for XenonRecomp and XenosRecomp to resolve "analysis explosion" OOMs and GCC 13 compilation errors.
+
+Key changes:
+1. XenonRecomp Range-Based Lookup: SymbolTable::find now correctly identifies if an address falls within a multi-byte function range using upper_bound and a backward scan.
+2. XenonRecomp Memory Management: Switched to std::string().swap(out) for immediate buffer reclamation and increased functions reservation.
+3. XenonRecomp Progress Guarantee: Ensured all scan loops advance by at least 4 bytes to prevent infinite hangs.
+4. XenosRecomp GCC 13 Fixes: Named anonymous aggregates and updated usages to comply with strict C++ standards.
+5. XenonRecomp Safe IO: Hardened getOptHeaderPtr with moduleSize check and added fread return value checks.
+6. Apply Patches Hardening: apply_patches.sh now safely handles missing override directories.
+
+Files modified via build_overrides:
+- XenonRecomp: symbol.h, symbol_table.h, xbox.h, xdbf.h, xdbf_wrapper.cpp, xex.h, xex.cpp, xex_patcher.cpp, image.cpp, function.cpp, recompiler.cpp, recompiler_config.cpp.
+- XenosRecomp: main.cpp, shader_recompiler.cpp.
+
+Verification:
+- Both XenonRecomp and XenosRecomp build and link successfully in a local environment.
+- XenonRecomp logic for range establishment and skipping was manually verified to prevent redundant analysis.

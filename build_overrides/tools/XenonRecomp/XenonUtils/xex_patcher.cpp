@@ -224,18 +224,16 @@ static int lzxDeltaApplyPatch(const Xex2DeltaPatch *deltaPatch, uint32_t patchLe
 
 XexPatcher::Result XexPatcher::apply(const uint8_t* xexBytes, size_t xexBytesSize, const uint8_t* patchBytes, size_t patchBytesSize, std::vector<uint8_t> &outBytes, bool skipData)
 {
-    if (xexBytesSize < sizeof(Xex2Header)) return Result::XexFileInvalid;
-    if (patchBytesSize < sizeof(Xex2Header)) return Result::PatchFileInvalid;
-    const Xex2Header *xexHeader = (const Xex2Header *)xexBytes;
-    const Xex2Header *patchHeader = (const Xex2Header *)patchBytes;
-    if (xexHeader->securityOffset >= xexBytesSize || xexHeader->securityOffset + sizeof(Xex2SecurityInfo) > xexBytesSize || xexHeader->headerSize > xexBytesSize) return Result::XexFileInvalid;
-    if (patchHeader->securityOffset >= patchBytesSize || patchHeader->securityOffset + sizeof(Xex2SecurityInfo) > patchBytesSize || patchHeader->headerSize > patchBytesSize) return Result::PatchFileInvalid;
-    if (xexHeader->magic != 0x58455832)
+    // Validate headers.
+    static const char Xex2Magic[] = "XEX2";
+    const Xex2Header *xexHeader = (const Xex2Header *)(xexBytes);
+    if (memcmp(xexBytes, Xex2Magic, 4) != 0)
     {
         return Result::XexFileInvalid;
     }
 
-    if (patchHeader->magic != 0x58455832)
+    const Xex2Header *patchHeader = (const Xex2Header *)(patchBytes);
+    if (memcmp(patchBytes, Xex2Magic, 4) != 0)
     {
         return Result::PatchFileInvalid;
     }
