@@ -14,7 +14,7 @@ struct Symbol
 {
     mutable std::string name{};
     size_t address{};
-    mutable mutable size_t size{};
+    mutable size_t size{};
     mutable SymbolType type{};
 
     Symbol()

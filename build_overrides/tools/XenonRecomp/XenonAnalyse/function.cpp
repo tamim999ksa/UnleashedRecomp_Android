@@ -242,5 +242,5 @@ Function Function::Analyze(const void* code, size_t size, size_t base)
         // pick the block furthest away
         fn.size = std::max(fn.size, block.base + block.size);
     }
-    if (fn.size == 0 && data > (const uint32_t*)code) fn.size = 4; if (fn.size == 0 && data > (const uint32_t*)code) fn.size = 4; return fn;
+    if (fn.size == 0 && data > (const uint32_t*)code) fn.size = 4; return fn;
 }

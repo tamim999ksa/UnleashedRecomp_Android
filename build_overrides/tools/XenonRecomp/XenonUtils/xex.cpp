@@ -128,7 +128,7 @@ Image Xex2LoadImage(const uint8_t* data, size_t dataSize)
 {
     auto* header = reinterpret_cast<const Xex2Header*>(data);
     auto* security = reinterpret_cast<const Xex2SecurityInfo*>(data + header->securityOffset);
-    const auto* fileFormatInfo = reinterpret_cast<const Xex2OptFileFormatInfo*>(getOptHeaderPtr(data, dataSize, dataSize, XEX_HEADER_FILE_FORMAT_INFO));
+    const auto* fileFormatInfo = reinterpret_cast<const Xex2OptFileFormatInfo*>(getOptHeaderPtr(data, dataSize, XEX_HEADER_FILE_FORMAT_INFO));
 
     Image image{};
     std::unique_ptr<uint8_t[]> result{};
@@ -265,12 +265,12 @@ Image Xex2LoadImage(const uint8_t* data, size_t dataSize)
     const auto* ntHeaders = reinterpret_cast<IMAGE_NT_HEADERS32*>(image.data.get() + dosHeader->e_lfanew);
 
     image.base = security->loadAddress;
-    const void* xex2BaseAddressPtr = getOptHeaderPtr(data, dataSize, dataSize, XEX_HEADER_IMAGE_BASE_ADDRESS);
+    const void* xex2BaseAddressPtr = getOptHeaderPtr(data, dataSize, XEX_HEADER_IMAGE_BASE_ADDRESS);
     if (xex2BaseAddressPtr != nullptr)
     {
         image.base = *reinterpret_cast<const be<uint32_t>*>(xex2BaseAddressPtr);
     }
-    const void* xex2EntryPointPtr = getOptHeaderPtr(data, dataSize, dataSize, XEX_HEADER_ENTRY_POINT);
+    const void* xex2EntryPointPtr = getOptHeaderPtr(data, dataSize, XEX_HEADER_ENTRY_POINT);
     if (xex2EntryPointPtr != nullptr)
     {
         image.entry_point = *reinterpret_cast<const be<uint32_t>*>(xex2EntryPointPtr);
@@ -293,7 +293,7 @@ Image Xex2LoadImage(const uint8_t* data, size_t dataSize)
             section.Misc.VirtualSize, flags, image.data.get() + section.VirtualAddress);
     }
 
-    auto* imports = reinterpret_cast<const Xex2ImportHeader*>(getOptHeaderPtr(data, dataSize, dataSize, XEX_HEADER_IMPORT_LIBRARIES));
+    auto* imports = reinterpret_cast<const Xex2ImportHeader*>(getOptHeaderPtr(data, dataSize, XEX_HEADER_IMPORT_LIBRARIES));
     if (imports != nullptr)
     {
         std::vector<std::string_view> stringTable;

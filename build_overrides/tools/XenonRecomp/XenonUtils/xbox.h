@@ -243,7 +243,11 @@ typedef struct _XOVERLAPPED {
 typedef struct _XXOVERLAPPED {
     union
     {
-        struct { be<uint32_t> Error; be<uint32_t> Length; } _s1;
+        struct
+        {
+            be<uint32_t> Error;
+            be<uint32_t> Length;
+        } _s1;
 
         struct
         {

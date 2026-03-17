@@ -222,6 +222,17 @@ void Recompiler::Analyse()
 
         data = section.data;
 
+        // Establish ranges from pre-defined symbols
+        for (auto it = image.symbols.lower_bound(section.base); it != image.symbols.end() && it->address < section.base + section.size; ++it)
+        {
+            if (it->type == Symbol_Function)
+            {
+                auto data_ptr = section.data + it->address - section.base;
+                auto& fn = functions.emplace_back(Function::Analyze(data_ptr, section.base + section.size - it->address, it->address));
+                it->size = fn.size;
+            }
+        }
+
         while (data < dataEnd)
         {
             auto invalidInstr = config.invalidInstructions.find(ByteSwap(*(uint32_t*)data));
@@ -233,20 +244,25 @@ void Recompiler::Analyse()
             }
 
             auto fnSymbol = image.symbols.find(base);
-            if (fnSymbol != image.symbols.end() && fnSymbol->address == base && fnSymbol->type == Symbol_Function)
+            if (fnSymbol != image.symbols.end() && fnSymbol->type == Symbol_Function)
             {
-                assert(fnSymbol->address == base);
-
-                base += fnSymbol->size;
-                data += fnSymbol->size;
+                size_t skipSize = std::max<size_t>((fnSymbol->address + fnSymbol->size) - base, 4);
+                base += skipSize;
+                data += skipSize;
             }
             else
             {
                 auto& fn = functions.emplace_back(Function::Analyze(data, dataEnd - data, base));
                 image.symbols.emplace(fmt::format("sub_{:X}", fn.base), fn.base, fn.size, Symbol_Function);
 
-                base += fn.size;
-                data += fn.size;
+                size_t advanced = std::max<size_t>(fn.size, 4);
+                base += advanced;
+                data += advanced;
+            }
+
+            if ((base % 0x10000) == 0)
+            {
+                fmt::println("Scanning section... {:X} / {:X} (Found {} functions)", base, section.base + section.size, functions.size());
             }
         }
     }
