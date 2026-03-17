@@ -1404,12 +1404,12 @@ void ShaderRecompiler::recompile(const uint8_t* shaderData, const std::string_vi
                         int8_t z;
                         int8_t w;
                     } s;
-                } u;
+                } u_int4;
 
-                u.value = definition->values[i].get();
+                u_int4.value = definition->values[i].get();
 
                 println("\tint4 i{} = int4({}, {}, {}, {});",
-                    (definition->registerIndex - 8992) / 4 + i, (int)u.s.x, (int)u.s.y, (int)u.s.z, (int)u.s.w);
+                    (definition->registerIndex - 8992) / 4 + i, (int)u_int4.s.x, (int)u_int4.s.y, (int)u_int4.s.z, (int)u_int4.s.w);
             }
             definitions += 2;
             definitions += definition->count;
@@ -1749,7 +1749,7 @@ void ShaderRecompiler::recompile(const uint8_t* shaderData, const std::string_vi
                     else
                     {
                     #ifdef UNLEASHED_RECOMP
-                        if (textureFetch.constIndex == 10) // g_GISampler
+                        if (u_alu.textureFetch.constIndex == 10) // g_GISampler
                         {
                             specConstantsMask |= SPEC_CONSTANT_BICUBIC_GI_FILTER;
 
@@ -1759,7 +1759,7 @@ void ShaderRecompiler::recompile(const uint8_t* shaderData, const std::string_vi
                             out += '{';
 
                             ++indentation;
-                            recompile(textureFetch, true);
+                            recompile(u_alu.textureFetch, true);
                             --indentation;
 
                             indent();
