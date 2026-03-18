@@ -14,5 +14,5 @@ target_link_libraries(LibXenonAnalyse PUBLIC XenonUtils)
 
 
 if(ANDROID)
-    target_link_options(XenonAnalyse PRIVATE "-fuse-ld=lld")
+    target_link_options(XenonAnalyse PRIVATE "-fuse-ld=lld" "-Wl,--no-threads")
 endif()
