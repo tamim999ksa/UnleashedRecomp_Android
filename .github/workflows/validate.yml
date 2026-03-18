@@ -25,11 +25,11 @@ jobs:
         uses: easimon/maximize-build-space@v10
         with:
           swap-size-mb: 4096
-          remove-dotnet: "true"
-          remove-android: "true"
-          remove-haskell: "true"
-          remove-codeql: "true"
-          remove-docker-images: "true"
+          remove-dotnet: 'true'
+          remove-android: 'true'
+          remove-haskell: 'true'
+          remove-codeql: 'true'
+          remove-docker-images: 'true'
       - name: Checkout Repository
         uses: actions/checkout@v6
         with:
@@ -63,11 +63,11 @@ jobs:
             rm -rf extract-xiso
           fi
       - name: Check Secrets
-        if: env.ASSET_REPO == ''
+        if: ${{ env.ASSET_REPO == '' }}
         run: echo "ASSET_REPO secret is missing. Skipping Android build steps."
 
       - name: Checkout Private Repository
-        if: env.ASSET_REPO != ''
+        if: ${{ env.ASSET_REPO != '' }}
         uses: actions/checkout@v6
         with:
           repository: ${{ env.ASSET_REPO }}
@@ -86,7 +86,6 @@ jobs:
 
       - name: Install Android NDK
         run: |
-          # Use the correct sdkmanager from path provided by setup-android
           SDK_MANAGER="${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager"
           echo y | $SDK_MANAGER --licenses
           $SDK_MANAGER "platform-tools" "cmdline-tools;latest"
@@ -117,7 +116,7 @@ jobs:
           ./build_tools.sh
 
       - name: Prepare Project
-        if: env.ASSET_REPO != ''
+        if: ${{ env.ASSET_REPO != '' }}
         run: |
           mkdir -p ./UnleashedRecompLib/private
           if [ -d "private" ]; then
@@ -189,7 +188,7 @@ jobs:
           # Cleanup empty directories
           find ./UnleashedRecompLib/private -depth -type d -empty -delete 2>/dev/null || true
       - name: Build Debug APK
-        if: env.ASSET_REPO != ''
+        if: ${{ env.ASSET_REPO != '' }}
         working-directory: ./android
         run: |
           chmod +x gradlew
@@ -197,14 +196,14 @@ jobs:
           ./gradlew assembleDebug --max-workers=1 --no-daemon
 
       - name: Upload Debug Artifact
-        if: env.ASSET_REPO != ''
+        if: ${{ env.ASSET_REPO != '' }}
         uses: actions/upload-artifact@v7
         with:
           name: UnleashedRecomp-Android-Debug
           path: android/app/build/outputs/apk/debug/app-debug.apk
 
       - name: Build Release APK
-        if: env.ASSET_REPO != ''
+        if: ${{ env.ASSET_REPO != '' }}
         working-directory: ./android
         run: |
           chmod +x gradlew
@@ -212,7 +211,7 @@ jobs:
           ./gradlew assembleRelease --max-workers=1 --no-daemon
 
       - name: Upload Release Artifact
-        if: env.ASSET_REPO != ''
+        if: ${{ env.ASSET_REPO != '' }}
         uses: actions/upload-artifact@v7
         with:
           name: UnleashedRecomp-Android-Release

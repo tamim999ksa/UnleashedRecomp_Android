@@ -45,11 +45,11 @@ jobs:
         uses: easimon/maximize-build-space@v10
         with:
           swap-size-mb: 4096
-          remove-dotnet: "true"
-          remove-android: "true"
-          remove-haskell: "true"
-          remove-codeql: "true"
-          remove-docker-images: "true"
+          remove-dotnet: 'true'
+          remove-android: 'true'
+          remove-haskell: 'true'
+          remove-codeql: 'true'
+          remove-docker-images: 'true'
 
       - name: Checkout Code
         uses: actions/checkout@v6
@@ -57,7 +57,7 @@ jobs:
           submodules: recursive
 
       - name: Checkout Private Repository
-        if: ${{ env.ASSET_REPO != '' }}
+        if: ${{ secrets.ASSET_REPO != '' }}
         uses: actions/checkout@v6
         with:
           repository: ${{ secrets.ASSET_REPO }}
@@ -98,7 +98,7 @@ jobs:
           fi
 
       - name: Download Data
-        if: ${{ github.event_name == 'workflow_dispatch' || env.ASSET_REPO != '' }}
+        if: ${{ github.event_name == 'workflow_dispatch' || secrets.ASSET_REPO != '' }}
         env:
           GAME_URL: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.game_url || '' }}
           UPDATE_URL: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.update_url || '' }}
@@ -193,7 +193,7 @@ jobs:
             echo "Assets found, uploading..."
           else
             echo "has_assets=false" >> $GITHUB_OUTPUT
-            if [ "${{ github.event_name }}" == 'workflow_dispatch' ] || [ "${{ env.ASSET_REPO }}" != "" ]; then
+            if [ "${{ github.event_name }}" == 'workflow_dispatch' ] || [ "${{ secrets.ASSET_REPO }}" != "" ]; then
               echo "Error: Mandatory assets (default.xex, shader.ar) missing after extraction."
               false
             else
@@ -226,11 +226,11 @@ jobs:
         uses: easimon/maximize-build-space@v10
         with:
           swap-size-mb: 4096
-          remove-dotnet: "true"
-          remove-android: "true"
-          remove-haskell: "true"
-          remove-codeql: "true"
-          remove-docker-images: "true"
+          remove-dotnet: 'true'
+          remove-android: 'true'
+          remove-haskell: 'true'
+          remove-codeql: 'true'
+          remove-docker-images: 'true'
       - name: Checkout Code
         uses: actions/checkout@v6
         with:
@@ -269,7 +269,6 @@ jobs:
       - name: Install Android NDK
         if: env.OS == 'android'
         run: |
-          # Hardcode sdkmanager path to avoid detection issues
           SDK_MANAGER="${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager"
           echo y | $SDK_MANAGER --licenses
           $SDK_MANAGER "platform-tools" "cmdline-tools;latest"
@@ -314,7 +313,7 @@ jobs:
           cmake .. -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_TOOLCHAIN_FILE="../thirdparty/vcpkg/scripts/buildsystems/vcpkg.cmake" \
             -DHOST_TOOLS_DIR="../build_tools/bin"
-          cmake --build . --config Release --parallel
+          cmake --build . --config Release
 
       - name: Build Windows
         if: env.OS == 'windows'
@@ -322,7 +321,7 @@ jobs:
           mkdir -p build_windows && cd build_windows
           cmake .. -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_TOOLCHAIN_FILE="../thirdparty/vcpkg/scripts/buildsystems/vcpkg.cmake"
-          cmake --build . --config Release --parallel
+          cmake --build . --config Release
 
       - name: Upload Android APK
         if: env.OS == 'android'
