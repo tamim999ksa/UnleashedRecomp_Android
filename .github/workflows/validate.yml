@@ -86,9 +86,8 @@ jobs:
 
       - name: Install Android NDK
         run: |
-          # Use the correct sdkmanager from PATH provided by setup-android
+          # Use the correct sdkmanager from path provided by setup-android
           SDK_MANAGER="${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager"
-          if [ ! -f "$SDK_MANAGER" ]; then SDK_MANAGER="sdkmanager"; fi
           echo y | $SDK_MANAGER --licenses
           $SDK_MANAGER "platform-tools" "cmdline-tools;latest"
           echo y | $SDK_MANAGER "ndk;29.0.14206865"

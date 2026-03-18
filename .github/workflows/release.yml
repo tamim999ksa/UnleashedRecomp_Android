@@ -100,9 +100,9 @@ jobs:
       - name: Download Data
         if: ${{ github.event_name == 'workflow_dispatch' || env.ASSET_REPO != '' }}
         env:
-          GAME_URL: ${{ github.event.inputs && github.event.inputs.game_url }}
-          UPDATE_URL: ${{ github.event.inputs && github.event.inputs.update_url }}
-          DLC_URL: ${{ github.event.inputs && github.event.inputs.dlc_url }}
+          GAME_URL: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.game_url || '' }}
+          UPDATE_URL: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.update_url || '' }}
+          DLC_URL: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.dlc_url || '' }}
         run: |
           mkdir -p ./UnleashedRecompLib/private
 
@@ -210,12 +210,12 @@ jobs:
           retention-days: 1
 
   build:
-    name: Build (${{ github.event.inputs && github.event.inputs.os || 'android' }})
+    name: Build (${{ github.event_name == 'workflow_dispatch' && github.event.inputs.os || 'android' }})
     needs: prepare-assets
     if: needs.prepare-assets.outputs.has_assets == 'true'
-    runs-on: ${{ (github.event.inputs && github.event.inputs.os == 'windows') && 'windows-latest' || 'ubuntu-24.04' }}
+    runs-on: ${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.os == 'windows') && 'windows-latest' || 'ubuntu-24.04' }}
     env:
-      OS: ${{ github.event.inputs && github.event.inputs.os || 'android' }}
+      OS: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.os || 'android' }}
       CMAKE_BUILD_PARALLEL_LEVEL: 1
     defaults:
       run:
@@ -269,10 +269,8 @@ jobs:
       - name: Install Android NDK
         if: env.OS == 'android'
         run: |
-          # Use the correct sdkmanager from PATH provided by setup-android
-          # If not in path, use full path
+          # Hardcode sdkmanager path to avoid detection issues
           SDK_MANAGER="${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager"
-          if [ ! -f "$SDK_MANAGER" ]; then SDK_MANAGER="sdkmanager"; fi
           echo y | $SDK_MANAGER --licenses
           $SDK_MANAGER "platform-tools" "cmdline-tools;latest"
           echo y | $SDK_MANAGER "ndk;29.0.14206865"
