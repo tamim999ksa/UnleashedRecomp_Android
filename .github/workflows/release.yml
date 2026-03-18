@@ -34,9 +34,6 @@ jobs:
   prepare-assets:
     name: Prepare Assets
     runs-on: ubuntu-24.04
-    env:
-      ASSET_REPO: ${{ secrets.ASSET_REPO }}
-      ASSET_REPO_TOKEN: ${{ secrets.ASSET_REPO_TOKEN }}
     outputs:
       has_assets: ${{ steps.check-assets.outputs.has_assets }}
     steps:
@@ -52,20 +49,20 @@ jobs:
           remove-docker-images: 'true'
 
       - name: Checkout Code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
         with:
           submodules: recursive
 
       - name: Checkout Private Repository
         if: ${{ secrets.ASSET_REPO != '' }}
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
         with:
           repository: ${{ secrets.ASSET_REPO }}
           token: ${{ secrets.ASSET_REPO_TOKEN }}
           path: private
 
       - name: Set up Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
@@ -75,7 +72,7 @@ jobs:
           sudo apt-get install -y p7zip-full wget cmake build-essential libcurl4-openssl-dev
 
       - name: Cache extract-xiso
-        uses: actions/cache@v5
+        uses: actions/cache@v4
         id: cache-extract-xiso
         with:
           path: /usr/local/bin/extract-xiso
@@ -100,9 +97,9 @@ jobs:
       - name: Download Data
         if: ${{ github.event_name == 'workflow_dispatch' || secrets.ASSET_REPO != '' }}
         env:
-          GAME_URL: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.game_url || '' }}
-          UPDATE_URL: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.update_url || '' }}
-          DLC_URL: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.dlc_url || '' }}
+          GAME_URL: ${{ github.event.inputs && github.event.inputs.game_url || '' }}
+          UPDATE_URL: ${{ github.event.inputs && github.event.inputs.update_url || '' }}
+          DLC_URL: ${{ github.event.inputs && github.event.inputs.dlc_url || '' }}
         run: |
           mkdir -p ./UnleashedRecompLib/private
 
@@ -203,19 +200,19 @@ jobs:
 
       - name: Upload Prepared Assets
         if: steps.check-assets.outputs.has_assets == 'true'
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v4
         with:
           name: prepared-assets
           path: ./UnleashedRecompLib/private/
           retention-days: 1
 
   build:
-    name: Build (${{ github.event_name == 'workflow_dispatch' && github.event.inputs.os || 'android' }})
+    name: Build (${{ github.event.inputs && github.event.inputs.os || 'android' }})
     needs: prepare-assets
     if: needs.prepare-assets.outputs.has_assets == 'true'
-    runs-on: ${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.os == 'windows') && 'windows-latest' || 'ubuntu-24.04' }}
+    runs-on: ${{ (github.event.inputs && github.event.inputs.os == 'windows') && 'windows-latest' || 'ubuntu-24.04' }}
     env:
-      OS: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.os || 'android' }}
+      OS: ${{ github.event.inputs && github.event.inputs.os || 'android' }}
       CMAKE_BUILD_PARALLEL_LEVEL: 1
     defaults:
       run:
@@ -227,25 +224,25 @@ jobs:
         with:
           swap-size-mb: 4096
           remove-dotnet: 'true'
-          remove-android: 'true'
+          remove-android: ${{ (github.event.inputs && github.event.inputs.os == 'android') && 'false' || 'true' }}
           remove-haskell: 'true'
           remove-codeql: 'true'
           remove-docker-images: 'true'
       - name: Checkout Code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
         with:
           submodules: recursive
 
       - name: Download Prepared Assets
         if: needs.prepare-assets.outputs.has_assets == 'true'
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@v4
         with:
           name: prepared-assets
           path: ./UnleashedRecompLib/private/
 
       - name: Cache vcpkg
         if: env.OS == 'android' || env.OS == 'linux'
-        uses: actions/cache@v5
+        uses: actions/cache@v4
         with:
           path: |
             ./thirdparty/vcpkg/downloads
@@ -256,7 +253,7 @@ jobs:
 
       - name: Setup Java
         if: env.OS == 'android'
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '17'
@@ -269,7 +266,6 @@ jobs:
       - name: Install Android NDK
         if: env.OS == 'android'
         run: |
-          # Revert to @v3 paths but keep explicit sdkmanager calls
           SDK_MANAGER="${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager"
           echo y | $SDK_MANAGER --licenses
           $SDK_MANAGER "platform-tools" "cmdline-tools;latest"
@@ -326,14 +322,14 @@ jobs:
 
       - name: Upload Android APK
         if: env.OS == 'android'
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v4
         with:
           name: UnleashedRecomp-Android-APK
           path: android/app/build/outputs/apk/release/app-release.apk
 
       - name: Upload Desktop Artifacts
         if: env.OS == 'linux' || env.OS == 'windows'
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v4
         with:
           name: UnleashedRecomp-${{ env.OS }}
           path: |

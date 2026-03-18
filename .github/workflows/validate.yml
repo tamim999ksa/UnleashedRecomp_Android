@@ -24,12 +24,12 @@ jobs:
         with:
           swap-size-mb: 4096
           remove-dotnet: 'true'
-          remove-android: 'true'
+          remove-android: 'false'
           remove-haskell: 'true'
           remove-codeql: 'true'
           remove-docker-images: 'true'
       - name: Checkout Repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
         with:
           submodules: recursive
 
@@ -40,7 +40,7 @@ jobs:
 
 
       - name: Cache extract-xiso
-        uses: actions/cache@v5
+        uses: actions/cache@v4
         id: cache-extract-xiso
         with:
           path: /usr/local/bin/extract-xiso
@@ -66,14 +66,14 @@ jobs:
 
       - name: Checkout Private Repository
         if: ${{ secrets.ASSET_REPO != '' }}
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
         with:
           repository: ${{ secrets.ASSET_REPO }}
           token: ${{ secrets.ASSET_REPO_TOKEN }}
           path: ./private
 
       - name: Setup Java
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '17'
@@ -90,7 +90,7 @@ jobs:
           echo y | $SDK_MANAGER "ndk;29.0.14206865"
 
       - name: Cache vcpkg
-        uses: actions/cache@v5
+        uses: actions/cache@v4
         with:
           path: |
             ./thirdparty/vcpkg/downloads
@@ -195,7 +195,7 @@ jobs:
 
       - name: Upload Debug Artifact
         if: ${{ secrets.ASSET_REPO != '' }}
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v4
         with:
           name: UnleashedRecomp-Android-Debug
           path: android/app/build/outputs/apk/debug/app-debug.apk
@@ -210,7 +210,7 @@ jobs:
 
       - name: Upload Release Artifact
         if: ${{ secrets.ASSET_REPO != '' }}
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v4
         with:
           name: UnleashedRecomp-Android-Release
           path: android/app/build/outputs/apk/release/app-release.apk
