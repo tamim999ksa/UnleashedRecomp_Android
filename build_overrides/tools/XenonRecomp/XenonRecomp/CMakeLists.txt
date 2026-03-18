@@ -29,5 +29,5 @@ endif()
 target_compile_definitions(XenonRecomp PRIVATE _CRT_SECURE_NO_WARNINGS)
 
 if(ANDROID)
-    target_link_options(XenonRecomp PRIVATE "-fuse-ld=lld")
+    target_link_options(XenonRecomp PRIVATE "-fuse-ld=lld" "-Wl,--no-threads")
 endif()
