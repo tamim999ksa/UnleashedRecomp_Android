@@ -75,4 +75,4 @@ include_directories (${OBOE_DIR}/include ${OBOE_DIR}/samples)
 # Enable optimization flags: if having problems with source level debugging,
 # disable -O3 -ffast-math ( and debug ), re-enable after done debugging.
 target_compile_options(native-lib
-    PRIVATE -std=c++17 -Wall -Werror "$<$<CONFIG:RELEASE>:-O3 -ffast-math>")
+    PRIVATE -std=c++17 -Wall -Werror $<$<CONFIG:RELEASE>:-O3> $<$<CONFIG:RELEASE>:-ffast-math>)
