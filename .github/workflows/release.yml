@@ -210,13 +210,15 @@ jobs:
           retention-days: 1
 
   build:
-    name: Build (${{ github.event_name == 'workflow_dispatch' && github.event.inputs.os || 'android' }})
+    name: Build (${{ github.event.inputs && github.event.inputs.os || 'android' }})
     needs: prepare-assets
     if: needs.prepare-assets.outputs.has_assets == 'true'
-    runs-on: ${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.os == 'windows') && 'windows-latest' || 'ubuntu-24.04' }}
+    runs-on: ${{ (github.event.inputs && github.event.inputs.os == 'windows') && 'windows-latest' || 'ubuntu-24.04' }}
     env:
-      OS: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.os || 'android' }}
+      OS: ${{ github.event.inputs && github.event.inputs.os || 'android' }}
       CMAKE_BUILD_PARALLEL_LEVEL: 1
+      ANDROID_HOME: ${{ github.workspace }}/android-sdk
+      ANDROID_SDK_ROOT: ${{ github.workspace }}/android-sdk
     defaults:
       run:
         shell: bash
@@ -264,13 +266,14 @@ jobs:
 
       - name: Setup Android SDK
         if: env.OS == 'android'
-        uses: android-actions/setup-android@v4
+        uses: android-actions/setup-android@v3
 
       - name: Install Android NDK
         if: env.OS == 'android'
         run: |
-          # Use the correct sdkmanager from PATH provided by setup-android
-          echo y | sdkmanager --licenses
+          # Use a specific version of cmdline-tools to avoid XML version mismatch
+          # and ensure we use the correct sdkmanager
+          echo y | ${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager --licenses || echo y | sdkmanager --licenses
           sdkmanager "platform-tools" "cmdline-tools;latest"
           echo y | sdkmanager "ndk;29.0.14206865"
 
@@ -313,7 +316,7 @@ jobs:
           cmake .. -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_TOOLCHAIN_FILE="../thirdparty/vcpkg/scripts/buildsystems/vcpkg.cmake" \
             -DHOST_TOOLS_DIR="../build_tools/bin"
-          cmake --build . --config Release --parallel
+          cmake --build . --config Release --parallel $(nproc)
 
       - name: Build Windows
         if: env.OS == 'windows'

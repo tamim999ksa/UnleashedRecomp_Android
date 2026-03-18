@@ -20,6 +20,8 @@ jobs:
       CMAKE_BUILD_PARALLEL_LEVEL: 1
       ASSET_REPO: ${{ secrets.ASSET_REPO }}
       ASSET_REPO_TOKEN: ${{ secrets.ASSET_REPO_TOKEN }}
+      ANDROID_HOME: ${{ github.workspace }}/android-sdk
+      ANDROID_SDK_ROOT: ${{ github.workspace }}/android-sdk
     steps:
       - name: Maximize build space
         uses: easimon/maximize-build-space@v10
@@ -59,8 +61,6 @@ jobs:
             cmake .. -DCMAKE_BUILD_TYPE=Release
             make -j$(nproc)
             sudo make install
-            cd ../..
-            rm -rf extract-xiso
           fi
       - name: Check Secrets
         if: env.ASSET_REPO == ''
@@ -82,12 +82,13 @@ jobs:
           cache: 'gradle'
 
       - name: Setup Android SDK
-        uses: android-actions/setup-android@v4
+        uses: android-actions/setup-android@v3
 
       - name: Install Android NDK
         run: |
-          # Use the correct sdkmanager from PATH provided by setup-android
-          echo y | sdkmanager --licenses
+          # Use a specific version of cmdline-tools to avoid XML version mismatch
+          # and ensure we use the correct sdkmanager
+          echo y | ${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager --licenses || echo y | sdkmanager --licenses
           sdkmanager "platform-tools" "cmdline-tools;latest"
           echo y | sdkmanager "ndk;29.0.14206865"
 
