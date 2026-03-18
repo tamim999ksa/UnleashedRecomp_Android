@@ -94,8 +94,7 @@ jobs:
             rm -rf extract-xiso
           fi
 
-      - name: Download Data
-        if: ${{ github.event_name == 'workflow_dispatch' || secrets.ASSET_REPO != '' }}
+      - name: Prepare Data
         env:
           GAME_URL: ${{ github.event.inputs && github.event.inputs.game_url || '' }}
           UPDATE_URL: ${{ github.event.inputs && github.event.inputs.update_url || '' }}
@@ -116,6 +115,7 @@ jobs:
           handle_url "$DLC_URL"
 
           if [ -d "private" ]; then
+            echo "Copying from local private directory..."
             cp -rv private/. ./UnleashedRecompLib/private/ 2>/dev/null || true
           fi
 
@@ -224,7 +224,7 @@ jobs:
         with:
           swap-size-mb: 4096
           remove-dotnet: 'true'
-          remove-android: ${{ (github.event.inputs && github.event.inputs.os == 'android') && 'false' || 'true' }}
+          remove-android: ${{ (github.event.inputs && (github.event.inputs.os == 'linux' || github.event.inputs.os == 'windows')) && 'true' || 'false' }}
           remove-haskell: 'true'
           remove-codeql: 'true'
           remove-docker-images: 'true'

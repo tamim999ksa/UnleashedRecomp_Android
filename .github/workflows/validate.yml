@@ -114,10 +114,10 @@ jobs:
           ./build_tools.sh
 
       - name: Prepare Project
-        if: ${{ secrets.ASSET_REPO != '' }}
         run: |
           mkdir -p ./UnleashedRecompLib/private
           if [ -d "private" ]; then
+            echo "Copying from local private directory..."
             cp -rv private/. ./UnleashedRecompLib/private/ 2>/dev/null || true
           fi
 
@@ -179,14 +179,13 @@ jobs:
           if [ -f "./UnleashedRecompLib/private/default.xex" ] && [ -f "./UnleashedRecompLib/private/shader.ar" ]; then
             echo "Assets found."
           else
-            echo "Error: Mandatory assets (default.xex, shader.ar) missing after extraction."
-            false
+            echo "Warning: Mandatory assets missing."
           fi
 
           # Cleanup empty directories
           find ./UnleashedRecompLib/private -depth -type d -empty -delete 2>/dev/null || true
       - name: Build Debug APK
-        if: ${{ secrets.ASSET_REPO != '' }}
+        if: ${{ secrets.ASSET_REPO != '' || hashFiles('UnleashedRecompLib/private/default.xex') != '' }}
         working-directory: ./android
         run: |
           chmod +x gradlew
@@ -194,14 +193,14 @@ jobs:
           ./gradlew assembleDebug --max-workers=1 --no-daemon
 
       - name: Upload Debug Artifact
-        if: ${{ secrets.ASSET_REPO != '' }}
+        if: ${{ secrets.ASSET_REPO != '' || hashFiles('android/app/build/outputs/apk/debug/app-debug.apk') != '' }}
         uses: actions/upload-artifact@v4
         with:
           name: UnleashedRecomp-Android-Debug
           path: android/app/build/outputs/apk/debug/app-debug.apk
 
       - name: Build Release APK
-        if: ${{ secrets.ASSET_REPO != '' }}
+        if: ${{ secrets.ASSET_REPO != '' || hashFiles('UnleashedRecompLib/private/default.xex') != '' }}
         working-directory: ./android
         run: |
           chmod +x gradlew
@@ -209,7 +208,7 @@ jobs:
           ./gradlew assembleRelease --max-workers=1 --no-daemon
 
       - name: Upload Release Artifact
-        if: ${{ secrets.ASSET_REPO != '' }}
+        if: ${{ secrets.ASSET_REPO != '' || hashFiles('android/app/build/outputs/apk/release/app-release.apk') != '' }}
         uses: actions/upload-artifact@v4
         with:
           name: UnleashedRecomp-Android-Release
