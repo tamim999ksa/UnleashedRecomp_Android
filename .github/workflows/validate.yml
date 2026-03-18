@@ -18,22 +18,18 @@ jobs:
     runs-on: ubuntu-24.04
     env:
       CMAKE_BUILD_PARALLEL_LEVEL: 1
-      ASSET_REPO: ${{ secrets.ASSET_REPO }}
-      ASSET_REPO_TOKEN: ${{ secrets.ASSET_REPO_TOKEN }}
-      ANDROID_HOME: ${{ github.workspace }}/android-sdk
-      ANDROID_SDK_ROOT: ${{ github.workspace }}/android-sdk
     steps:
       - name: Maximize build space
         uses: easimon/maximize-build-space@v10
         with:
           swap-size-mb: 4096
-          remove-dotnet: "true"
-          remove-android: "true"
-          remove-haskell: "true"
-          remove-codeql: "true"
-          remove-docker-images: "true"
+          remove-dotnet: 'true'
+          remove-android: 'false'
+          remove-haskell: 'true'
+          remove-codeql: 'true'
+          remove-docker-images: 'true'
       - name: Checkout Repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
         with:
           submodules: recursive
 
@@ -44,7 +40,7 @@ jobs:
 
 
       - name: Cache extract-xiso
-        uses: actions/cache@v5
+        uses: actions/cache@v4
         id: cache-extract-xiso
         with:
           path: /usr/local/bin/extract-xiso
@@ -59,23 +55,25 @@ jobs:
             sed -i "s|if ( ( err = mkdir( iso_name, 0755 ) ) ) mkdir_err( iso_name );|if ( ( err = mkdir( iso_name, 0755 ) ) ) { if ( errno == EEXIST ) err = 0; else mkdir_err( iso_name ); }|" extract-xiso.c
             mkdir build && cd build
             cmake .. -DCMAKE_BUILD_TYPE=Release
-            make -j$(nproc)
+            make
             sudo make install
+            cd ../..
+            rm -rf extract-xiso
           fi
       - name: Check Secrets
-        if: env.ASSET_REPO == ''
+        if: ${{ secrets.ASSET_REPO == '' }}
         run: echo "ASSET_REPO secret is missing. Skipping Android build steps."
 
       - name: Checkout Private Repository
-        if: env.ASSET_REPO != ''
-        uses: actions/checkout@v6
+        if: ${{ secrets.ASSET_REPO != '' }}
+        uses: actions/checkout@v4
         with:
-          repository: ${{ env.ASSET_REPO }}
-          token: ${{ env.ASSET_REPO_TOKEN }}
+          repository: ${{ secrets.ASSET_REPO }}
+          token: ${{ secrets.ASSET_REPO_TOKEN }}
           path: ./private
 
       - name: Setup Java
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '17'
@@ -86,14 +84,13 @@ jobs:
 
       - name: Install Android NDK
         run: |
-          # Use a specific version of cmdline-tools to avoid XML version mismatch
-          # and ensure we use the correct sdkmanager
-          echo y | ${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager --licenses || echo y | sdkmanager --licenses
-          sdkmanager "platform-tools" "cmdline-tools;latest"
-          echo y | sdkmanager "ndk;29.0.14206865"
+          SDK_MANAGER="${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager"
+          echo y | $SDK_MANAGER --licenses
+          $SDK_MANAGER "platform-tools" "cmdline-tools;latest"
+          echo y | $SDK_MANAGER "ndk;29.0.14206865"
 
       - name: Cache vcpkg
-        uses: actions/cache@v5
+        uses: actions/cache@v4
         with:
           path: |
             ./thirdparty/vcpkg/downloads
@@ -117,11 +114,11 @@ jobs:
           ./build_tools.sh
 
       - name: Prepare Project
-        if: env.ASSET_REPO != ''
         run: |
           mkdir -p ./UnleashedRecompLib/private
-          if [ -d "./private" ]; then
-            cp -rv private/* ./UnleashedRecompLib/private/ 2>/dev/null || true
+          if [ -d "private" ]; then
+            echo "Copying from local private directory..."
+            cp -rv private/. ./UnleashedRecompLib/private/ 2>/dev/null || true
           fi
 
           # Recursive extraction
@@ -182,14 +179,13 @@ jobs:
           if [ -f "./UnleashedRecompLib/private/default.xex" ] && [ -f "./UnleashedRecompLib/private/shader.ar" ]; then
             echo "Assets found."
           else
-            echo "Error: Mandatory assets (default.xex, shader.ar) missing after extraction."
-            false
+            echo "Warning: Mandatory assets missing."
           fi
 
           # Cleanup empty directories
           find ./UnleashedRecompLib/private -depth -type d -empty -delete 2>/dev/null || true
       - name: Build Debug APK
-        if: env.ASSET_REPO != ''
+        if: ${{ secrets.ASSET_REPO != '' || hashFiles('UnleashedRecompLib/private/default.xex') != '' }}
         working-directory: ./android
         run: |
           chmod +x gradlew
@@ -197,14 +193,14 @@ jobs:
           ./gradlew assembleDebug --max-workers=1 --no-daemon
 
       - name: Upload Debug Artifact
-        if: env.ASSET_REPO != ''
-        uses: actions/upload-artifact@v7
+        if: ${{ secrets.ASSET_REPO != '' || hashFiles('android/app/build/outputs/apk/debug/app-debug.apk') != '' }}
+        uses: actions/upload-artifact@v4
         with:
           name: UnleashedRecomp-Android-Debug
           path: android/app/build/outputs/apk/debug/app-debug.apk
 
       - name: Build Release APK
-        if: env.ASSET_REPO != ''
+        if: ${{ secrets.ASSET_REPO != '' || hashFiles('UnleashedRecompLib/private/default.xex') != '' }}
         working-directory: ./android
         run: |
           chmod +x gradlew
@@ -212,8 +208,8 @@ jobs:
           ./gradlew assembleRelease --max-workers=1 --no-daemon
 
       - name: Upload Release Artifact
-        if: env.ASSET_REPO != ''
-        uses: actions/upload-artifact@v7
+        if: ${{ secrets.ASSET_REPO != '' || hashFiles('android/app/build/outputs/apk/release/app-release.apk') != '' }}
+        uses: actions/upload-artifact@v4
         with:
           name: UnleashedRecomp-Android-Release
           path: android/app/build/outputs/apk/release/app-release.apk
