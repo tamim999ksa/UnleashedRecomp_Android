@@ -264,19 +264,13 @@ jobs:
 
       - name: Setup Android SDK
         if: env.OS == 'android'
-        env:
-          ANDROID_HOME: ${{ github.workspace }}/android-sdk
-          ANDROID_SDK_ROOT: ${{ github.workspace }}/android-sdk
         uses: android-actions/setup-android@v3
 
       - name: Install Android NDK
         if: env.OS == 'android'
         run: |
-          export ANDROID_HOME=${{ github.workspace }}/android-sdk
-          export ANDROID_SDK_ROOT=${{ github.workspace }}/android-sdk
-          # Use a specific version of cmdline-tools to avoid XML version mismatch
-          # and ensure we use the correct sdkmanager
-          echo y | ${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager --licenses || echo y | sdkmanager --licenses
+          # Ensure licenses are accepted using the system-provided sdkmanager
+          echo y | sdkmanager --licenses
           sdkmanager "platform-tools" "cmdline-tools;latest"
           echo y | sdkmanager "ndk;29.0.14206865"
 
@@ -288,7 +282,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libtbb-dev libcurl4-openssl-dev patchelf p7zip-full
+          sudo apt-get install -y libtbb-dev libcurl4-openssl-dev patchelf p7zip-full wget file ccache cmake build-essential
 
       - name: Setup Build Tools
         if: runner.os == 'Linux'
@@ -306,13 +300,11 @@ jobs:
         working-directory: android
         env:
           CMAKE_BUILD_PARALLEL_LEVEL: 1
-          ANDROID_HOME: ${{ github.workspace }}/android-sdk
-          ANDROID_SDK_ROOT: ${{ github.workspace }}/android-sdk
         run: |
           chmod +x gradlew
           export ANDROID_NDK_HOME=${ANDROID_HOME}/ndk/29.0.14206865
           export GRADLE_OPTS="-Xmx4096m -Dorg.gradle.daemon=false -Dorg.gradle.parallel=true -Dorg.gradle.workers.max=1"
-          ./gradlew assembleRelease --stacktrace --max-workers=1 --stacktrace --no-daemon
+          ./gradlew assembleRelease --stacktrace --max-workers=1 --no-daemon
 
       - name: Build Linux
         if: env.OS == 'linux'
@@ -350,3 +342,6 @@ jobs:
             build_${{ env.OS }}/${{ env.OS == 'linux' && 'UnleashedRecomp' || '' }}
             !build_${{ env.OS }}/**/*.o
             !build_${{ env.OS }}/**/*.a
+
+# Added at end of file for safety, but I should probably check where to put it.
+# Actually I'll just use sed to add it to the top level env.
