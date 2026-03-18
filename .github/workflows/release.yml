@@ -345,6 +345,3 @@ jobs:
             build_${{ env.OS }}/${{ env.OS == 'linux' && 'UnleashedRecomp' || '' }}
             !build_${{ env.OS }}/**/*.o
             !build_${{ env.OS }}/**/*.a
-
-# Added at end of file for safety, but I should probably check where to put it.
-# Actually I'll just use sed to add it to the top level env.
