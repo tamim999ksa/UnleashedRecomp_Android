@@ -91,7 +91,7 @@ jobs:
             sed -i "s|if ( ( err = mkdir( iso_name, 0755 ) ) ) mkdir_err( iso_name );|if ( ( err = mkdir( iso_name, 0755 ) ) ) { if ( errno == EEXIST ) err = 0; else mkdir_err( iso_name ); }|" extract-xiso.c
             mkdir build && cd build
             cmake .. -DCMAKE_BUILD_TYPE=Release
-            make -j$(nproc)
+            make
             sudo make install
             cd ../..
             rm -rf extract-xiso
@@ -118,8 +118,8 @@ jobs:
           handle_url "$UPDATE_URL"
           handle_url "$DLC_URL"
 
-          if [ -d "./private" ]; then
-            cp -rv private/* ./UnleashedRecompLib/private/ 2>/dev/null || true
+          if [ -d "private" ]; then
+            cp -rv private/. ./UnleashedRecompLib/private/ 2>/dev/null || true
           fi
 
           # Recursive extraction
@@ -193,7 +193,7 @@ jobs:
             echo "Assets found, uploading..."
           else
             echo "has_assets=false" >> $GITHUB_OUTPUT
-            if [ "${{ github.event_name }}" == "workflow_dispatch" ] || [ "${{ env.ASSET_REPO }}" != "" ]; then
+            if [ "${{ github.event_name }}" == 'workflow_dispatch' ] || [ "${{ env.ASSET_REPO }}" != "" ]; then
               echo "Error: Mandatory assets (default.xex, shader.ar) missing after extraction."
               false
             else
@@ -217,8 +217,6 @@ jobs:
     env:
       OS: ${{ github.event.inputs && github.event.inputs.os || 'android' }}
       CMAKE_BUILD_PARALLEL_LEVEL: 1
-      ANDROID_HOME: ${{ github.workspace }}/android-sdk
-      ANDROID_SDK_ROOT: ${{ github.workspace }}/android-sdk
     defaults:
       run:
         shell: bash
@@ -266,16 +264,18 @@ jobs:
 
       - name: Setup Android SDK
         if: env.OS == 'android'
-        uses: android-actions/setup-android@v3
+        uses: android-actions/setup-android@v4
 
       - name: Install Android NDK
         if: env.OS == 'android'
         run: |
-          # Use a specific version of cmdline-tools to avoid XML version mismatch
-          # and ensure we use the correct sdkmanager
-          echo y | ${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager --licenses || echo y | sdkmanager --licenses
-          sdkmanager "platform-tools" "cmdline-tools;latest"
-          echo y | sdkmanager "ndk;29.0.14206865"
+          # Use the correct sdkmanager from PATH provided by setup-android
+          # If not in path, use full path
+          SDK_MANAGER="${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager"
+          if [ ! -f "$SDK_MANAGER" ]; then SDK_MANAGER="sdkmanager"; fi
+          echo y | $SDK_MANAGER --licenses
+          $SDK_MANAGER "platform-tools" "cmdline-tools;latest"
+          echo y | $SDK_MANAGER "ndk;29.0.14206865"
 
       - name: Bootstrap vcpkg
         if: env.OS == 'android' || env.OS == 'linux'
@@ -316,7 +316,7 @@ jobs:
           cmake .. -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_TOOLCHAIN_FILE="../thirdparty/vcpkg/scripts/buildsystems/vcpkg.cmake" \
             -DHOST_TOOLS_DIR="../build_tools/bin"
-          cmake --build . --config Release --parallel $(nproc)
+          cmake --build . --config Release --parallel
 
       - name: Build Windows
         if: env.OS == 'windows'
