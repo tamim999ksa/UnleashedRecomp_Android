@@ -53,7 +53,7 @@ export CXX=g++
 cmake ../.. -DCMAKE_BUILD_TYPE=Release -DBUILD_TOOLS_ONLY=ON
 
 # Build
-cmake --build . --target file_to_c fshasher x_decompress bc_diff --parallel 1
+cmake --build . --target file_to_c fshasher x_decompress bc_diff --parallel 2
 
 copy_tool "file_to_c"
 copy_tool "fshasher"
@@ -74,7 +74,7 @@ export CXX=g++
 cmake ../.. -DCMAKE_BUILD_TYPE=Release -DBUILD_TOOLS_ONLY=ON
 
 # Build
-cmake --build . --target XenonRecomp XenosRecomp --parallel 1
+cmake --build . --target XenonRecomp XenosRecomp --parallel 2
 
 # Install
 copy_tool "XenonRecomp"
