@@ -126,8 +126,10 @@ std::unordered_map<size_t, const char*> XboxKernelExports =
 
 Image Xex2LoadImage(const uint8_t* data, size_t dataSize)
 {
-    auto* header = reinterpret_cast<const Xex2Header*>(data);
-    auto* security = reinterpret_cast<const Xex2SecurityInfo*>(data + header->securityOffset);
+    if (dataSize < sizeof(Xex2Header)) return {};
+    const auto* header = reinterpret_cast<const Xex2Header*>(data);
+    if (header->securityOffset >= dataSize || header->securityOffset + sizeof(Xex2SecurityInfo) > dataSize || header->headerSize > dataSize) return {};
+    const auto* security = reinterpret_cast<const Xex2SecurityInfo*>(data + header->securityOffset);
     const auto* fileFormatInfo = reinterpret_cast<const Xex2OptFileFormatInfo*>(getOptHeaderPtr(data, dataSize, XEX_HEADER_FILE_FORMAT_INFO));
 
     Image image{};
@@ -224,7 +226,7 @@ Image Xex2LoadImage(const uint8_t* data, size_t dataSize)
                 s.finalize(blockCalcedDigest);
 
                 if (memcmp(blockCalcedDigest, blocks->blockHash, 0x14) != 0)
-                    return Image();
+                    return {};
 
                 p += 4;
                 p += 20;
@@ -253,7 +255,7 @@ Image Xex2LoadImage(const uint8_t* data, size_t dataSize)
             resultCode = lzxDecompress(compressBuffer.get(), d - compressBuffer.get(), buffer, uncompressedSize, ((const Xex2FileNormalCompressionInfo*)(fileFormatInfo + 1))->windowSize, nullptr, 0);
 
             if (resultCode)
-                return Image();
+                return {};
         }
     }
 
@@ -336,7 +338,7 @@ Image Xex2LoadImage(const uint8_t* data, size_t dataSize)
                     auto name = names->find(originalData->originalData.ordinal);
                     if (name != names->end())
                     {
-                        image.symbols.emplace(name->second, descriptors[im].firstThunk, (size_t)sizeof(thunk), Symbol_Function);
+                        image.symbols.insert({ name->second, descriptors[im].firstThunk, sizeof(thunk), Symbol_Function });
                     }
 
                     memcpy(originalThunk, thunk, sizeof(thunk));

@@ -84,7 +84,7 @@ int main(int argc, const char** argv) {
         size_t bound_size = ZSTD_compressBound(contents.size());
         compressed_contents.resize(bound_size);
 
-        size_t compressed_size = ZSTD_compress(compressed_contents.data(), bound_size, contents.data(), contents.size(), 10);
+        size_t compressed_size = ZSTD_compress(compressed_contents.data(), bound_size, contents.data(), contents.size(), ZSTD_maxCLevel());
         compressed_contents.resize(compressed_size);
     }
     else if (compression_type != "none") {
@@ -100,8 +100,8 @@ int main(int argc, const char** argv) {
     std::vector<char>& contents_to_write = !compressed_contents.empty() ? compressed_contents : contents;
     {
         std::ofstream output_c_file{output_c_path};
-        output_c_file << "extern const char " << array_name << "[" << contents_to_write.size() << "];\n";
-        output_c_file << "extern const char " << array_name << "[" << contents_to_write.size() << "] = ";
+        output_c_file << "extern unsigned char " << array_name << "[" << contents_to_write.size() << "];\n";
+        output_c_file << "unsigned char " << array_name << "[" << contents_to_write.size() << "] = {";
 
         output_c_file << "\n\t\"";
         size_t i = 0;
@@ -112,7 +112,7 @@ int main(int argc, const char** argv) {
         }
         output_c_file << "\"";
 
-        output_c_file << ";\n";
+        output_c_file << "\n};\n";
 
         // Write decompressed size.
         if (!compressed_contents.empty()) {
@@ -128,7 +128,7 @@ int main(int argc, const char** argv) {
             "#ifdef __cplusplus\n"
             "  extern \"C\" {\n"
             "#endif\n"
-            "extern const char " << array_name << "[" << contents_to_write.size() << "];\n";
+            "extern unsigned char " << array_name << "[" << contents_to_write.size() << "];\n";
 
         // Write decompressed size.
         if (!compressed_contents.empty()) {

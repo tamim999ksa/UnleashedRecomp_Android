@@ -239,7 +239,19 @@ struct Xex2ResourceInfo
 
 inline const void* getOptHeaderPtr(const uint8_t* moduleBytes, size_t moduleSize, uint32_t headerKey)
 {
+    if (moduleSize < sizeof(Xex2Header))
+    {
+        return nullptr;
+    }
+
     const Xex2Header* xex2Header = (const Xex2Header*)(moduleBytes);
+
+    // Check if headerCount fits within the module size
+    if (xex2Header->headerCount > (moduleSize - sizeof(Xex2Header)) / sizeof(Xex2OptHeader))
+    {
+        return nullptr;
+    }
+
     for (uint32_t i = 0; i < xex2Header->headerCount; i++)
     {
         const Xex2OptHeader& optHeader = ((const Xex2OptHeader*)(xex2Header + 1))[i];
@@ -255,6 +267,10 @@ inline const void* getOptHeaderPtr(const uint8_t* moduleBytes, size_t moduleSize
             }
             else
             {
+                if (optHeader.offset >= moduleSize)
+                {
+                    return nullptr;
+                }
                 return reinterpret_cast<const void *>(reinterpret_cast<uintptr_t>(moduleBytes) + optHeader.offset);
             }
         }

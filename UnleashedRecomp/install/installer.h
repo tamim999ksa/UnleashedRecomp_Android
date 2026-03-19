@@ -1,17 +1,14 @@
 #pragma once
+
+#include <span>
+#include <set>
 #include <array>
-#include <chrono>
 #include <cstdint>
+#include <list>
 #include <filesystem>
 #include <functional>
-#include <list>
-#include <memory>
-#include <set>
-#include <span>
-#include <string>
+#include <chrono>
 #include <thread>
-#include <utility>
-#include <vector>
 
 #include "virtual_file_system.h"
 #include <xex_patcher.h>

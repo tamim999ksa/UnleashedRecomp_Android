@@ -9,8 +9,6 @@ on:
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   build-android:
@@ -20,62 +18,42 @@ jobs:
       CMAKE_BUILD_PARALLEL_LEVEL: 1
       ASSET_REPO: ${{ secrets.ASSET_REPO }}
       ASSET_REPO_TOKEN: ${{ secrets.ASSET_REPO_TOKEN }}
-      ANDROID_HOME: ${{ github.workspace }}/android-sdk
-      ANDROID_SDK_ROOT: ${{ github.workspace }}/android-sdk
     steps:
-      - name: Maximize build space
-        uses: easimon/maximize-build-space@v10
-        with:
-          swap-size-mb: 4096
-          remove-dotnet: "true"
-          remove-android: "true"
-          remove-haskell: "true"
-          remove-codeql: "true"
-          remove-docker-images: "true"
       - name: Checkout Repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
         with:
           submodules: recursive
 
-      - name: Setup System Dependencies
+      - name: Setup System
         run: |
           sudo apt-get update
-          sudo apt-get install -y patchelf p7zip-full wget file ccache libtbb-dev libcurl4-openssl-dev cmake build-essential
+          sudo apt-get install -y patchelf p7zip-full wget file ccache libtbb-dev libcurl4-openssl-dev
 
-
-      - name: Cache extract-xiso
-        uses: actions/cache@v5
-        id: cache-extract-xiso
-        with:
-          path: /usr/local/bin/extract-xiso
-          key: extract-xiso-${{ runner.os }}-v1
 
       - name: Setup extract-xiso
         run: |
-          if [ ! -f /usr/local/bin/extract-xiso ]; then
-            git clone https://github.com/XboxDev/extract-xiso.git
-            cd extract-xiso
-            sed -i "s|if ( ( err = mkdir( dir->filename, 0755 ) ) ) mkdir_err( dir->filename );|if ( ( err = mkdir( dir->filename, 0755 ) ) ) { if ( errno == EEXIST ) err = 0; else mkdir_err( dir->filename ); }|" extract-xiso.c
-            sed -i "s|if ( ( err = mkdir( iso_name, 0755 ) ) ) mkdir_err( iso_name );|if ( ( err = mkdir( iso_name, 0755 ) ) ) { if ( errno == EEXIST ) err = 0; else mkdir_err( iso_name ); }|" extract-xiso.c
-            mkdir build && cd build
-            cmake .. -DCMAKE_BUILD_TYPE=Release
-            make -j$(nproc)
-            sudo make install
-          fi
+          git clone https://github.com/XboxDev/extract-xiso.git
+          cd extract-xiso
+          sed -i "s|if ( ( err = mkdir( dir->filename, 0755 ) ) ) mkdir_err( dir->filename );|if ( ( err = mkdir( dir->filename, 0755 ) ) ) { if ( errno == EEXIST ) err = 0; else mkdir_err( dir->filename ); }|" extract-xiso.c
+          sed -i "s|if ( ( err = mkdir( iso_name, 0755 ) ) ) mkdir_err( iso_name );|if ( ( err = mkdir( iso_name, 0755 ) ) ) { if ( errno == EEXIST ) err = 0; else mkdir_err( iso_name ); }|" extract-xiso.c
+          mkdir build && cd build
+          cmake .. -DCMAKE_BUILD_TYPE=Release
+          make -j$(nproc)
+          sudo make install
       - name: Check Secrets
         if: env.ASSET_REPO == ''
         run: echo "ASSET_REPO secret is missing. Skipping Android build steps."
 
       - name: Checkout Private Repository
         if: env.ASSET_REPO != ''
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
         with:
           repository: ${{ env.ASSET_REPO }}
           token: ${{ env.ASSET_REPO_TOKEN }}
           path: ./private
 
       - name: Setup Java
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '17'
@@ -85,15 +63,10 @@ jobs:
         uses: android-actions/setup-android@v3
 
       - name: Install Android NDK
-        run: |
-          # Use a specific version of cmdline-tools to avoid XML version mismatch
-          # and ensure we use the correct sdkmanager
-          echo y | ${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager --licenses || echo y | sdkmanager --licenses
-          sdkmanager "platform-tools" "cmdline-tools;latest"
-          echo y | sdkmanager "ndk;29.0.14206865"
+        run: echo y | sdkmanager "ndk;29.0.14206865"
 
       - name: Cache vcpkg
-        uses: actions/cache@v5
+        uses: actions/cache@v4
         with:
           path: |
             ./thirdparty/vcpkg/downloads
@@ -111,6 +84,10 @@ jobs:
           chmod +x apply_patches.sh
           ./apply_patches.sh
 
+      - name: Setup Linux Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libtbb-dev libcurl4-openssl-dev patchelf p7zip-full
       - name: Run Build Tools
         run: |
           chmod +x ./build_tools.sh
@@ -126,7 +103,7 @@ jobs:
 
           # Recursive extraction
           for i in {1..15}; do
-            nested=$(find ./UnleashedRecompLib/private -type f \( -iname "*.iso" -o -iname "*.7z" -o -iname "*.zip" -o -iname "*.rar" -o -iname "TU_*" -o -iname "*.tar*" -o -iregex ".*/[0-9a-fA-F]\{8,42\}" \) -not -name "*.skipped" -not -name "*.extracted" | head -n 1)
+            nested=$(find ./UnleashedRecompLib/private -type f \( -iname "*.iso" -o -iname "*.7z" -o -iname "*.zip" -o -iname "*.rar" -o -iname "TU_*" -o -iname "*.tar*" -o -iregex ".*/[0-9a-fA-F]\\{8,42\\}" \) -not -name "*.skipped" -not -name "*.extracted" | head -n 1)
             if [ -z "$nested" ]; then break; fi
 
             filename=$(basename "$nested")
@@ -135,7 +112,7 @@ jobs:
             if [[ "$extension" =~ ^(iso|ISO)$ ]]; then is_iso=1; fi
 
             success=0
-            if 7z x -y "$nested" -o./UnleashedRecompLib/private/; then
+            if 7z x -y "$nested" -o./UnleashedRecompLib/private/ > /dev/null 2>&1; then
               success=1
             elif [ "$is_iso" -eq 1 ] && (extract-xiso -x "$nested" -d ./UnleashedRecompLib/private/ || python3 tools/extract_xgd.py "$nested" ./UnleashedRecompLib/private/); then
               success=1
@@ -149,30 +126,22 @@ jobs:
           # Robust Normalization
           finalize_file() {
             local filename="$1"
-            echo "Finalizing $filename..."
             local target_path="./UnleashedRecompLib/private/$filename"
-            local candidates=$(find ./UnleashedRecompLib/private -type f -iname "$filename" | { grep -vFx "$target_path" || true; } || true)
-            local candidate_count=$(printf "%s" "$candidates" | grep -v "^$" | wc -l || true)
+            local candidates=$(find ./UnleashedRecompLib/private -type f -iname "$filename" | { grep -vFx "$target_path" || true; })
+            local candidate_count=$(echo "$candidates" | grep -v "^$" | wc -l || true)
             if [ "$candidate_count" -gt 0 ]; then
-                echo "Found $candidate_count candidates for $filename"
                 local found_file=""
                 if [ "$candidate_count" -gt 1 ]; then
-                    found_file=$(printf "%s" "$candidates" | grep -vE "/(game|base)/" | head -n 1)
-                    if [ -z "$found_file" ]; then found_file=$(printf "%s" "$candidates" | head -n 1); fi
+                    found_file=$(echo "$candidates" | grep -vE "/(game|base)/" | head -n 1)
+                    if [ -z "$found_file" ]; then found_file=$(echo "$candidates" | head -n 1); fi
                 else
                     found_file="$candidates"
                 fi
-                if [ -n "$found_file" ]; then
-                    echo "Moving $found_file to $target_path"
-                    mv -f "$found_file" "$target_path"
-                fi
+                if [ -n "$found_file" ]; then mv -f "$found_file" "$target_path"; fi
             fi
             # Case fix for root files
             local root_file=$(find ./UnleashedRecompLib/private -maxdepth 1 -type f -iname "$filename" | head -n 1)
-            if [ -n "$root_file" ] && [ "$root_file" != "$target_path" ]; then
-                echo "Correcting case: $root_file -> $target_path"
-                mv -f "$root_file" "$target_path"
-            fi
+            if [ -n "$root_file" ] && [ "$root_file" != "$target_path" ]; then mv -f "$root_file" "$target_path"; fi
           }
 
           finalize_file "default.xex"
@@ -193,12 +162,12 @@ jobs:
         working-directory: ./android
         run: |
           chmod +x gradlew
-          export ANDROID_NDK_HOME=${ANDROID_HOME}/ndk/29.0.14206865
+          export ANDROID_NDK_HOME=${ANDROID_SDK_ROOT}/ndk/29.0.14206865
           ./gradlew assembleDebug --max-workers=1 --no-daemon
 
       - name: Upload Debug Artifact
         if: env.ASSET_REPO != ''
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v4
         with:
           name: UnleashedRecomp-Android-Debug
           path: android/app/build/outputs/apk/debug/app-debug.apk
@@ -208,12 +177,12 @@ jobs:
         working-directory: ./android
         run: |
           chmod +x gradlew
-          export ANDROID_NDK_HOME=${ANDROID_HOME}/ndk/29.0.14206865
+          export ANDROID_NDK_HOME=${ANDROID_SDK_ROOT}/ndk/29.0.14206865
           ./gradlew assembleRelease --max-workers=1 --no-daemon
 
       - name: Upload Release Artifact
         if: env.ASSET_REPO != ''
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v4
         with:
           name: UnleashedRecomp-Android-Release
           path: android/app/build/outputs/apk/release/app-release.apk

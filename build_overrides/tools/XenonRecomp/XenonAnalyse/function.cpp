@@ -42,7 +42,7 @@ Function Function::Analyze(const void* code, size_t size, size_t base)
 {
     Function fn{ base, 0 };
 
-    if (size >= 8 && ByteSwap(((const uint32_t*)code)[1]) == 0x04000048) // shifted ptr tail call
+    if (*((uint32_t*)code + 1) == 0x04000048) // shifted ptr tail call
     {
         fn.size = 0x8;
         return fn;
@@ -103,14 +103,21 @@ Function Function::Analyze(const void* code, size_t size, size_t base)
             blockStack.pop_back();
 
             // TODO: Handle absolute branches?
-            assert(!PPC_BA(instruction));
-            const size_t branchDest = addr + PPC_BD(instruction);
+            size_t branchDest;
+            if (PPC_BA(instruction))
+            {
+                branchDest = (size_t)(uint32_t)PPC_BD(instruction);
+            }
+            else
+            {
+                branchDest = addr + PPC_BD(instruction);
+            }
 
             // true/false paths
             // left block: false case
             // right block: true case
             const size_t lBase = (addr - base) + 4;
-            const size_t rBase = (addr + PPC_BD(instruction)) - base;
+            const size_t rBase = branchDest - base;
 
             // these will be -1 if it's our first time seeing these blocks
             auto lBlock = fn.SearchBlock(base + lBase);
@@ -145,8 +152,15 @@ Function Function::Analyze(const void* code, size_t size, size_t base)
 
                 if (op == PPC_OP_B)
                 {
-                    assert(!PPC_BA(instruction));
-                    const size_t branchDest = addr + PPC_BI(instruction);
+                    size_t branchDest;
+                    if (PPC_BA(instruction))
+                    {
+                        branchDest = (size_t)(uint32_t)PPC_BI(instruction);
+                    }
+                    else
+                    {
+                        branchDest = addr + PPC_BI(instruction);
+                    }
 
                     const size_t branchBase = branchDest - base;
                     const size_t branchBlock = fn.SearchBlock(branchDest);
@@ -242,5 +256,5 @@ Function Function::Analyze(const void* code, size_t size, size_t base)
         // pick the block furthest away
         fn.size = std::max(fn.size, block.base + block.size);
     }
-    if (fn.size == 0 && data > (const uint32_t*)code) fn.size = 4; return fn;
+    return fn;
 }

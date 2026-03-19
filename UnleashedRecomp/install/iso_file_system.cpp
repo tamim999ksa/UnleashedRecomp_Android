@@ -10,8 +10,6 @@
  */
 
 #include "iso_file_system.h"
-#include <algorithm>
-#include <iterator>
 
 #include <cstring>
 #include <deque>

@@ -5765,9 +5765,9 @@ again:
             else if ((operand->flags & PPC_OPERAND_VR) != 0)
                 stream = stream + sprintf(stream, "v%ld", value);
             else if ((operand->flags & PPC_OPERAND_RELATIVE) != 0)
-                stream = stream + sprintf(stream, "0x%lx", (unsigned long)(memaddr + value));
+                stream = stream + sprintf(stream, "0x%llx", (unsigned long long)(memaddr + value));
             else if ((operand->flags & PPC_OPERAND_ABSOLUTE) != 0)
-                stream = stream + sprintf(stream, "0x%lx", (unsigned long)((bfd_vma)value & 0xffffffff));
+                stream = stream + sprintf(stream, "0x%llx", (unsigned long long)((bfd_vma)value & 0xffffffff));
             else if ((operand->flags & PPC_OPERAND_CR) == 0
                 || (dialect & PPC_OPCODE_PPC) == 0)
                 stream = stream + sprintf(stream, "%ld", value);

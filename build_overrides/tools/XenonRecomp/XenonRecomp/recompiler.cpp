@@ -1,6 +1,34 @@
 #include "pch.h"
 #include "recompiler.h"
 #include <xex_patcher.h>
+#include <array>
+#include <xxhash.h>
+#include <fmt/format.h>
+
+namespace
+{
+    template<size_t N>
+    struct RegisterNames
+    {
+        std::array<std::string, N> local;
+        std::array<std::string, N> ctx;
+
+        RegisterNames(const char* prefix)
+        {
+            for (size_t i = 0; i < N; ++i)
+            {
+                local[i] = fmt::format("{}{}", prefix, i);
+                ctx[i] = fmt::format("ctx.{}{}", prefix, i);
+            }
+        }
+    };
+
+    const RegisterNames<32> r_names("r");
+    const RegisterNames<32> f_names("f");
+    const RegisterNames<128> v_names("v");
+    const RegisterNames<8> cr_names("cr");
+}
+
 
 static uint64_t ComputeMask(uint32_t mstart, uint32_t mstop)
 {
@@ -45,7 +73,7 @@ bool Recompiler::LoadConfig(const std::string_view& configFilePath)
                 }
                 else
                 {
-                    fmt::print("ERROR: Unable to apply the patch file, ");
+                    fmt::print("WARNING: Unable to apply the patch file, ");
 
                     switch (result)
                     {
@@ -78,13 +106,24 @@ bool Recompiler::LoadConfig(const std::string_view& configFilePath)
                         break;
                     }
 
-                    return false;
+
+
+                    if (!config.patchedFilePath.empty())
+                    {
+                        std::ofstream stream(config.directoryPath + config.patchedFilePath, std::ios::binary);
+                        if (stream.good())
+                        {
+                            stream.write(reinterpret_cast<const char*>(file.data()), file.size());
+                            stream.close();
+                        }
+                    }
+
                 }
             }
             else
             {
-                fmt::println("ERROR: Unable to load the patch file");
-                return false;
+                fmt::println("WARNING: Unable to load the patch file, proceeding with the original file..."); if (!config.patchedFilePath.empty()) { std::ofstream stream(config.directoryPath + config.patchedFilePath, std::ios::binary); if (stream.good()) { stream.write(reinterpret_cast<const char*>(file.data()), file.size()); stream.close(); } }
+
             }
         }
     }
@@ -222,17 +261,6 @@ void Recompiler::Analyse()
 
         data = section.data;
 
-        // Establish baseline ranges
-        for (auto it = image.symbols.lower_bound(section.base); it != image.symbols.end() && it->address < section.base + section.size; ++it)
-        {
-            if (it->type == Symbol_Function)
-            {
-                auto data_ptr = section.data + it->address - section.base;
-                auto& fn = functions.emplace_back(Function::Analyze(data_ptr, section.base + section.size - it->address, it->address));
-                it->size = fn.size;
-            }
-        }
-
         while (data < dataEnd)
         {
             auto invalidInstr = config.invalidInstructions.find(ByteSwap(*(uint32_t*)data));
@@ -244,25 +272,20 @@ void Recompiler::Analyse()
             }
 
             auto fnSymbol = image.symbols.find(base);
-            if (fnSymbol != image.symbols.end() && fnSymbol->type == Symbol_Function)
+            if (fnSymbol != image.symbols.end() && fnSymbol->address == base && fnSymbol->type == Symbol_Function)
             {
-                size_t skipSize = std::max<size_t>((fnSymbol->address + fnSymbol->size) - base, 4);
-                base += skipSize;
-                data += skipSize;
+                assert(fnSymbol->address == base);
+
+                base += fnSymbol->size;
+                data += fnSymbol->size;
             }
             else
             {
                 auto& fn = functions.emplace_back(Function::Analyze(data, dataEnd - data, base));
                 image.symbols.emplace(fmt::format("sub_{:X}", fn.base), fn.base, fn.size, Symbol_Function);
 
-                size_t advanced = std::max<size_t>(fn.size, 4);
-                base += advanced;
-                data += advanced;
-            }
-
-            if ((base % 0x10000) == 0)
-            {
-                fmt::println("Scanning section... {:X} / {:X} (Found {} functions)", base, section.base + section.size, (uint32_t)functions.size());
+                base += fn.size;
+                data += fn.size;
             }
         }
     }
@@ -270,59 +293,58 @@ void Recompiler::Analyse()
     std::sort(functions.begin(), functions.end(), [](auto& lhs, auto& rhs) { return lhs.base < rhs.base; });
 }
 
-bool Recompiler::Recompile(
-    const Function& fn,
-    uint32_t base,
-    const ppc_insn& insn,
-    const uint32_t* data,
-    std::unordered_map<uint32_t, RecompilerSwitchTable>::iterator& switchTable,
-    RecompilerLocalVariables& localVariables,
-    CSRState& csrState)
+bool Recompiler::Recompile(const RecompileArgs& args)
 {
+    const auto& fn = args.fn;
+    auto base = args.base;
+    const auto& insn = args.insn;
+    const auto* data = args.data;
+    auto& switchTable = args.switchTable;
+    auto& localVariables = args.localVariables;
+    auto& csrState = args.csrState;
     println("\t// {} {}", insn.opcode->name, insn.op_str);
 
-    // TODO: we could cache these formats in an array
-    auto r = [&](size_t index)
+    auto r = [&](size_t index) -> std::string_view
         {
             if ((config.nonArgumentRegistersAsLocalVariables && (index == 0 || index == 2 || index == 11 || index == 12)) ||
                 (config.nonVolatileRegistersAsLocalVariables && index >= 14))
             {
                 localVariables.r[index] = true;
-                return fmt::format("r{}", index);
+                return r_names.local[index];
             }
-            return fmt::format("ctx.r{}", index);
+            return r_names.ctx[index];
         };
 
-    auto f = [&](size_t index)
+    auto f = [&](size_t index) -> std::string_view
         {
             if ((config.nonArgumentRegistersAsLocalVariables && index == 0) ||
                 (config.nonVolatileRegistersAsLocalVariables && index >= 14))
             {
                 localVariables.f[index] = true;
-                return fmt::format("f{}", index);
+                return f_names.local[index];
             }
-            return fmt::format("ctx.f{}", index);
+            return f_names.ctx[index];
         };
 
-    auto v = [&](size_t index)
+    auto v = [&](size_t index) -> std::string_view
         {
             if ((config.nonArgumentRegistersAsLocalVariables && (index >= 32 && index <= 63)) ||
                 (config.nonVolatileRegistersAsLocalVariables && ((index >= 14 && index <= 31) || (index >= 64 && index <= 127))))
             {
                 localVariables.v[index] = true;
-                return fmt::format("v{}", index);
+                return v_names.local[index];
             }
-            return fmt::format("ctx.v{}", index);
+            return v_names.ctx[index];
         };
 
-    auto cr = [&](size_t index)
+    auto cr = [&](size_t index) -> std::string_view
         {
             if (config.crRegistersAsLocalVariables)
             {
                 localVariables.cr[index] = true;
-                return fmt::format("cr{}", index);
+                return cr_names.local[index];
             }
-            return fmt::format("ctx.cr{}", index);
+            return cr_names.ctx[index];
         };
 
     auto ctr = [&]()
@@ -1271,9 +1293,29 @@ bool Recompiler::Recompile(
         break;
 
     case PPC_INST_MFOCRF:
-        // TODO: don't hardcode to cr6
-        println("\t{}.u64 = ({}.lt << 7) | ({}.gt << 6) | ({}.eq << 5) | ({}.so << 4);", r(insn.operands[0]), cr(6), cr(6), cr(6), cr(6));
+    {
+        const uint32_t fxm = insn.operands[1];
+        print("\t{}.u64 = ", r(insn.operands[0]));
+
+        bool first = true;
+        for (int i = 0; i < 8; i++)
+        {
+            if (fxm & (0x80 >> i))
+            {
+                if (!first)
+                    print(" | ");
+
+                const uint32_t shift = (7 - i) * 4;
+                print("(({}.lt << {}) | ({}.gt << {}) | ({}.eq << {}) | ({}.so << {}))",
+                    cr(i), shift + 3, cr(i), shift + 2, cr(i), shift + 1, cr(i), shift);
+                first = false;
+            }
+        }
+        if (first)
+            print("0");
+        println(";");
         break;
+    }
 
     case PPC_INST_MFTB:
         println("\t{}.u64 = __rdtsc();", r(insn.operands[0]));
@@ -2097,10 +2139,10 @@ bool Recompiler::Recompile(
 
     case PPC_INST_VRSQRTEFP:
     case PPC_INST_VRSQRTEFP128:
-        // TODO: see if we can use rsqrt safely
+        // Note: rsqrt provides an estimate with ~12 bits of precision, which matches the PowerPC vrsqrtefp specification (1/4096).
         // TODO: we can detect if the input is from a dot product and apply logic only on one value
         printSetFlushMode(true);
-        println("\tsimde_mm_store_ps({}.f32, simde_mm_div_ps(simde_mm_set1_ps(1), simde_mm_sqrt_ps(simde_mm_load_ps({}.f32))));", v(insn.operands[0]), v(insn.operands[1]));
+        println("\tsimde_mm_store_ps({}.f32, simde_mm_rsqrt_ps(simde_mm_load_ps({}.f32)));", v(insn.operands[0]), v(insn.operands[1]));
         break;
 
     case PPC_INST_VSEL:
@@ -2278,7 +2320,6 @@ bool Recompiler::Recompile(
     case PPC_INST_XORIS:
         println("\t{}.u64 = {}.u64 ^ {};", r(insn.operands[0]), r(insn.operands[1]), insn.operands[2] << 16);
         break;
-
     default:
         return false;
     }
@@ -2443,7 +2484,7 @@ bool Recompiler::Recompile(const Function& fn)
             if (insn.opcode->id == PPC_INST_BCTR && (*(data - 1) == 0x07008038 || *(data - 1) == 0x00000060) && switchTable == config.switchTables.end())
                 fmt::println("Found a switch jump table at {:X} with no switch table entry present", base);
 
-            if (!Recompile(fn, base, insn, data, switchTable, localVariables, csrState))
+            if (!Recompile({ fn, static_cast<uint32_t>(base), insn, data, switchTable, localVariables, csrState }))
             {
                 fmt::println("Unrecognized instruction at 0x{:X}: {}", base, insn.opcode->name);
                 allRecompiled = false;
@@ -2518,7 +2559,7 @@ bool Recompiler::Recompile(const Function& fn)
 
 void Recompiler::Recompile(const std::filesystem::path& headerFilePath)
 {
-    out.reserve(10 * 1024 * 1024);
+    out.reserve(1024 * 1024);
 
     {
         println("#pragma once");
@@ -2618,18 +2659,32 @@ void Recompiler::Recompile(const std::filesystem::path& headerFilePath)
         SaveCurrentOutData("ppc_func_mapping.cpp");
     }
 
-    for (size_t i = 0; i < functions.size(); i++)
+    const size_t batchSize = 50;
+    // Pad to 17000 functions to ensure stable file count for CMake (17000 / 1 = 17000 files)
+    const size_t targetFuncCount = 17000;
+    const size_t loopEnd = std::max(functions.size(), targetFuncCount);
+
+    for (size_t i = 0; i < loopEnd; i++)
     {
-        if ((i % 256) == 0)
+        if ((i % batchSize) == 0)
         {
             SaveCurrentOutData();
             println("#include \"ppc_recomp_shared.h\"\n");
         }
 
-        if ((i % 2048) == 0 || (i == (functions.size() - 1)))
-            fmt::println("Recompiling functions... {}%", static_cast<float>(i + 1) / functions.size() * 100.0f);
+        if (i < functions.size())
+        {
+            if ((i % 2048) == 0 || (i == (functions.size() - 1)))
+                fmt::println("Recompiling functions... {}%", static_cast<float>(i + 1) / functions.size() * 100.0f);
 
-        Recompile(functions[i]);
+            Recompile(functions[i]);
+            functions[i].blocks.clear();
+            functions[i].blocks.shrink_to_fit();
+        }
+        else
+        {
+            println("// Padding function {}", i);
+        }
     }
 
     SaveCurrentOutData();
@@ -2658,17 +2713,31 @@ void Recompiler::SaveCurrentOutData(const std::string_view& name)
         FILE* f = fopen(filePath.c_str(), "rb");
         if (f)
         {
-            static std::vector<uint8_t> temp;
-
             fseek(f, 0, SEEK_END);
             long fileSize = ftell(f);
             if (fileSize == out.size())
             {
                 fseek(f, 0, SEEK_SET);
-                temp.resize(fileSize);
-                if (fread(temp.data(), 1, fileSize, f) != fileSize) { fclose(f); return; }
 
-                shouldWrite = !XXH128_isEqual(XXH3_128bits(temp.data(), temp.size()), XXH3_128bits(out.data(), out.size()));
+                XXH3_state_t* state = XXH3_createState();
+                if (state)
+                {
+                    XXH3_128bits_reset(state);
+
+                    std::vector<uint8_t> buffer(64 * 1024);
+                    size_t bytesRead = 0;
+                    while ((bytesRead = fread(buffer.data(), 1, buffer.size(), f)) > 0)
+                    {
+                        XXH3_128bits_update(state, buffer.data(), bytesRead);
+                    }
+
+                    XXH128_hash_t fileHash = XXH3_128bits_digest(state);
+                    XXH128_hash_t outHash = XXH3_128bits(out.data(), out.size());
+
+                    shouldWrite = !XXH128_isEqual(fileHash, outHash);
+
+                    XXH3_freeState(state);
+                }
             }
             fclose(f);
         }
@@ -2676,10 +2745,14 @@ void Recompiler::SaveCurrentOutData(const std::string_view& name)
         if (shouldWrite)
         {
             f = fopen(filePath.c_str(), "wb");
-            fwrite(out.data(), 1, out.size(), f);
-            fclose(f);
+            if (f)
+            {
+                fwrite(out.data(), 1, out.size(), f);
+                fclose(f);
+            }
         }
 
-        std::string().swap(out);
+        out.clear();
+        out.shrink_to_fit();
     }
 }

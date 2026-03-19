@@ -1,6 +1,4 @@
 #pragma once
-#include <cstdint>
-#include <cstddef>
 
 struct ShaderCacheEntry
 {
@@ -16,10 +14,10 @@ struct ShaderCacheEntry
 extern ShaderCacheEntry g_shaderCacheEntries[];
 extern const size_t g_shaderCacheEntryCount;
 
-extern const char g_compressedDxilCache[];
+extern const uint8_t g_compressedDxilCache[];
 extern const size_t g_dxilCacheCompressedSize;
 extern const size_t g_dxilCacheDecompressedSize;
 
-extern const char g_compressedSpirvCache[];
+extern const uint8_t g_compressedSpirvCache[];
 extern const size_t g_spirvCacheCompressedSize;
 extern const size_t g_spirvCacheDecompressedSize;
