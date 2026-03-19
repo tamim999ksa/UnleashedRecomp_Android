@@ -1,0 +1,143 @@
+diff --git a/XenonRecomp/CMakeLists.txt b/XenonRecomp/CMakeLists.txt
+index f5db6d1..b1fc38c 100644
+--- a/XenonRecomp/CMakeLists.txt
++++ b/XenonRecomp/CMakeLists.txt
+@@ -1,4 +1,4 @@
+-cmake_minimum_required (VERSION 3.8)
++cmake_minimum_required (VERSION 3.10)
+
+ project("XenonRecomp")
+
+diff --git a/XenonRecomp/recompiler.cpp b/XenonRecomp/recompiler.cpp
+index fa91527..db8565c 100644
+--- a/XenonRecomp/recompiler.cpp
++++ b/XenonRecomp/recompiler.cpp
+@@ -440,3 +440,3 @@ bool Recompiler::Recompile(
+             bool returnsBool = midAsmHook->second.returnOnFalse || midAsmHook->second.returnOnTrue ||
+-                midAsmHook->second.jumpAddressOnFalse != NULL || midAsmHook->second.jumpAddressOnTrue != NULL;
++                midAsmHook->second.jumpAddressOnFalse != 0 || midAsmHook->second.jumpAddressOnTrue != 0;
+
+@@ -491,3 +491,3 @@ bool Recompiler::Recompile(
+                     println("\t\treturn;");
+-                else if (midAsmHook->second.jumpAddressOnTrue != NULL)
++                else if (midAsmHook->second.jumpAddressOnTrue != 0)
+                     println("\t\tgoto loc_{:X};", midAsmHook->second.jumpAddressOnTrue);
+@@ -500,3 +500,3 @@ bool Recompiler::Recompile(
+                     println("\t\treturn;");
+-                else if (midAsmHook->second.jumpAddressOnFalse != NULL)
++                else if (midAsmHook->second.jumpAddressOnFalse != 0)
+                     println("\t\tgoto loc_{:X};", midAsmHook->second.jumpAddressOnFalse);
+@@ -511,3 +511,3 @@ bool Recompiler::Recompile(
+                     println("\treturn;");
+-                else if (midAsmHook->second.jumpAddress != NULL)
++                else if (midAsmHook->second.jumpAddress != 0)
+                     println("\tgoto loc_{:X};", midAsmHook->second.jumpAddress);
+@@ -2316,3 +2316,3 @@ bool Recompiler::Recompile(const Function& fn)
+             if (midAsmHook->second.returnOnFalse || midAsmHook->second.returnOnTrue ||
+-                midAsmHook->second.jumpAddressOnFalse != NULL || midAsmHook->second.jumpAddressOnTrue != NULL)
++                midAsmHook->second.jumpAddressOnFalse != 0 || midAsmHook->second.jumpAddressOnTrue != 0)
+             {
+@@ -2363,7 +2363,7 @@ bool Recompiler::Recompile(const Function& fn)
+
+-            if (midAsmHook->second.jumpAddress != NULL)
++            if (midAsmHook->second.jumpAddress != 0)
+                 labels.emplace(midAsmHook->second.jumpAddress);
+-            if (midAsmHook->second.jumpAddressOnTrue != NULL)
++            if (midAsmHook->second.jumpAddressOnTrue != 0)
+                 labels.emplace(midAsmHook->second.jumpAddressOnTrue);
+-            if (midAsmHook->second.jumpAddressOnFalse != NULL)
++            if (midAsmHook->second.jumpAddressOnFalse != 0)
+                 labels.emplace(midAsmHook->second.jumpAddressOnFalse);
+@@ -2652,3 +2652,3 @@ void Recompiler::SaveCurrentOutData(const std::string_view& name)
+                 temp.resize(fileSize);
+-                fread(temp.data(), 1, fileSize, f);
++                if (fread(temp.data(), 1, fileSize, f) == fileSize)
+
+diff --git a/XenonUtils/memory_mapped_file.cpp b/XenonUtils/memory_mapped_file.cpp
+index ba3c5d8..9d29a18 100644
+--- a/XenonUtils/memory_mapped_file.cpp
++++ b/XenonUtils/memory_mapped_file.cpp
+@@ -121,27 +121,34 @@ void MemoryMappedFile::close()
+     if (fileView != nullptr)
+     {
+         UnmapViewOfFile(fileView);
++        fileView = nullptr;
+     }
+
+     if (fileMappingHandle != nullptr)
+     {
+         CloseHandle(fileMappingHandle);
++        fileMappingHandle = nullptr;
+     }
+
+     if (fileHandle != nullptr)
+     {
+         CloseHandle(fileHandle);
++        fileHandle = nullptr;
+     }
++    fileSize.QuadPart = 0;
+ #else
+     if (fileView != MAP_FAILED)
+     {
+         munmap(fileView, fileSize);
++        fileView = MAP_FAILED;
+     }
+
+     if (fileHandle != -1)
+     {
+         ::close(fileHandle);
++        fileHandle = -1;
+     }
++    fileSize = 0;
+ #endif
+ }
+
+diff --git a/XenonUtils/xbox.h b/XenonUtils/xbox.h
+index 0361b0f..c8554ef 100644
+--- a/XenonUtils/xbox.h
++++ b/XenonUtils/xbox.h
+@@ -247,13 +247,13 @@ typedef struct _XXOVERLAPPED {
+         {
+             be<uint32_t> Error;
+             be<uint32_t> Length;
+-        };
++        } _ErrorLength;
+
+         struct
+         {
+             uint32_t InternalLow;
+             uint32_t InternalHigh;
+-        };
++        } _InternalLowHigh;
+     };
+     uint32_t InternalContext;
+     be<uint32_t> hEvent;
+diff --git a/XenonUtils/xdbf.h b/XenonUtils/xdbf.h
+index 347ac2c..b9e5b87 100644
+--- a/XenonUtils/xdbf.h
++++ b/XenonUtils/xdbf.h
+@@ -132,7 +132,7 @@ union XDBFTitleID
+     {
+         be<uint16_t> u16;
+         char u8[0x02];
+-    };
++    } AsU16;
+
+     be<uint32_t> u32;
+ };
+diff --git a/thirdparty/disasm/ppc-dis.c b/thirdparty/disasm/ppc-dis.c
+index 3e224b4..4b78abf 100644
+--- a/thirdparty/disasm/ppc-dis.c
++++ b/thirdparty/disasm/ppc-dis.c
+@@ -5765,9 +5765,9 @@ again:
+             else if ((operand->flags & PPC_OPERAND_VR) != 0)
+                 stream = stream + sprintf(stream, "v%ld", value);
+             else if ((operand->flags & PPC_OPERAND_RELATIVE) != 0)
+-                stream = stream + sprintf(stream, "0x%llx", memaddr + value);
++                stream = stream + sprintf(stream, "0x%llx", (unsigned long long)(memaddr + value));
+             else if ((operand->flags & PPC_OPERAND_ABSOLUTE) != 0)
+-                stream = stream + sprintf(stream, "0x%llx", (bfd_vma)value & 0xffffffff);
++                stream = stream + sprintf(stream, "0x%llx", (unsigned long long)((bfd_vma)value & 0xffffffff));
+             else if ((operand->flags & PPC_OPERAND_CR) == 0
+                 || (dialect & PPC_OPCODE_PPC) == 0)
+                 stream = stream + sprintf(stream, "%ld", value);

@@ -22,9 +22,7 @@ android {
                           "-DANDROID_PLATFORM=android-26",
                           "-DANDROID_ARM_NEON=ON",
                           "-DANDROID_LD=lld",
-                          "-DANDROID_LTO=ON", "-DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON",
-                          "-DCMAKE_JOB_POOL_LINK:STRING=link_pool",
-                          "-DCMAKE_JOB_POOLS:STRING=link_pool=1"
+                          "-DANDROID_LTO=ON", "-DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON"
             }
         }
         ndk {

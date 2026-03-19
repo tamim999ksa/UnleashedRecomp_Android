@@ -12,7 +12,6 @@
 
 #include "xcontent_file_system.h"
 
-#include <algorithm>
 #include <bit>
 #include <set>
 #include <stack>
