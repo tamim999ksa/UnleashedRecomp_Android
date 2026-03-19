@@ -42,4 +42,4 @@ target_link_options(liveEffect PRIVATE "-Wl,-z,max-page-size=16384")
 
 # Enable optimization flags: if having problems with source level debugging,
 # disable -O3 -ffast-math ( and debug ), re-enable it after done debugging.
-target_compile_options(liveEffect PRIVATE -Wall -Werror $<$<CONFIG:RELEASE>:-O3> $<$<CONFIG:RELEASE>:-ffast-math>)
+target_compile_options(liveEffect PRIVATE -Wall -Werror "$<$<CONFIG:RELEASE>:-O3 -ffast-math>")

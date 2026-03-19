@@ -26,5 +26,4 @@ target_link_options(soundboard PRIVATE "-Wl,-z,max-page-size=16384")
 
 # Enable optimization flags: if having problems with source level debugging,
 # disable -O3 -ffast-math ( and debug ), re-enable it after done debugging.
-target_compile_options(soundboard PRIVATE -Wall -Werror -O3)
-target_compile_options(soundboard PRIVATE -ffast-math)
+target_compile_options(soundboard PRIVATE -Wall -Werror -O3 -ffast-math)

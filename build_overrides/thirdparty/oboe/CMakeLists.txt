@@ -101,10 +101,9 @@ target_compile_options(oboe
         -Wextra-semi
         -Wshadow
         -Wshadow-field
-        $<$<CONFIG:RELEASE>:-O3>
-        $<$<CONFIG:RELEASE>:-ffast-math>
-        $<$<CONFIG:DEBUG>:-O3>
-        $<$<CONFIG:DEBUG>:-Werror>)
+        "$<$<CONFIG:RELEASE>:-O3 -ffast-math>"
+        "$<$<CONFIG:DEBUG>:-O3>"
+        "$<$<CONFIG:DEBUG>:-Werror>")
 
 target_compile_definitions(oboe PRIVATE $<$<BOOL:${OBOE_DISABLE_CONVERSION}>:DISABLE_CONVERSION=1>)
 
