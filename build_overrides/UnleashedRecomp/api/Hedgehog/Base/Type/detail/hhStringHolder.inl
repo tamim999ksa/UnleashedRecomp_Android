@@ -5,12 +5,11 @@ namespace Hedgehog::Base
         return (SStringHolder*)((size_t)in_pStr - sizeof(RefCount));
     }
 
-    inline SStringHolder* SStringHolder::Make(const char* in_pStr)
+    inline SStringHolder* SStringHolder::Make(const char* in_pStr, size_t length)
     {
-        size_t len = strlen(in_pStr);
-        size_t allocSize = sizeof(RefCount) + len + 1;
+        size_t allocSize = sizeof(RefCount) + length + 1;
 
-        if (allocSize < len || allocSize > UINT32_MAX)
+        if (allocSize < length || allocSize > UINT32_MAX)
             return nullptr;
 
         auto pHolder = (SStringHolder*)__HH_ALLOC((uint32_t)allocSize);
@@ -19,7 +18,8 @@ namespace Hedgehog::Base
             return nullptr;
 
         pHolder->RefCount = 1;
-        memcpy(pHolder->aStr, in_pStr, len + 1);
+        memcpy(pHolder->aStr, in_pStr, length);
+        pHolder->aStr[length] = '\0';
         return pHolder;
     }
 

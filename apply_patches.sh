@@ -58,27 +58,10 @@ apply_patch_in() {
 }
 
 # XenonRecomp patches need -p1 as they are diffed from the submodule root but include top-level dir in path
-apply_patch_in "patches/xenon_recomp_fixes.patch" "tools/XenonRecomp" 1
 apply_patch_in "patches/xenon_recomp_absolute_branch.patch" "tools/XenonRecomp" 1
 apply_patch_in "patches/xenos_recomp_fixes.patch" "tools/XenosRecomp" 1
 apply_patch_in "patches/nfd_android.patch" "thirdparty/nativefiledialog-extended" 1
 apply_patch_in "patches/sdl_android_fixes.patch" "thirdparty/SDL" 1
-apply_patch_in "patches/swa_input_state_fix.patch" "UnleashedRecomp/api" 1
-apply_patch_in "patches/hh_string_holder_fix.patch" "UnleashedRecomp/api" 1
-
-# Root project patches
-if [ -f "patches/remove_gold_linker_flags.patch" ]; then
-    echo "Applying remove_gold_linker_flags.patch..."
-    if ! git apply --check "patches/remove_gold_linker_flags.patch" 2>/dev/null; then
-         if git apply --reverse --check "patches/remove_gold_linker_flags.patch" 2>/dev/null; then
-             echo "Patch already applied, skipping."
-         else
-             echo "Warning: Patch failed to apply (check conflicts)."
-         fi
-    else
-        git apply "patches/remove_gold_linker_flags.patch"
-    fi
-fi
 
 # Ensure executable permissions for critical tools
 echo "Setting executable permissions for DXC binaries..."
