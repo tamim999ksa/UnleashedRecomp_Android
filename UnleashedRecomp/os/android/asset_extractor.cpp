@@ -98,8 +98,8 @@ bool HasEmbeddedGameData()
     if (!mgr)
         return false;
 
-    // Check for chunked format (game_data_part_00.zst, ...)
-    AAsset* asset = AAssetManager_open(mgr, "game_data_part_00.zst", AASSET_MODE_UNKNOWN);
+    // Check for chunked format (game_data_part_000.zst, ...)
+    AAsset* asset = AAssetManager_open(mgr, "game_data_part_000.zst", AASSET_MODE_UNKNOWN);
     if (asset)
     {
         AAsset_close(asset);
@@ -131,7 +131,7 @@ bool ExtractEmbeddedGameData(
     for (int i = 0; ; i++)
     {
         char name[64];
-        snprintf(name, sizeof(name), "game_data_part_%02d.zst", i);
+        snprintf(name, sizeof(name), "game_data_part_%03d.zst", i);
         AAsset* test = AAssetManager_open(mgr, name, AASSET_MODE_UNKNOWN);
         if (!test)
             break;

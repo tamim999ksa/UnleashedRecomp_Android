@@ -265,7 +265,7 @@ jobs:
           GAME_DIR_SIZE=$(du -sh "$GAME_DATA" | cut -f1)
           echo "Game data: $GAME_FILE_COUNT files, $GAME_DIR_SIZE total"
 
-          # Create tar archive and compress with zstd (level 3 for good ratio, -T0 for multithreaded)
+          # Create tar archive and compress with zstd (-T0 for multithreaded, level 3 balances speed and ratio)
           tar cf - -C "$GAME_DATA" . | zstd -T0 -3 --long -o ./game_data.tar.zst
           ARCHIVE_SIZE=$(du -sh ./game_data.tar.zst | cut -f1)
           echo "Compressed archive: $ARCHIVE_SIZE"
@@ -275,7 +275,7 @@ jobs:
           # fails with OutOfMemoryError for files exceeding Integer.MAX_VALUE (~2.1GB).
           CHUNK_SIZE=$((1024 * 1024 * 1024))
           mkdir -p ./game_data_chunks
-          split -b $CHUNK_SIZE -d --additional-suffix=.zst ./game_data.tar.zst ./game_data_chunks/game_data_part_
+          split -b $CHUNK_SIZE -d --suffix-length=3 --additional-suffix=.zst ./game_data.tar.zst ./game_data_chunks/game_data_part_
           rm ./game_data.tar.zst
           NUM_CHUNKS=$(ls ./game_data_chunks/game_data_part_*.zst | wc -l)
           echo "Split into $NUM_CHUNKS chunk(s)"
