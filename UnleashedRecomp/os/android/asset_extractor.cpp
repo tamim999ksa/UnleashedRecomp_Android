@@ -12,6 +12,9 @@
 #include <vector>
 #include <fstream>
 
+// Fallback multiplier when zstd frame header doesn't contain the decompressed size.
+static constexpr uint64_t ESTIMATED_COMPRESSION_RATIO = 3;
+
 // Minimal tar header (POSIX ustar)
 struct TarHeader
 {
@@ -202,8 +205,8 @@ bool ExtractEmbeddedGameData(
                 }
                 else
                 {
-                    LOGFN("Decompressed size unknown, estimating: {} bytes", totalCompressedSize * 3);
-                    tarData.reserve(totalCompressedSize * 3);
+                    LOGFN("Decompressed size unknown, estimating: {} bytes", totalCompressedSize * ESTIMATED_COMPRESSION_RATIO);
+                    tarData.reserve(totalCompressedSize * ESTIMATED_COMPRESSION_RATIO);
                 }
             }
         }
@@ -402,7 +405,7 @@ bool ExtractExternalGameData(
     std::vector<uint8_t> readBuf(READ_BUF_SIZE);
     std::vector<uint8_t> outBuf(OUT_BUF_SIZE);
     std::vector<uint8_t> tarData;
-    tarData.reserve(compressedSize * 3);
+    tarData.reserve(compressedSize * ESTIMATED_COMPRESSION_RATIO);
 
     while (inFile)
     {

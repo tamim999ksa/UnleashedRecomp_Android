@@ -445,6 +445,11 @@ jobs:
         run: |
           chmod +x gradlew
           export ANDROID_NDK_HOME=${ANDROID_SDK_ROOT}/ndk/29.0.14206865
+          # JVM tuning for GitHub-hosted runners (7GB RAM):
+          # -Xmx2048m: 2GB heap for asset processing (game data chunks can be ~1GB each)
+          # -XX:+UseSerialGC: minimize GC overhead in single-worker build
+          # -XX:Min/MaxHeapFreeRatio: aggressively release unused heap back to OS
+          # Daemon/parallel disabled to reduce memory footprint during native compilation
           export GRADLE_OPTS="-Xmx2048m -XX:+UseSerialGC -XX:MinHeapFreeRatio=20 -XX:MaxHeapFreeRatio=25 -Dorg.gradle.daemon=false -Dorg.gradle.parallel=false -Dorg.gradle.workers.max=1"
           ./gradlew assembleRelease --stacktrace --max-workers=1 --no-daemon
 
