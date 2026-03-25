@@ -27,11 +27,29 @@ std::filesystem::path BuildUserPath()
 
     CoTaskMemFree(knownPath);
 #elif defined(ANDROID)
-    char* prefPath = SDL_GetPrefPath("hedge-dev", "UnleashedRecomp");
-    if (prefPath)
+    // Prefer external storage so users can access game files via file manager.
+    // External path: /storage/emulated/0/Android/data/<package>/files/UnleashedRecomp/
+    const char* extPath = SDL_AndroidGetExternalStoragePath();
+    if (extPath)
     {
-        userPath = std::filesystem::path(prefPath);
-        SDL_free(prefPath);
+        userPath = std::filesystem::path(extPath) / USER_DIRECTORY;
+    }
+    else
+    {
+        // Fall back to internal storage if external is unavailable
+        char* prefPath = SDL_GetPrefPath("hedge-dev", "UnleashedRecomp");
+        if (prefPath)
+        {
+            userPath = std::filesystem::path(prefPath);
+            SDL_free(prefPath);
+        }
+    }
+
+    // Ensure the directory exists
+    if (!userPath.empty())
+    {
+        std::error_code ec;
+        std::filesystem::create_directories(userPath, ec);
     }
 #elif defined(__linux__) || defined(__APPLE__)
     const char* homeDir = getenv("HOME");

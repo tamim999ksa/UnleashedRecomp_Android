@@ -12,7 +12,7 @@ namespace Hedgehog::Base
         char aStr[];
 
         static SStringHolder* GetHolder(const char* in_pStr);
-        static SStringHolder* Make(const char* in_pStr);
+        static SStringHolder* Make(const char* in_pStr, size_t length);
 
         void AddRef();
         void Release();

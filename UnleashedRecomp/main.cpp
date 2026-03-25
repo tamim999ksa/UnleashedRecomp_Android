@@ -5,6 +5,7 @@
 #endif
 #ifdef __ANDROID__
 #include <os/android/perf_android.h>
+#include <os/android/asset_extractor.h>
 #endif
 #ifdef __x86_64__
 #include <cpuid.h>
@@ -487,6 +488,34 @@ void InitializeVideoBackend(const CommandLineOptions& options)
 bool RunInstallerIfNeeded(const CommandLineOptions& options, std::filesystem::path& modulePath)
 {
     bool isGameInstalled = Installer::checkGameInstall(GetGamePath(), modulePath);
+
+#ifdef __ANDROID__
+    // If game is not installed, try extracting embedded game data from APK assets.
+    if (!isGameInstalled && HasEmbeddedGameData())
+    {
+        LOGN("Game not installed but embedded data found, extracting...");
+        SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_INFORMATION, "Unleashed Recompiled",
+            "Extracting game data from APK...\nThis may take a few minutes on first launch.", nullptr);
+
+        if (ExtractEmbeddedGameData(GetGamePath()))
+        {
+            isGameInstalled = Installer::checkGameInstall(GetGamePath(), modulePath);
+            if (isGameInstalled)
+            {
+                LOGN("Embedded game data extracted successfully");
+            }
+            else
+            {
+                LOGN_ERROR("Extraction succeeded but game install check still fails");
+            }
+        }
+        else
+        {
+            LOGN_ERROR("Failed to extract embedded game data");
+        }
+    }
+#endif
+
     bool runInstallerWizard = options.ForceInstaller || options.ForceDLCInstaller || !isGameInstalled;
 
     if (runInstallerWizard)

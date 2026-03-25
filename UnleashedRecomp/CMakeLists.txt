@@ -109,6 +109,7 @@ set(UNLEASHED_RECOMP_OS_CXX_SOURCES
     "os/android/user_android.cpp"
     "os/android/version_android.cpp"
     "os/android/perf_android.cpp"
+    "os/android/asset_extractor.cpp"
 )
 
 set(UNLEASHED_RECOMP_CPU_CXX_SOURCES
@@ -318,6 +319,7 @@ target_link_libraries(UnleashedRecomp PRIVATE
     CURL::libcurl
     plume
     $<$<BOOL:${ANDROID}>:oboe>
+    $<$<BOOL:${ANDROID}>:android>
     log
 )
 
