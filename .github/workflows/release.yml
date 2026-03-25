@@ -297,7 +297,7 @@ jobs:
         run: |
           chmod +x gradlew
           export ANDROID_NDK_HOME=${ANDROID_SDK_ROOT}/ndk/29.0.14206865
-          export GRADLE_OPTS="-Xmx1536m -XX:+UseSerialGC -XX:MaxHeapFreeRatio=25 -Dorg.gradle.daemon=false -Dorg.gradle.parallel=false -Dorg.gradle.workers.max=1"
+          export GRADLE_OPTS="-Xmx1536m -XX:+UseSerialGC -XX:MinHeapFreeRatio=20 -XX:MaxHeapFreeRatio=25 -Dorg.gradle.daemon=false -Dorg.gradle.parallel=false -Dorg.gradle.workers.max=1"
           ./gradlew assembleRelease --stacktrace --max-workers=1 --no-daemon
 
       - name: Build Linux
