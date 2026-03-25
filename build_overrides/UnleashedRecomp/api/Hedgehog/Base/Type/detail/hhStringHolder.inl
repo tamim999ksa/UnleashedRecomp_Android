@@ -7,12 +7,12 @@ namespace Hedgehog::Base
 
     inline SStringHolder* SStringHolder::Make(const char* in_pStr, size_t length)
     {
-        size_t allocSize = sizeof(RefCount) + length + 1;
+        constexpr size_t overhead = sizeof(RefCount) + 1;
 
-        if (allocSize < length || allocSize > UINT32_MAX)
+        if (length > UINT32_MAX - overhead)
             return nullptr;
 
-        auto pHolder = (SStringHolder*)__HH_ALLOC((uint32_t)allocSize);
+        auto pHolder = (SStringHolder*)__HH_ALLOC((uint32_t)(overhead + length));
 
         if (!pHolder)
             return nullptr;
