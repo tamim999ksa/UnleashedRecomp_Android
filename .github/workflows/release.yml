@@ -194,12 +194,12 @@ jobs:
           retention-days: 1
 
       - name: Install zstd
-        if: steps.check-assets.outputs.has_assets == 'true' && inputs.embed_game_files == true && (inputs.os == 'android' || inputs.os == '')
+        if: steps.check-assets.outputs.has_assets == 'true' && (inputs.os == 'android' || inputs.os == '')
         run: sudo apt-get install -y zstd
 
-      - name: Package Game Data for Embedding
+      - name: Package Game Data
         id: package-game-data
-        if: steps.check-assets.outputs.has_assets == 'true' && inputs.embed_game_files == true && (inputs.os == 'android' || inputs.os == '')
+        if: steps.check-assets.outputs.has_assets == 'true' && (inputs.os == 'android' || inputs.os == '')
         run: |
           echo "=== Organizing game files into install structure ==="
           PRIVATE="./UnleashedRecompLib/private"
@@ -270,29 +270,41 @@ jobs:
           ARCHIVE_SIZE=$(du -sh ./game_data.tar.zst | cut -f1)
           echo "Compressed archive: $ARCHIVE_SIZE"
 
+          echo "has_game_data=true" >> $GITHUB_OUTPUT
+
+          # Cleanup staging to free disk
+          rm -rf "$GAME_DATA"
+
+      - name: Split Game Data for APK Embedding
+        id: split-game-data
+        if: steps.package-game-data.outputs.has_game_data == 'true' && inputs.embed_game_files == true
+        run: |
           # Split into <1GB chunks to avoid Java's 2GB array size limit during APK packaging.
           # Gradle's CompressAssetsWorkAction reads each asset file into a byte array, which
           # fails with OutOfMemoryError for files exceeding Integer.MAX_VALUE (~2.1GB).
           CHUNK_SIZE=$((1024 * 1024 * 1024))
           mkdir -p ./game_data_chunks
           split -b $CHUNK_SIZE -d --suffix-length=3 --additional-suffix=.zst ./game_data.tar.zst ./game_data_chunks/game_data_part_
-          rm ./game_data.tar.zst
           NUM_CHUNKS=$(ls ./game_data_chunks/game_data_part_*.zst | wc -l)
           echo "Split into $NUM_CHUNKS chunk(s)"
           ls -lh ./game_data_chunks/
 
-          echo "has_game_data=true" >> $GITHUB_OUTPUT
-
-          # Cleanup staging
-          rm -rf "$GAME_DATA"
-
-      - name: Upload Game Data Archive
-        if: steps.package-game-data.outputs.has_game_data == 'true'
+      - name: Upload Game Data Chunks (for APK embedding)
+        if: steps.split-game-data.outcome == 'success'
         uses: actions/upload-artifact@v4
         with:
           name: game-data-archive
           path: ./game_data_chunks/
           retention-days: 1
+          compression-level: 0
+
+      - name: Upload Game Data (standalone sideload archive)
+        if: steps.package-game-data.outputs.has_game_data == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: UnleashedRecomp-GameData
+          path: ./game_data.tar.zst
+          retention-days: 7
           compression-level: 0
 
   build:
@@ -398,14 +410,14 @@ jobs:
           free -h
 
       - name: Embed Game Data in APK Assets
-        if: env.OS == 'android' && needs.prepare-assets.outputs.has_game_data == 'true'
+        if: env.OS == 'android' && needs.prepare-assets.outputs.has_game_data == 'true' && inputs.embed_game_files == true
         uses: actions/download-artifact@v4
         with:
           name: game-data-archive
           path: ./android/app/src/main/assets/
 
       - name: Verify Embedded Assets
-        if: env.OS == 'android' && needs.prepare-assets.outputs.has_game_data == 'true'
+        if: env.OS == 'android' && needs.prepare-assets.outputs.has_game_data == 'true' && inputs.embed_game_files == true
         run: |
           ASSET_DIR="./android/app/src/main/assets"
           CHUNKS=$(find "$ASSET_DIR" -name "game_data_part_*.zst" 2>/dev/null | sort)

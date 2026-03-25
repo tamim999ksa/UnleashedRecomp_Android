@@ -514,6 +514,32 @@ bool RunInstallerIfNeeded(const CommandLineOptions& options, std::filesystem::pa
             LOGN_ERROR("Failed to extract embedded game data");
         }
     }
+
+    // If still not installed, check for a sideloaded game_data.tar.zst in the game directory.
+    // The user can copy this file from the workflow's game-data artifact.
+    if (!isGameInstalled && HasExternalGameData(GetGamePath()))
+    {
+        LOGN("Game not installed but external game data archive found, extracting...");
+        SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_INFORMATION, "Unleashed Recompiled",
+            "Extracting game data from archive...\nThis may take a few minutes on first launch.", nullptr);
+
+        if (ExtractExternalGameData(GetGamePath()))
+        {
+            isGameInstalled = Installer::checkGameInstall(GetGamePath(), modulePath);
+            if (isGameInstalled)
+            {
+                LOGN("External game data extracted successfully");
+            }
+            else
+            {
+                LOGN_ERROR("External extraction succeeded but game install check still fails");
+            }
+        }
+        else
+        {
+            LOGN_ERROR("Failed to extract external game data");
+        }
+    }
 #endif
 
     bool runInstallerWizard = options.ForceInstaller || options.ForceDLCInstaller || !isGameInstalled;

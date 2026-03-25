@@ -350,4 +350,191 @@ bool ExtractEmbeddedGameData(
     return filesExtracted > 0;
 }
 
+// ---------------------------------------------------------------------------
+// External (sideloaded) game data: user copies game_data.tar.zst to game path
+// ---------------------------------------------------------------------------
+
+static const char* EXTERNAL_ARCHIVE_NAME = "game_data.tar.zst";
+
+bool HasExternalGameData(const std::filesystem::path& gamePath)
+{
+    return std::filesystem::exists(gamePath / EXTERNAL_ARCHIVE_NAME);
+}
+
+bool ExtractExternalGameData(
+    const std::filesystem::path& gamePath,
+    const std::function<bool(uint64_t, uint64_t)>& progressCallback)
+{
+    std::filesystem::path archivePath = gamePath / EXTERNAL_ARCHIVE_NAME;
+    if (!std::filesystem::exists(archivePath))
+    {
+        LOGN("No external game data archive found");
+        return false;
+    }
+
+    std::error_code ec;
+    uint64_t compressedSize = std::filesystem::file_size(archivePath, ec);
+    if (ec || compressedSize == 0)
+    {
+        LOGN_ERROR("Failed to get external archive size");
+        return false;
+    }
+    LOGFN("Found external game data archive: {} bytes", compressedSize);
+
+    // Streaming decompression from file
+    ZSTD_DCtx* dctx = ZSTD_createDCtx();
+    if (!dctx)
+    {
+        LOGN_ERROR("Failed to create zstd decompression context");
+        return false;
+    }
+
+    std::ifstream inFile(archivePath, std::ios::binary);
+    if (!inFile.is_open())
+    {
+        LOGN_ERROR("Failed to open external archive");
+        ZSTD_freeDCtx(dctx);
+        return false;
+    }
+
+    constexpr size_t READ_BUF_SIZE = 4 * 1024 * 1024;
+    constexpr size_t OUT_BUF_SIZE = 4 * 1024 * 1024;
+    std::vector<uint8_t> readBuf(READ_BUF_SIZE);
+    std::vector<uint8_t> outBuf(OUT_BUF_SIZE);
+    std::vector<uint8_t> tarData;
+    tarData.reserve(compressedSize * 3);
+
+    while (inFile)
+    {
+        inFile.read(reinterpret_cast<char*>(readBuf.data()), READ_BUF_SIZE);
+        size_t bytesRead = inFile.gcount();
+        if (bytesRead == 0)
+            break;
+
+        ZSTD_inBuffer input = { readBuf.data(), bytesRead, 0 };
+        while (input.pos < input.size)
+        {
+            ZSTD_outBuffer output = { outBuf.data(), outBuf.size(), 0 };
+            size_t ret = ZSTD_decompressStream(dctx, &output, &input);
+            if (ZSTD_isError(ret))
+            {
+                LOGFN_ERROR("Zstd decompression error: {}", ZSTD_getErrorName(ret));
+                ZSTD_freeDCtx(dctx);
+                return false;
+            }
+
+            tarData.insert(tarData.end(), outBuf.data(), outBuf.data() + output.pos);
+        }
+    }
+
+    inFile.close();
+    ZSTD_freeDCtx(dctx);
+
+    LOGFN("Decompressed tar data: {} bytes", tarData.size());
+
+    // Parse tar archive and extract files (same logic as embedded path)
+    const uint64_t totalSize = tarData.size();
+    uint64_t bytesProcessed = 0;
+    size_t offset = 0;
+    uint32_t filesExtracted = 0;
+    int consecutiveZeroBlocks = 0;
+
+    while (offset + sizeof(TarHeader) <= tarData.size())
+    {
+        if (IsZeroBlock(reinterpret_cast<const char*>(tarData.data() + offset), 512))
+        {
+            consecutiveZeroBlocks++;
+            if (consecutiveZeroBlocks >= 2)
+                break;
+
+            offset += 512;
+            continue;
+        }
+        consecutiveZeroBlocks = 0;
+
+        const TarHeader& header = *reinterpret_cast<const TarHeader*>(tarData.data() + offset);
+        offset += 512;
+
+        if (strncmp(header.magic, "ustar", 5) != 0)
+        {
+            LOGFN_ERROR("Invalid tar header magic at offset {}", offset - 512);
+            return false;
+        }
+
+        std::string relativePath = BuildFullPath(header);
+        uint64_t fileSize = ParseOctal(header.size, sizeof(header.size));
+
+        if (relativePath.empty() || relativePath == "." || relativePath == "./")
+        {
+            offset += ((fileSize + 511) / 512) * 512;
+            bytesProcessed = offset;
+            continue;
+        }
+
+        std::filesystem::path fullPath = gamePath / relativePath;
+
+        if (header.typeflag == '5')
+        {
+            std::error_code dirEc;
+            std::filesystem::create_directories(fullPath, dirEc);
+            if (dirEc)
+            {
+                LOGFN_ERROR("Failed to create directory: {} ({})", fullPath.string(), dirEc.message());
+            }
+        }
+        else if (header.typeflag == '0' || header.typeflag == '\0')
+        {
+            if (offset + fileSize > tarData.size())
+            {
+                LOGFN_ERROR("Tar file truncated: {} needs {} bytes at offset {}",
+                    relativePath, fileSize, offset);
+                return false;
+            }
+
+            std::error_code dirEc;
+            std::filesystem::create_directories(fullPath.parent_path(), dirEc);
+
+            std::ofstream outFile(fullPath, std::ios::binary);
+            if (!outFile.is_open())
+            {
+                LOGFN_ERROR("Failed to create file: {}", fullPath.string());
+                return false;
+            }
+
+            outFile.write(reinterpret_cast<const char*>(tarData.data() + offset), fileSize);
+            outFile.close();
+            filesExtracted++;
+
+            offset += ((fileSize + 511) / 512) * 512;
+        }
+        else
+        {
+            offset += ((fileSize + 511) / 512) * 512;
+        }
+
+        bytesProcessed = offset;
+
+        if (progressCallback && !progressCallback(bytesProcessed, totalSize))
+        {
+            LOGN("Asset extraction cancelled by user");
+            return false;
+        }
+    }
+
+    LOGFN("Extracted {} files from external game data", filesExtracted);
+
+    // Delete archive after successful extraction to free space
+    if (filesExtracted > 0)
+    {
+        std::error_code rmEc;
+        std::filesystem::remove(archivePath, rmEc);
+        if (!rmEc)
+        {
+            LOGN("Deleted external archive after successful extraction");
+        }
+    }
+
+    return filesExtracted > 0;
+}
+
 #endif
