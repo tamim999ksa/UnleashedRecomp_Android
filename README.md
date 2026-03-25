@@ -64,48 +64,134 @@ This fork has been optimized and modernized, still WIP so expect build to break.
 
 ## 🚀 Installation & Build Guide
 
-### 🌐 GitHub Actions
-Build for any platform without local setup:
-1.  **Fork** this repository.
-2.  Go to the **Actions** tab -> **Release** workflow -> **Run workflow**.
-3.  Select your target OS (**Android, Windows, or Linux**).
-4.  **Dynamic Asset Ingestion:** Provide URLs for your assets (**ZIP, RAR, 7Z, ISO, or XEX**) — the CI extracts and prepares them automatically!
+### 🌐 GitHub Actions (Recommended — No Local Setup Required)
 
-### 💻 Manual Build
+The **Release** workflow builds the APK (and optionally packages game data) entirely in the cloud.
 
-#### 📦 Prerequisites (Common)
-- `cmake` (3.22+), `git`, `ninja-build`, `libtbb-dev`.
-- **Android:** Android SDK, **NDK 29.0.14206865**, **Java 17**.
-- **Windows:** **Visual Studio 2022** with **Clang-cl** and **LLVM 18+**.
-- **Linux:** `gcc-13` / `g++-13` and Vulkan SDK.
+1. **Fork** this repository.
+2. Go to the **Actions** tab → **Release** workflow → **Run workflow**.
+3. Choose **Target OS** (Android, Windows, or Linux).
+4. Provide your **game data URLs**:
+   - **game\_url** *(required)*: URL to your game disc (ISO, XEX, ZIP, 7Z, or RAR).
+   - **update\_url** *(optional)*: URL for the title update (default.xexp).
+   - **dlc\_url** *(optional)*: URL for shader.ar (shader data).
+5. Choose a **delivery mode** via the `embed_game_files` checkbox:
+
+#### Delivery Mode A — Embedded (default ✅)
+- Game data is compressed and baked directly into the APK.
+- **Result:** One large APK file (~3-6 GB). Install and play — no extra steps on device.
+
+#### Delivery Mode B — Sideloaded (uncheck `embed_game_files`)
+- Game data is packaged as a separate downloadable archive.
+- **Result:** Two artifacts:
+  - `UnleashedRecomp-Android-APK` — small APK (~50 MB)
+  - `UnleashedRecomp-GameData` — `game_data.tar.zst` archive (~3-5 GB compressed)
+- **Setup on device:**
+  1. Install the APK.
+  2. Launch the app once (it creates the game directory).
+  3. Download the `UnleashedRecomp-GameData` artifact from GitHub Actions and extract the zip.
+  4. Copy `game_data.tar.zst` to the game directory on your device:
+     ```
+     /Android/data/com.hedge_dev.UnleashedRecomp/files/UnleashedRecomp/
+     ```
+  5. Launch the app — it auto-detects the archive, extracts all game files, then deletes the archive to free space.
+
+> [!TIP]
+> On Android, use a file manager that can access `/Android/data/` (e.g., MT Manager, MiXplorer, or `adb push`).
+
+---
+
+### 💻 Manual Build (Local)
+
+#### 📦 Prerequisites
+
+| Tool | Android | Linux | Windows |
+| :--- | :--- | :--- | :--- |
+| **CMake** | 3.22+ | 3.22+ | 3.22+ |
+| **Git** | ✅ | ✅ | ✅ |
+| **Ninja** | ✅ | `ninja-build` | via VS |
+| **C++ Compiler** | NDK provides | `gcc-13` / `g++-13` | **Visual Studio 2022** + Clang-cl + LLVM 18+ |
+| **Java** | JDK 17 | — | — |
+| **Android SDK** | ✅ | — | — |
+| **Android NDK** | **29.0.14206865** | — | — |
+| **p7zip** | `p7zip-full` | `p7zip-full` | — |
+| **TBB** | — | `libtbb-dev` | — |
+| **libcurl** | — | `libcurl4-openssl-dev` | — |
+| **patchelf** | — | `patchelf` | — |
+| **Vulkan SDK** | — | ✅ | — |
 
 #### 🛠️ Build Steps
 
-##### **Windows**
-```powershell
-cmake --preset x64-Clang-Release
-cmake --build out/build/x64-Clang-Release --config Release --parallel
+##### **Android**
+```bash
+# 1. Place your game assets in a `private/` folder at the repo root:
+#    private/default.xex   (game executable)
+#    private/default.xexp   (title update patch)
+#    private/shader.ar      (shader archive)
+#    private/<any>.iso      (game disc - extracted automatically)
+#    The build script handles all extraction and normalization automatically.
+
+# 2. Install Linux build dependencies:
+sudo apt-get install -y cmake build-essential ninja-build p7zip-full \
+    libtbb-dev libcurl4-openssl-dev patchelf
+
+# 3. Set NDK path (REQUIRED: version 29.0.14206865)
+export ANDROID_NDK_HOME=/path/to/android-sdk/ndk/29.0.14206865
+
+# 4. Run the full build (builds host tools + applies patches + compiles APK)
+chmod +x ./build_android.sh && ./build_android.sh
+
+# The APK will be at: android/app/build/outputs/apk/debug/app-debug.apk
 ```
 
 ##### **Linux**
 ```bash
-cmake --preset linux-release
-cmake --build out/build/linux-release --config Release --parallel
+# 1. Install dependencies
+sudo apt-get install -y cmake build-essential ninja-build gcc-13 g++-13 \
+    libtbb-dev libcurl4-openssl-dev patchelf p7zip-full
 
-# Optional Flatpak
-flatpak-builder --user --install --force-clean build flatpak/io.github.hedge_dev.unleashedrecomp.json
-```
-
-##### **Android**
-```bash
-# 1. Build host-side tools first
+# 2. Place game assets in private/ and build host tools
 chmod +x ./build_tools.sh && ./build_tools.sh
 
-# 2. Set NDK path (REQUIRED: 29.0.14206865)
-export ANDROID_NDK_HOME=/path/to/android-sdk/ndk/29.0.14206865
+# 3. Apply patches
+chmod +x ./apply_patches.sh && ./apply_patches.sh
 
-# 3. Compile the APK
-chmod +x ./build_android.sh && ./build_android.sh
+# 4. Build
+mkdir -p build_linux && cd build_linux
+cmake .. -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_TOOLCHAIN_FILE="../thirdparty/vcpkg/scripts/buildsystems/vcpkg.cmake" \
+    -DHOST_TOOLS_DIR="../build_tools/bin"
+cmake --build . --config Release --parallel $(nproc)
+```
+
+##### **Windows**
+```powershell
+# Requires Visual Studio 2022 with Clang-cl and LLVM 18+
+cmake --preset x64-Clang-Release
+cmake --build out/build/x64-Clang-Release --config Release --parallel
+```
+
+---
+
+## 📂 Game Data Structure
+
+On Android, game files are stored at:
+```
+/Android/data/com.hedge_dev.UnleashedRecomp/files/UnleashedRecomp/
+```
+
+The required directory structure under the game path:
+```
+UnleashedRecomp/
+├── game/                    # Base game files
+│   ├── default.xex          # Original game executable
+│   ├── *.ar.00, *.ar.01...  # Game archives (levels, models, textures)
+│   ├── *.arl                # Archive lists
+│   └── voices/              # Voice data
+├── update/
+│   └── default.xexp         # Title update patch
+└── patched/
+    └── default.xex          # Patched executable (auto-generated at first launch)
 ```
 
 ---
