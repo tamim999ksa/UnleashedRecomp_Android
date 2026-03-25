@@ -259,6 +259,15 @@ jobs:
           chmod +x ./apply_patches.sh
           ./apply_patches.sh
 
+      - name: Setup Swap Space
+        if: env.OS == 'android'
+        run: |
+          sudo fallocate -l 8G /swapfile
+          sudo chmod 600 /swapfile
+          sudo mkswap /swapfile
+          sudo swapon /swapfile
+          free -h
+
       - name: Build APK (Android)
         if: env.OS == 'android'
         working-directory: android
@@ -267,7 +276,7 @@ jobs:
         run: |
           chmod +x gradlew
           export ANDROID_NDK_HOME=${ANDROID_SDK_ROOT}/ndk/29.0.14206865
-          export GRADLE_OPTS="-Xmx4096m -Dorg.gradle.daemon=false -Dorg.gradle.parallel=true -Dorg.gradle.workers.max=1"
+          export GRADLE_OPTS="-Xmx2048m -Dorg.gradle.daemon=false -Dorg.gradle.parallel=false -Dorg.gradle.workers.max=1"
           ./gradlew assembleRelease --stacktrace --max-workers=1 --no-daemon
 
       - name: Build Linux
