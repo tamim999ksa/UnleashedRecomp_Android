@@ -16,7 +16,7 @@ on:
           - windows
         default: 'android'
       game_url:
-        description: 'URL for game data (ISO/XEX/ZIP/7Z/RAR)'
+        description: 'URL for game data (ISO/XEX/ZIP/7Z/RAR) - always required for compilation'
         required: true
         type: string
       update_url:
@@ -28,7 +28,7 @@ on:
         required: false
         type: string
       embed_game_files:
-        description: 'Embed game files in APK (no manual copy needed)'
+        description: 'Embed game files in APK (no manual file copy needed on device, increases APK size)'
         required: false
         type: boolean
         default: true
