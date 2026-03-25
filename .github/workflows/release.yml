@@ -249,6 +249,12 @@ jobs:
         if: env.OS == 'android'
         run: echo y | sdkmanager "ndk;29.0.14206865"
 
+      - name: Trim Android SDK
+        if: env.OS == 'android'
+        run: |
+          rm -rf "$ANDROID_SDK_ROOT/emulator" || true
+          df -h
+
       - name: Bootstrap vcpkg
         if: env.OS == 'android' || env.OS == 'linux'
         run: ./thirdparty/vcpkg/bootstrap-vcpkg.sh
@@ -279,6 +285,8 @@ jobs:
           sudo chmod 600 /swapfile
           sudo mkswap /swapfile
           sudo swapon /swapfile
+          sudo sysctl -w vm.swappiness=100
+          sudo sysctl -w vm.overcommit_memory=1
           free -h
 
       - name: Build APK (Android)
@@ -289,7 +297,7 @@ jobs:
         run: |
           chmod +x gradlew
           export ANDROID_NDK_HOME=${ANDROID_SDK_ROOT}/ndk/29.0.14206865
-          export GRADLE_OPTS="-Xmx2048m -Dorg.gradle.daemon=false -Dorg.gradle.parallel=false -Dorg.gradle.workers.max=1"
+          export GRADLE_OPTS="-Xmx1536m -XX:+UseSerialGC -XX:MaxHeapFreeRatio=25 -Dorg.gradle.daemon=false -Dorg.gradle.parallel=false -Dorg.gradle.workers.max=1"
           ./gradlew assembleRelease --stacktrace --max-workers=1 --no-daemon
 
       - name: Build Linux

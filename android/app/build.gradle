@@ -24,7 +24,9 @@ android {
                           "-DANDROID_LD=lld",
                           "-DANDROID_LTO=ON", "-DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON",
                           "-DCMAKE_SHARED_LINKER_FLAGS=-Wl,--thinlto-jobs=1",
-                          "-DCMAKE_EXE_LINKER_FLAGS=-Wl,--thinlto-jobs=1"
+                          "-DCMAKE_EXE_LINKER_FLAGS=-Wl,--thinlto-jobs=1",
+                          "-DCMAKE_JOB_POOLS:STRING=compile=3",
+                          "-DCMAKE_JOB_POOL_COMPILE=compile"
             }
         }
         ndk {
