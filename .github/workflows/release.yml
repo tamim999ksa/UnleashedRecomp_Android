@@ -16,7 +16,7 @@ on:
           - windows
         default: 'android'
       game_url:
-        description: 'URL for game data (ISO/XEX/ZIP/7Z/RAR)'
+        description: 'URL for game data (ISO/XEX/ZIP/7Z/RAR) - always required for compilation'
         required: true
         type: string
       update_url:
@@ -28,7 +28,7 @@ on:
         required: false
         type: string
       embed_game_files:
-        description: 'Embed game files in APK (no manual copy needed)'
+        description: 'Embed game files in APK (no manual file copy needed on device, increases APK size)'
         required: false
         type: boolean
         default: true
@@ -194,12 +194,12 @@ jobs:
           retention-days: 1
 
       - name: Install zstd
-        if: steps.check-assets.outputs.has_assets == 'true' && inputs.embed_game_files == true && (inputs.os == 'android' || inputs.os == '')
+        if: steps.check-assets.outputs.has_assets == 'true' && (inputs.os == 'android' || inputs.os == '')
         run: sudo apt-get install -y zstd
 
-      - name: Package Game Data for Embedding
+      - name: Package Game Data
         id: package-game-data
-        if: steps.check-assets.outputs.has_assets == 'true' && inputs.embed_game_files == true && (inputs.os == 'android' || inputs.os == '')
+        if: steps.check-assets.outputs.has_assets == 'true' && (inputs.os == 'android' || inputs.os == '')
         run: |
           echo "=== Organizing game files into install structure ==="
           PRIVATE="./UnleashedRecompLib/private"
@@ -265,23 +265,49 @@ jobs:
           GAME_DIR_SIZE=$(du -sh "$GAME_DATA" | cut -f1)
           echo "Game data: $GAME_FILE_COUNT files, $GAME_DIR_SIZE total"
 
-          # Create tar archive and compress with zstd (level 10 for good ratio, -T0 for multithreaded)
-          tar cf - -C "$GAME_DATA" . | zstd -T0 -3 --long -o ./game_data.tar.zst
+          # Create tar archive and compress with zstd.
+          # -T0: use all CPU cores for multithreaded compression
+          # -19: maximum standard compression (smallest archive; decompression speed is identical at any level)
+          # --long: enable long-range matching for better ratio on large archives
+          tar cf - -C "$GAME_DATA" . | zstd -T0 -19 --long -o ./game_data.tar.zst
           ARCHIVE_SIZE=$(du -sh ./game_data.tar.zst | cut -f1)
           echo "Compressed archive: $ARCHIVE_SIZE"
 
           echo "has_game_data=true" >> $GITHUB_OUTPUT
 
-          # Cleanup staging
+          # Cleanup staging to free disk
           rm -rf "$GAME_DATA"
 
-      - name: Upload Game Data Archive
-        if: steps.package-game-data.outputs.has_game_data == 'true'
+      - name: Split Game Data for APK Embedding
+        id: split-game-data
+        if: steps.package-game-data.outputs.has_game_data == 'true' && inputs.embed_game_files == true
+        run: |
+          # Split into <1GB chunks to avoid Java's 2GB array size limit during APK packaging.
+          # Gradle's CompressAssetsWorkAction reads each asset file into a byte array, which
+          # fails with OutOfMemoryError for files exceeding Integer.MAX_VALUE (~2.1GB).
+          CHUNK_SIZE=$((1024 * 1024 * 1024))
+          mkdir -p ./game_data_chunks
+          split -b $CHUNK_SIZE -d --suffix-length=3 --additional-suffix=.zst ./game_data.tar.zst ./game_data_chunks/game_data_part_
+          NUM_CHUNKS=$(ls ./game_data_chunks/game_data_part_*.zst | wc -l)
+          echo "Split into $NUM_CHUNKS chunk(s)"
+          ls -lh ./game_data_chunks/
+
+      - name: Upload Game Data Chunks (for APK embedding)
+        if: steps.split-game-data.outcome == 'success'
         uses: actions/upload-artifact@v4
         with:
           name: game-data-archive
-          path: ./game_data.tar.zst
+          path: ./game_data_chunks/
           retention-days: 1
+          compression-level: 0
+
+      - name: Upload Game Data (standalone sideload archive)
+        if: steps.package-game-data.outputs.has_game_data == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: UnleashedRecomp-GameData
+          path: ./game_data.tar.zst
+          retention-days: 7
           compression-level: 0
 
   build:
@@ -291,7 +317,7 @@ jobs:
     runs-on: ${{ (inputs.os == 'windows') && 'windows-latest' || 'ubuntu-24.04' }}
     env:
       OS: ${{ inputs.os || 'android' }}
-      CMAKE_BUILD_PARALLEL_LEVEL: 1
+      CMAKE_BUILD_PARALLEL_LEVEL: 2
     defaults:
       run:
         shell: bash
@@ -387,33 +413,44 @@ jobs:
           free -h
 
       - name: Embed Game Data in APK Assets
-        if: env.OS == 'android' && needs.prepare-assets.outputs.has_game_data == 'true'
+        if: env.OS == 'android' && needs.prepare-assets.outputs.has_game_data == 'true' && inputs.embed_game_files == true
         uses: actions/download-artifact@v4
         with:
           name: game-data-archive
           path: ./android/app/src/main/assets/
 
       - name: Verify Embedded Assets
-        if: env.OS == 'android' && needs.prepare-assets.outputs.has_game_data == 'true'
+        if: env.OS == 'android' && needs.prepare-assets.outputs.has_game_data == 'true' && inputs.embed_game_files == true
         run: |
-          ASSET_FILE="./android/app/src/main/assets/game_data.tar.zst"
-          if [ -f "$ASSET_FILE" ]; then
-            ASSET_SIZE=$(du -sh "$ASSET_FILE" | cut -f1)
-            echo "Embedded game data archive: $ASSET_SIZE"
+          ASSET_DIR="./android/app/src/main/assets"
+          CHUNKS=$(find "$ASSET_DIR" -name "game_data_part_*.zst" 2>/dev/null | sort)
+          if [ -n "$CHUNKS" ]; then
+            TOTAL_SIZE=0
+            for chunk in $CHUNKS; do
+              CHUNK_SIZE=$(stat -c%s "$chunk")
+              TOTAL_SIZE=$((TOTAL_SIZE + CHUNK_SIZE))
+              echo "Chunk: $(basename $chunk) - $(du -sh $chunk | cut -f1)"
+            done
+            echo "Total embedded game data: $(echo $CHUNKS | wc -w) chunk(s), $((TOTAL_SIZE / 1024 / 1024))MB"
+          elif [ -f "$ASSET_DIR/game_data.tar.zst" ]; then
+            echo "Embedded game data (single file): $(du -sh $ASSET_DIR/game_data.tar.zst | cut -f1)"
           else
-            echo "Warning: game_data.tar.zst not found in assets"
+            echo "Warning: No game data chunks found in assets"
           fi
           df -h
 
       - name: Build APK (Android)
         if: env.OS == 'android'
         working-directory: android
-        env:
-          CMAKE_BUILD_PARALLEL_LEVEL: 1
         run: |
           chmod +x gradlew
           export ANDROID_NDK_HOME=${ANDROID_SDK_ROOT}/ndk/29.0.14206865
-          export GRADLE_OPTS="-Xmx1536m -XX:+UseSerialGC -XX:MinHeapFreeRatio=20 -XX:MaxHeapFreeRatio=25 -Dorg.gradle.daemon=false -Dorg.gradle.parallel=false -Dorg.gradle.workers.max=1"
+          # JVM tuning for GitHub-hosted runners (7GB RAM):
+          # -Xmx2048m: 2GB heap for asset processing (game data chunks can be ~1GB each)
+          # -XX:+UseSerialGC: minimize GC overhead in single-worker build
+          # -XX:Min/MaxHeapFreeRatio: aggressively release unused heap back to OS
+          # Daemon/parallel disabled to reduce memory footprint during native compilation
+          export GRADLE_OPTS="-Xmx2048m -XX:+UseSerialGC -XX:MinHeapFreeRatio=20 -XX:MaxHeapFreeRatio=25 -Dorg.gradle.daemon=false -Dorg.gradle.parallel=false -Dorg.gradle.workers.max=1"
           ./gradlew assembleRelease --stacktrace --max-workers=1 --no-daemon
 
       - name: Build Linux
