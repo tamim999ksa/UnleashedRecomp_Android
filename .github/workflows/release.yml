@@ -265,8 +265,11 @@ jobs:
           GAME_DIR_SIZE=$(du -sh "$GAME_DATA" | cut -f1)
           echo "Game data: $GAME_FILE_COUNT files, $GAME_DIR_SIZE total"
 
-          # Create tar archive and compress with zstd (-T0 for multithreaded, level 3 balances speed and ratio)
-          tar cf - -C "$GAME_DATA" . | zstd -T0 -3 --long -o ./game_data.tar.zst
+          # Create tar archive and compress with zstd.
+          # -T0: use all CPU cores for multithreaded compression
+          # -10: high compression (smaller download, same decompression speed as any level)
+          # --long: enable long-range matching for better ratio on large archives
+          tar cf - -C "$GAME_DATA" . | zstd -T0 -10 --long -o ./game_data.tar.zst
           ARCHIVE_SIZE=$(du -sh ./game_data.tar.zst | cut -f1)
           echo "Compressed archive: $ARCHIVE_SIZE"
 
