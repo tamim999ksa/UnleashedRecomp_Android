@@ -56,6 +56,10 @@ android {
             }
         }
     }
+    // Don't compress already-compressed game data archive inside the APK
+    androidResources {
+        noCompress 'zst'
+    }
     externalNativeBuild {
         cmake {
             path "../../CMakeLists.txt"

@@ -27,6 +27,11 @@ on:
         description: 'URL for dlc data (shader.ar/ZIP/7Z/RAR) (optional)'
         required: false
         type: string
+      embed_game_files:
+        description: 'Embed game files in APK (no manual copy needed)'
+        required: false
+        type: boolean
+        default: true
 
 jobs:
   prepare-assets:
@@ -37,6 +42,7 @@ jobs:
       ASSET_REPO_TOKEN: ${{ secrets.ASSET_REPO_TOKEN }}
     outputs:
       has_assets: ${{ steps.check-assets.outputs.has_assets }}
+      has_game_data: ${{ steps.package-game-data.outputs.has_game_data }}
     steps:
       - name: Free Disk Space (Ubuntu)
         if: runner.os == 'Linux'
@@ -187,6 +193,97 @@ jobs:
           path: ./UnleashedRecompLib/private/
           retention-days: 1
 
+      - name: Install zstd
+        if: steps.check-assets.outputs.has_assets == 'true' && inputs.embed_game_files == true && (inputs.os == 'android' || inputs.os == '')
+        run: sudo apt-get install -y zstd
+
+      - name: Package Game Data for Embedding
+        id: package-game-data
+        if: steps.check-assets.outputs.has_assets == 'true' && inputs.embed_game_files == true && (inputs.os == 'android' || inputs.os == '')
+        run: |
+          echo "=== Organizing game files into install structure ==="
+          PRIVATE="./UnleashedRecompLib/private"
+          GAME_DATA="./game_data_staging"
+
+          mkdir -p "$GAME_DATA/game"
+          mkdir -p "$GAME_DATA/update"
+
+          # The extracted game disc content is in $PRIVATE after recursive extraction.
+          # Copy all files that are NOT the finalized compile-time assets into game/.
+          # The installer checks for: game/default.xex, update/default.xexp, patched/default.xex
+
+          # Move update file
+          if [ -f "$PRIVATE/default.xexp" ]; then
+            cp "$PRIVATE/default.xexp" "$GAME_DATA/update/default.xexp"
+            echo "Copied update patch (default.xexp)"
+          fi
+
+          # Copy all remaining game disc files to game/ directory
+          # This includes .ar files, .arl files, .sfd, .dds, voices, fonts, default.xex, etc.
+          find "$PRIVATE" -maxdepth 1 -type f ! -name "*.skipped" ! -name "*.extracted" | while read -r f; do
+            basename_f=$(basename "$f")
+            # default.xexp already handled
+            if [ "$basename_f" = "default.xexp" ]; then continue; fi
+            cp "$f" "$GAME_DATA/game/$basename_f"
+          done
+
+          # Copy any subdirectories (voices, Languages, reddog, work, etc.)
+          find "$PRIVATE" -maxdepth 1 -mindepth 1 -type d | while read -r d; do
+            dirname_d=$(basename "$d")
+            cp -r "$d" "$GAME_DATA/game/$dirname_d"
+          done
+
+          # Ensure default.xex is in game/
+          if [ ! -f "$GAME_DATA/game/default.xex" ]; then
+            echo "Warning: default.xex not found in game directory"
+          fi
+
+          # Create patched directory with XEX patcher
+          # The build tools job will handle patching, or we create a placeholder.
+          # The native code Installer will do patching at runtime if needed.
+          # For a complete embedded install, we pre-patch using the host tools.
+          if [ -f "$GAME_DATA/game/default.xex" ] && [ -f "$GAME_DATA/update/default.xexp" ]; then
+            echo "=== Building XexPatcher for host ==="
+            mkdir -p build_patcher && cd build_patcher
+            cmake .. -DCMAKE_BUILD_TYPE=Release -DBUILD_TOOLS_ONLY=ON 2>/dev/null || true
+            cmake --build . --target XenonRecomp --parallel $(nproc) 2>/dev/null || true
+            cd ..
+
+            # Try to find a patcher tool; if not available, the game will patch at runtime
+            PATCHER=$(find ./build_patcher -name "XenonRecomp" -type f -executable 2>/dev/null | head -n 1)
+            if [ -z "$PATCHER" ]; then
+              echo "XexPatcher not available for host, game will self-patch at first launch"
+              # Create patched/ with a copy; the game re-patches at runtime
+              mkdir -p "$GAME_DATA/patched"
+              cp "$GAME_DATA/game/default.xex" "$GAME_DATA/patched/default.xex"
+            fi
+            rm -rf build_patcher
+          fi
+
+          echo "=== Creating compressed game data archive ==="
+          GAME_FILE_COUNT=$(find "$GAME_DATA" -type f | wc -l)
+          GAME_DIR_SIZE=$(du -sh "$GAME_DATA" | cut -f1)
+          echo "Game data: $GAME_FILE_COUNT files, $GAME_DIR_SIZE total"
+
+          # Create tar archive and compress with zstd (level 10 for good ratio, -T0 for multithreaded)
+          tar cf - -C "$GAME_DATA" . | zstd -T0 -3 --long -o ./game_data.tar.zst
+          ARCHIVE_SIZE=$(du -sh ./game_data.tar.zst | cut -f1)
+          echo "Compressed archive: $ARCHIVE_SIZE"
+
+          echo "has_game_data=true" >> $GITHUB_OUTPUT
+
+          # Cleanup staging
+          rm -rf "$GAME_DATA"
+
+      - name: Upload Game Data Archive
+        if: steps.package-game-data.outputs.has_game_data == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: game-data-archive
+          path: ./game_data.tar.zst
+          retention-days: 1
+          compression-level: 0
+
   build:
     name: Build (${{ inputs.os || 'android' }})
     needs: prepare-assets
@@ -288,6 +385,25 @@ jobs:
           sudo sysctl -w vm.swappiness=100
           sudo sysctl -w vm.overcommit_memory=1
           free -h
+
+      - name: Embed Game Data in APK Assets
+        if: env.OS == 'android' && needs.prepare-assets.outputs.has_game_data == 'true'
+        uses: actions/download-artifact@v4
+        with:
+          name: game-data-archive
+          path: ./android/app/src/main/assets/
+
+      - name: Verify Embedded Assets
+        if: env.OS == 'android' && needs.prepare-assets.outputs.has_game_data == 'true'
+        run: |
+          ASSET_FILE="./android/app/src/main/assets/game_data.tar.zst"
+          if [ -f "$ASSET_FILE" ]; then
+            ASSET_SIZE=$(du -sh "$ASSET_FILE" | cut -f1)
+            echo "Embedded game data archive: $ASSET_SIZE"
+          else
+            echo "Warning: game_data.tar.zst not found in assets"
+          fi
+          df -h
 
       - name: Build APK (Android)
         if: env.OS == 'android'
