@@ -107,7 +107,7 @@ jobs:
             if [ -z "$url" ]; then return 0; fi
             echo "::add-mask::${url}"
             # Use --content-disposition to preserve original filenames
-            wget --no-check-certificate --content-disposition --tries=3 --retry-connrefused --waitretry=5 -q -P ./UnleashedRecompLib/private/ "${url}"
+            wget --no-check-certificate --content-disposition --tries=10 --retry-connrefused --waitretry=10 --timeout=60 -q -P ./UnleashedRecompLib/private/ "${url}"
           }
 
           handle_url "$GAME_URL"
